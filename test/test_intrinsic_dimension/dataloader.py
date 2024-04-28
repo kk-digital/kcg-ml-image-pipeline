@@ -1,4 +1,3 @@
-import io
 import os
 import sys
 import requests
@@ -12,9 +11,8 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-from data_loader.utils import get_object
-from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
-from utility.path import separate_bucket_and_file_path
+from .utils import get_object
+from .utils import separate_bucket_and_file_path
 
 API_URL="http://192.168.3.1:8111"
 
@@ -58,7 +56,7 @@ class KandinskyDatasetLoader:
         for job in tqdm(jobs):
             try:
                 file_path= job['file_path']
-                bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
+                _, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
 
                 input_clip_path = file_path + "_embedding.msgpack"
@@ -82,7 +80,7 @@ class KandinskyDatasetLoader:
 
             try:
                 file_path= job['file_path']
-                bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
+                _, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
                 input_vae_path = file_path + "_vae_vae_latent.msgpack"
                 features_data = get_object(self.minio_client, input_vae_path)
