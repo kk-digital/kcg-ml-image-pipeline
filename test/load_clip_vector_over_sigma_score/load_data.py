@@ -66,6 +66,8 @@ def main():
         
         mmapped_array = data_loader.mmapped_array
 
+        mmapped_array.flush()
+
         with open(config_file, 'w') as file:
             json.dump({
                 'loaded-count': loaded_count,

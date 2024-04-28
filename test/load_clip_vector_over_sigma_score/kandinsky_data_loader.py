@@ -142,7 +142,6 @@ class KandinskyDatasetLoader:
                 file_path = os.path.splitext(input_file_path)[0]
 
                 input_clip_path = file_path + "_embedding.msgpack"
-                print("input_file_path = " + input_clip_path)
                 clip_data = get_object(self.minio_client, input_clip_path)
                 embedding_dict = ImageEmbedding.from_msgpack_bytes(clip_data)
                 input_clip_vector= embedding_dict.image_embedding
