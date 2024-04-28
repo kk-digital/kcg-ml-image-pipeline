@@ -67,7 +67,7 @@ class KandinskyDatasetLoader:
                 input_clip_path = file_path + "_embedding.msgpack"
                 print("input_file_path = " + input_clip_path)
                 clip_data = get_object(self.minio_client, input_clip_path)
-                input_clip_vector = msgpack.unpack(clip_data, object_hook=self.decode_ndarray, raw=False)["image_embedding"]
+                input_clip_vector = msgpack.unpackb(clip_data, object_hook=self.decode_ndarray, raw=False)["image_embedding"]
                 print(type(input_clip_vector))
                 feature_vectors.append(input_clip_vector)
             except Exception as e:
