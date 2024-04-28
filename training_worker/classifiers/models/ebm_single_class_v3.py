@@ -1824,7 +1824,7 @@ defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
                             learning_rate= 0.001)
 
 
-#defect_test.train_v2()
+defect_test.train_v2()
 
 
 defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
