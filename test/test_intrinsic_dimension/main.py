@@ -50,7 +50,7 @@ def load_featurs_data(minio_client, data_type, max_count, dataset):
 
     # get features data depends on data type
     if data_type == "clip":
-        featurs_data, _ = dataloader.load_clip_vector_data(limit=max_count)
+        featurs_data = dataloader.load_clip_vector_data(limit=max_count)
     elif data_type == "vae":
         featurs_data = dataloader.load_latents(limit=max_count)
     else:
