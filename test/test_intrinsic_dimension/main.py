@@ -24,9 +24,7 @@ from library_type import Library
 
 # load data loader for feature data
 from dataloader import KandinskyDatasetLoader
-from utility.minio import cmd
-
-
+from utils import get_minio_client
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -68,7 +66,7 @@ def main():
     args = parse_args()
 
     # get minio client
-    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+    minio_client = get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
@@ -81,7 +79,6 @@ def main():
     # max count of clip vectors for testing intrinsic dimension
     max_count = max(count_list) * 2
 
-    result = []
 
     with open("output/intrinsic_dimensions.result", mode='w', newline='') as file:
 
