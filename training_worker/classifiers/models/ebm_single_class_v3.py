@@ -1709,7 +1709,7 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
         bin_end = bins[bin_idx]
         # Map scores in each bin from +x to -x to 1 to -1
         mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
-        print(f'the bin {bin_idx} values is {mapping_function}')
+        
         mapping_functions.append(mapping_function)
 
     # Debugging prints
@@ -1723,6 +1723,7 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
             mapping_function = mapping_functions[bin_idx - 1]
             mapped_score = mapping_function(score)
             mapped_scores.append(mapped_score)
+            print(f'the bin {bin_idx} values is {mapped_score}')
         else:
             print(f"Invalid bin index: {bin_idx}")
 
