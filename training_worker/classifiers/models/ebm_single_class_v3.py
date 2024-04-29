@@ -1679,8 +1679,8 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     xs = ranks
     ys = scores
 
-    max_score = sorted_images_and_hashes[0][0]
-    min_score = sorted_images_and_hashes[number_of_samples-1][0]
+    max_score = sorted_images_and_hashes[0][2]
+    min_score = sorted_images_and_hashes[number_of_samples-1][2]
     
     # Categorize scores into bins
     num_bins = 1024
