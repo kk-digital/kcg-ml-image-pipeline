@@ -547,6 +547,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
         tag_list_response = get_tag_list_for_image_v1(request, image_hash)
         try:
             print(tag_list_response.__str__)
+            print(tag_list_response.content)
         except Exception as e:
             print(e)
         return None
