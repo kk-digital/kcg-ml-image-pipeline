@@ -84,7 +84,7 @@ def parse_args():
 
     args = argparse.ArgumentParser()
     args.add_argument("--increment", type=int, default=10000)
-    args.add_argument("--max-num", type=int, default=500000)
+    args.add_argument("--max-num", type=int, default=100000)
     args.add_argument("--worker-count", type=int, default=8, help="Number of workers")
     return args.parse_args()
 
