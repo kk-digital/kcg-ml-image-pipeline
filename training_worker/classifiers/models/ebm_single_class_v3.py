@@ -1743,7 +1743,7 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     # Plot the original function and the piecewise linear approximation with segments
     plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
     plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
-    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
     plt.xlabel('x')
     plt.ylabel('f(x)')
     plt.title(f'Mapping data for: {tag_name} using {model_type}')
@@ -1932,7 +1932,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
+sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 100000 ,tag_name =tag_name_x, model_type = "EBM Model" )
 
 sorted_images_x = []
 
