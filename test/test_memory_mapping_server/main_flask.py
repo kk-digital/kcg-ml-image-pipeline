@@ -16,11 +16,11 @@ dtype = np.float16
 filename = 'output/clip_vectors_{}.dat'.format(shape[0])
 
 with open(filename, 'w+b') as f:
-    mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
+    app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
 
 # Initialize the memory mapped array
 for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
-    mmapped_array[i, :] = np.random.rand(shape[1])
+    app.mmapped_array[i, :] = np.random.rand(shape[1])
 
 # Add shape into app
 app.shape = shape
@@ -30,7 +30,7 @@ app.shape = shape
 def get_clip_vector(image_global_id):
     # Retrieve the clip-h vector for the given image_global_id from the memory-mapped array
     if image_global_id < app.shape[0]:
-        response_data = mmapped_array[image_global_id].tolist()
+        response_data = app.mmapped_array[image_global_id].tolist()
     else:
         return jsonify({"detail": "Image not found"}), 404
 
@@ -43,7 +43,7 @@ def get_clip_vectors():
     clip_vectors = []
     for i in image_global_ids:
         if i < app.shape[0]:
-            clip_vectors.append(mmapped_array[i].tolist())
+            clip_vectors.append(app.mmapped_array[i].tolist())
         else:
             return jsonify({"detail": "Image not found"}), 404
 
@@ -55,8 +55,8 @@ def get_clip_vectors():
 def cache_info():
     return jsonify({
         "data": {
-            "num_clip_vectors_stored": len(mmapped_array),
-            "size_of_mem_mapped_file": mmapped_array.nbytes / (1024 ** 3),
+            "num_clip_vectors_stored": len(app.mmapped_array),
+            "size_of_mem_mapped_file": app.mmapped_array.nbytes / (1024 ** 3),
             "count_requested": 0
         }
     })
@@ -70,7 +70,7 @@ def increase_request_count():
 # Save memory mapped array on shutdown
 @app.teardown_appcontext
 def shutdown_db_client(exception=None):
-    del mmapped_array
+    del app.mmapped_array
 
 if __name__ == '__main__':
     app.run(debug=True)
@@ -92,11 +92,11 @@ dtype = np.float16
 filename = 'output/clip_vectors_{}.dat'.format(shape[0])
 
 with open(filename, 'w+b') as f:
-    mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
+    app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
 
 # Initialize the memory mapped array
 for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
-    mmapped_array[i, :] = np.random.rand(shape[1])
+    app.mmapped_array[i, :] = np.random.rand(shape[1])
 
 # Add shape into app
 app.shape = shape
@@ -106,7 +106,7 @@ app.shape = shape
 def get_clip_vector(image_global_id):
     # Retrieve the clip-h vector for the given image_global_id from the memory-mapped array
     if image_global_id < app.shape[0]:
-        response_data = mmapped_array[image_global_id].tolist()
+        response_data = app.mmapped_array[image_global_id].tolist()
     else:
         return jsonify({"detail": "Image not found"}), 404
 
@@ -119,7 +119,7 @@ def get_clip_vectors():
     clip_vectors = []
     for i in image_global_ids:
         if i < app.shape[0]:
-            clip_vectors.append(mmapped_array[i].tolist())
+            clip_vectors.append(app.mmapped_array[i].tolist())
         else:
             return jsonify({"detail": "Image not found"}), 404
 
@@ -131,8 +131,8 @@ def get_clip_vectors():
 def cache_info():
     return jsonify({
         "data": {
-            "num_clip_vectors_stored": len(mmapped_array),
-            "size_of_mem_mapped_file": mmapped_array.nbytes / (1024 ** 3),
+            "num_clip_vectors_stored": len(app.mmapped_array),
+            "size_of_mem_mapped_file": app.mmapped_array.nbytes / (1024 ** 3),
             "count_requested": 0
         }
     })
@@ -146,7 +146,7 @@ def increase_request_count():
 # Save memory mapped array on shutdown
 @app.teardown_appcontext
 def shutdown_db_client(exception=None):
-    del mmapped_array
+    del app.mmapped_array
 
 if __name__ == '__main__':
     app.run(debug=True)
