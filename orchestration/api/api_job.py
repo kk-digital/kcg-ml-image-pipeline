@@ -1981,3 +1981,42 @@ async def count_non_empty_task_attributes(request: Request, task_type: str = "im
             error_string=f"Failed to count documents: {str(e)}",
             http_status_code=500
         )
+
+@router.post("/update-jobs")
+def update_completed_jobs(request: Request):
+
+    # Retrieve all jobs from completed_jobs_collection
+    all_jobs = list(request.app.completed_jobs_collection.find({}, {'task_output_file_dict': 1, 'safe_to_delete': 1}))
+
+    for job in all_jobs:
+        # Skip updating if 'safe_to_delete' is already set
+        if 'safe_to_delete' in job:
+            continue
+
+        output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
+        if not output_file_hash:
+            continue
+
+        # Count occurrences in image_tags_collection
+        tag_count = request.app.image_tags_collection.count_documents({'image_hash': output_file_hash})
+
+        # Count occurrences in image_pair_ranking_collection
+        ranking_count = request.app.image_pair_ranking_collection.count_documents(
+            {'$or': [{'image_1_metadata.file_hash': output_file_hash},
+                     {'image_2_metadata.file_hash': output_file_hash}]}
+        )
+
+        # Determine if the image is safe to delete
+        safe_to_delete = tag_count == 0 and ranking_count == 0
+
+        # Update the job document
+        request.app.completed_jobs_collection.update_one(
+            {'_id': ObjectId(job['_id'])},
+            {'$set': {
+                'ranking_count': ranking_count,
+                'safe_to_delete': safe_to_delete,
+                'tag_count': tag_count,
+            }}
+        )
+
+    return {"message": "Update process completed."}
