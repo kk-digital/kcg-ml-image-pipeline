@@ -70,10 +70,5 @@ def increase_request_count():
     # Increase the count of request when getting the request
     app.count_requested += 1
 
-# Save memory mapped array on shutdown
-@app.teardown_appcontext
-def shutdown_db_client(exception=None):
-    print("Error", exception)
-
 if __name__ == '__main__':
     app.run(debug=True)
