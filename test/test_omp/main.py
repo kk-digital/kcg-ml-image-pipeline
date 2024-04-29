@@ -25,28 +25,29 @@ def parse_args():
 
 def main():
 
-    args = parse_args()
+    # args = parse_args()
 
-    clip_vectors, scores = get_clip_0_sigma(args.count)
-    clip_vectors = np.array(clip_vectors)
-    scores = np.array(scores).reshape(-1, 1)
-    clip_vectors = clip_vectors[~np.isnan(clip_vectors).any(axis=1)]
-    clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
+    # clip_vectors, scores = get_clip_0_sigma(args.count)
+    # clip_vectors = np.array(clip_vectors)
+    # scores = np.array(scores).reshape(-1, 1)
+    # clip_vectors = clip_vectors[~np.isnan(clip_vectors).any(axis=1)]
+    # clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
-    clip_vectors_original = clip_vectors.copy()
+    # clip_vectors_original = clip_vectors.copy()
 
-    n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
+    # n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
     
-    # Create the OMP feature selector
-    omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
+    # # Create the OMP feature selector
+    # omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
-    # Fit the OMP feature selector to the data
-    omp.fit(clip_vectors_original, scores)
+    # # Fit the OMP feature selector to the data
+    # omp.fit(clip_vectors_original, scores)
 
-    clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
+    # clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
 
-    print(clip_vectors[:2].tolist())
-
+    # print(clip_vectors[:2].tolist())
+    clip_vector, score = get_clip_0_sigma(300, 305)
+    print(clip_vector, score)
 
 if __name__ == '__main__':
     main()
