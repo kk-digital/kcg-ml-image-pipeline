@@ -3,19 +3,18 @@ import numpy as np
 # intrinsic library
 import skdim
 
-# clip vector loader which loads data from memory mapping of numpy
-from test.load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0_sigma
-
 # utils
 import argparse
+
+# feature selection library
+from sklearn.linear_model import OrthogonalMatchingPursuit
 
 import sys
 base_dir = './'
 sys.path.insert(0, base_dir)
 
-# feature selection library
-from sklearn.linear_model import OrthogonalMatchingPursuit
-
+# clip vector loader which loads data from memory mapping of numpy
+from test.load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0_sigma
 
 def parse_args():
     parser = argparse.ArgumentParser()
