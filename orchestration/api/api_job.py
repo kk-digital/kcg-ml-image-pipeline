@@ -533,7 +533,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
     total_safe_to_delete = 0
     total_count_images = 0
     print("start update completed jobs")
-    completed_jobs = list(request.app.completed_jobs_collection.find({}, limit=100))
+    completed_jobs = list(request.app.completed_jobs_collection.find({}, {{"uuid": 1, "task_output_file_dict.output_file_hash": 1}}, limit=100))
     total_count_images = len(completed_jobs)
     # request.app.completed_jobs_collection.update_many({}, {
     #     "$set": {
@@ -567,7 +567,6 @@ def update_completed_job(request, completed_job):
             ranking_count = ranking_list_response["response"]["count"]
 
             if tag_count == 0 and ranking_count == 0:
-                total_safe_to_delete += 1
                 request.app.completed_jobs_collection.update_many(
                     {"uuid": task_uuid},
                     {
