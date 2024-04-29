@@ -586,7 +586,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
         "$set": {
             "safe_to_delete": 0
         }
-    })
+    }, limit=1000)
 
     for completed_job in completed_jobs:
         task_uuid = completed_job["uuid"]
