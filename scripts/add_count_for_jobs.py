@@ -15,8 +15,9 @@ def update_completed_jobs():
     all_jobs = list(completed_jobs.find())
 
     # Iterate over each job in completed_jobs_collection with a progress bar
-    for job in tqdm(all_jobs, desc="Updating jobs"):
+    for job in all_jobs:
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
+        print(output_file_hash)
 
         # Count occurrences in image_tags_collection
         tag_count = tags_collection.count_documents({'image_hash': output_file_hash})
