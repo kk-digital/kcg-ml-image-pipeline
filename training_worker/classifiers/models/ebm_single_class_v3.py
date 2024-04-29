@@ -1682,6 +1682,8 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     max_score = sorted_images_and_hashes[0][2]
     min_score = sorted_images_and_hashes[number_of_samples-1][2]
     
+    print(f'max score is {max_score} and min score is {min_score}')
+
     # Categorize scores into bins
     num_bins = 1024
     bins = np.linspace(min_score, max_score, num_bins+1)
