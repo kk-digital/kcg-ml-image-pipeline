@@ -4,7 +4,7 @@ import numpy as np
 import skdim
 
 # clip vector loader which loads data from memory mapping of numpy
-from load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0_sigma
+from test.load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0_sigma
 
 # utils
 import argparse
