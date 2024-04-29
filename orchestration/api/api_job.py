@@ -532,14 +532,15 @@ def update_completed_jobs_for_safe_delete(request: Request):
     total_count_no_tag = 0
     total_count_no_rank = 0
     total_safe_to_delete = 0
+    total_count_images = 0
     print("start update completed jobs")
-    completed_jobs = list(request.app.completed_jobs_collection.find({}, limit=100))
-
-    # request.app.completed_jobs_collection.update_many({}, {
-    #     "$set": {
-    #         "safe_to_delete": 0
-    #     }
-    # })
+    completed_jobs = list(request.app.completed_jobs_collection.find({}))
+    total_count_images = len(completed_jobs)
+    request.app.completed_jobs_collection.update_many({}, {
+        "$set": {
+            "safe_to_delete": 0
+        }
+    })
     
     for completed_job in completed_jobs:
         task_uuid = completed_job["uuid"]
@@ -548,7 +549,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
         tag_list_response = json.loads(tag_list_response.body.decode("utf-8"))
         ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
         ranking_list_response = json.loads(ranking_list_response.body.decode("utf-8"))
-        
+
         try:
             if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code"] == 0:
                 tag_count = len(tag_list_response["response"]["tags"])
@@ -572,6 +573,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
         except Exception as e:
             print("Error occured while updating safe_to_delete for task_uuid: ", task_uuid, e)
     return {
+        "total_count_images": total_count_images,
         "total_count_no_tag": total_count_no_tag,
         "total_count_no_rank": total_count_no_rank,
         "total_safe_to_delete": total_safe_to_delete
