@@ -67,7 +67,9 @@ def main():
     with open(config_file, 'w') as file:
         json.dump({
             'loaded-count': loaded_count,
-            'size': '{}GB'.format(round(mmapped_array.nbytes / (1024 ** 3), 4))
+            'size': '{}GB'.format(round(mmapped_array.nbytes / (1024 ** 3), 4)),
+            'dimension': shape[1],
+            'len-mmap': shape[0]
         }, file, indent=4)
 
     del mmapped_array
