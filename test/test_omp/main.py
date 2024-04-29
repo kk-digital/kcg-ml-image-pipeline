@@ -29,8 +29,8 @@ def main():
 
     clip_vectors, scores = get_clip_0_sigma(args.count)
     clip_vectors_np = np.array(clip_vectors)
-    clip_vectors = clip_vectors_np[~np.isnan(clip_vectors_np).any(axis=1)].tolist()
-    
+    clip_vectors_np = clip_vectors_np[~np.isnan(clip_vectors_np).any(axis=1)]
+    clip_vectors = clip_vectors_np[~np.isinf(clip_vectors_np).any(axis=1)]
     n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
 
     # Create the OMP feature selector
