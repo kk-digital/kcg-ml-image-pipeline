@@ -1654,7 +1654,8 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     plt.clf()
 
 
-
+def piecewise_linear(x, x0, y0, x1, y1):
+    return (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0)
 
 def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
 
@@ -1675,11 +1676,30 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
         rank += 1
     # Tag the images
 
+    xs = ranks
+    ys = scores
+
     max_score = sorted_images_and_hashes[0][0]
     min_score = sorted_images_and_hashes[0][number_of_samples-1]
     
-    xs = ranks
-    ys = scores
+    # Categorize scores into bins
+    num_bins = 1024
+    bins = np.linspace(min_score, max_score, num_bins+1)
+    bin_indices = np.digitize(scores, bins)
+
+    mapping_functions = []
+    for bin_idx in range(1, num_bins+1):
+        bin_start = bins[bin_idx - 1]
+        bin_end = bins[bin_idx]
+        # Map scores in each bin from +x to -x to 1 to -1
+        mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
+        mapping_functions.append(mapping_function)
+
+    # Apply mapping functions to scores in each bin
+    mapped_scores = [mapping_functions[bin_idx - 1](score) for bin_idx, score in zip(bin_indices, scores)]
+
+
+
     # Generate additional points for higher granularity (64 segments)
     x_dense = np.linspace(min(xs), max(xs), 64)
     y_dense = interp1d(xs, ys, kind='linear')(x_dense)
@@ -1690,9 +1710,10 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     # Plot the original function and the piecewise linear approximation with segments
     plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
     plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear', markersize=3,linestyle='--')
     plt.xlabel('x')
     plt.ylabel('f(x)')
-    plt.title(f'Real data VS Linear Approximation: {tag_name} using {model_type}')
+    plt.title(f'Mapping data for: {tag_name} using {model_type}')
     plt.legend()
     plt.grid(True)
 
@@ -1876,6 +1897,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
+plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
 ############################ Train ########################
 
 
@@ -1905,55 +1927,55 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 ########## comb
 
-model_list = []
+# model_list = []
 
-model_1_name =  "perspective-3d" #"perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
-model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_1_name,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
+# model_1_name =  "perspective-3d" #"perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+# model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_1_name,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-
-
-model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
-
-model_list.append(model_1)
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
 
+# model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
 
-model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
-model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_2_name ,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
-
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
+# model_list.append(model_1)
 
 
-model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
 
-model_list.append(model_2)
+# model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+# model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_2_name ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
+
+# model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
+
+# model_list.append(model_2)
+
+# tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
 
 
 
