@@ -23,7 +23,7 @@ from .api_ranking import get_image_rank_use_count_v1
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 from tqdm import tqdm
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 router = APIRouter()
 
@@ -530,12 +530,10 @@ def update_completed_jobs_with_better_name(request: Request, task_type_mapping: 
 @router.put("/queue/image-generation/update-completed-job-for-safe-delete", response_class=PrettyJSONResponse)
 def update_completed_jobs_for_safe_delete(request: Request):
     # Use the limit parameter in the find query to limit the results
-    total_count_no_tag = 0
-    total_count_no_rank = 0
     total_safe_to_delete = 0
     total_count_images = 0
     print("start update completed jobs")
-    completed_jobs = list(request.app.completed_jobs_collection.find({}))
+    completed_jobs = list(request.app.completed_jobs_collection.find({}), limit=100)
     total_count_images = len(completed_jobs)
     request.app.completed_jobs_collection.update_many({}, {
         "$set": {
@@ -543,44 +541,46 @@ def update_completed_jobs_for_safe_delete(request: Request):
         }
     })
     
-    for completed_job in tqdm(completed_jobs):
-        task_uuid = completed_job["uuid"]
-        image_hash = completed_job["task_output_file_dict"]["output_file_hash"]
-        tag_list_response = get_tag_list_for_image_v1(request, image_hash)
-        tag_list_response = json.loads(tag_list_response.body.decode("utf-8"))
-        ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
-        ranking_list_response = json.loads(ranking_list_response.body.decode("utf-8"))
+    with ThreadPoolExecutor(max_workers=16) as executer:
+        futures = []
+        for completed_job in tqdm(completed_jobs, desc="Submit jobs to update"):
+            futures.append(executer.submit(update_completed_job, request, completed_job))
+        for future in tqdm(as_completed(futures), total=total_count_images, desc="Update the jobs with safe-to-delete property"):
+            total_safe_to_delete += future.result()
 
-        try:
-            if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code"] == 0:
-                tag_count = len(tag_list_response["response"]["tags"])
-                ranking_count = ranking_list_response["response"]["count"]
-
-                if tag_count == 0:
-                    total_count_no_tag += 1
-                if ranking_count == 0:
-                    total_count_no_rank += 1
-
-                if tag_count == 0 and ranking_count == 0:
-                    total_safe_to_delete += 1
-                    request.app.completed_jobs_collection.update_many(
-                        {"uuid": task_uuid},
-                        {
-                            "$set": {
-                                "safe-to-delete": 1
-                            }
-                        }
-                    )
-        except Exception as e:
-            print("Error occured while updating safe_to_delete for task_uuid: ", task_uuid, e)
     return {
         "total_count_images": total_count_images,
-        "total_count_no_tag": total_count_no_tag,
-        "total_count_no_rank": total_count_no_rank,
         "total_safe_to_delete": total_safe_to_delete
     }
 
+def update_completed_job(request, completed_job):
+    task_uuid = completed_job["uuid"]
+    image_hash = completed_job["task_output_file_dict"]["output_file_hash"]
+    tag_list_response = get_tag_list_for_image_v1(request, image_hash)
+    tag_list_response = json.loads(tag_list_response.body.decode("utf-8"))
+    ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
+    ranking_list_response = json.loads(ranking_list_response.body.decode("utf-8"))
 
+    try:
+        if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code"] == 0:
+            tag_count = len(tag_list_response["response"]["tags"])
+            ranking_count = ranking_list_response["response"]["count"]
+
+            if tag_count == 0 and ranking_count == 0:
+                total_safe_to_delete += 1
+                request.app.completed_jobs_collection.update_many(
+                    {"uuid": task_uuid},
+                    {
+                        "$set": {
+                            "safe-to-delete": 1
+                        }
+                    }
+                )
+                return 1
+    except Exception as e:
+        print("Error occured while updating safe_to_delete for task_uuid: ", task_uuid, e)
+
+    return 0
 
 @router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")
 def update_job_completed(request: Request, task: Task):
