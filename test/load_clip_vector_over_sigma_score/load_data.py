@@ -1,18 +1,13 @@
 import sys
 import argparse
-import requests
 import json
-import msgpack
 import numpy as np
-import os
-import torch
 
 base_dir = './'
 sys.path.insert(0, base_dir)
 
 from utility.minio import cmd
 from utility.http import request
-from utility.path import separate_bucket_and_file_path
 from test.load_clip_vector_over_sigma_score.kandinsky_data_loader import KandinskyDatasetLoader
 
 
