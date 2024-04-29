@@ -1,8 +1,5 @@
 import numpy as np
 
-# feature selection library
-from sklearn.linear_model import OrthogonalMatchingPursuit
-
 # intrinsic library
 import skdim
 
@@ -11,6 +8,14 @@ from load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0_sigm
 
 # utils
 import argparse
+
+import sys
+base_dir = './'
+sys.path.insert(0, base_dir)
+
+# feature selection library
+from sklearn.linear_model import OrthogonalMatchingPursuit
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
