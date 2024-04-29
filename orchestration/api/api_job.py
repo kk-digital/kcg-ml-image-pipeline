@@ -544,10 +544,10 @@ def update_completed_jobs_for_safe_delete(request: Request):
     for completed_job in completed_jobs:
         task_uuid = completed_job["uuid"]
         image_hash = completed_job["task_output_file_dict"]["output_file_hash"]
-        tag_list_response = json.loads(get_tag_list_for_image_v1(request, image_hash))
+        tag_list_response = get_tag_list_for_image_v1(request, image_hash)
         print(tag_list_response)
         
-        ranking_list_response = get_image_rank_use_count_v1(request, image_hash).content
+        ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
         try:
             if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code"] == 0:
                 tag_count = len(tag_list_response["response"]["tags"])
