@@ -93,7 +93,6 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     combined_job_details = {
         "rank_model_id": rank_model_id,
         "rank_active_learning_policy_id": rank_active_learning_policy_id,
-        "dataset_name": job_details_1['image_path_1'].split('/')[1],  # Extract dataset name
         "metadata": metadata,
         "generation_string": generation_string,
         "creation_date": datetime.utcnow().isoformat(),  # UTC time
@@ -110,7 +109,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"environmental/rank-active-learning-queue/{policy['rank_active_learning_policy']}/{json_file_name}"
+    full_path = f"environmental/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
 
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
@@ -229,7 +228,7 @@ async def count_queue_pairs(request: Request,
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, dataset: Optional[str] = None, rank_active_learning_policy_id: Optional[int] = None):
+async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, rank_active_learning_policy_id: Optional[int] = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -240,8 +239,6 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         match_filter = {}
         if rank_model_id:
             match_filter["rank_model_id"] = rank_model_id
-        if dataset:
-            match_filter["dataset"] = dataset
         if rank_active_learning_policy_id:
             match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
 
@@ -324,7 +321,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         mongo_data = OrderedDict([
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
-            ("dataset", dataset),
             *dict_data.items(), # Unpack the rest of dict_data
             ("datetime", current_time)
         ])
@@ -336,7 +332,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        path = f"data/rank/{rank_model_string}"
+        path = f"data/rank/{selection.rank_model_id}"
         full_path = os.path.join("environmental", path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
@@ -391,7 +387,6 @@ def list_ranking_datapoints(request: Request):
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
     request: Request,
-    dataset: str = Query(..., description="Dataset to filter by"),
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
     rank_model_id: int = Query(None, description="Rank model ID to filter by"),
     end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
@@ -406,7 +401,7 @@ async def sort_ranking_data_by_date_v2(
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
         # Build the query filter based on dataset and optional dates
-        query_filter = {"dataset": dataset, "rank_model_id": rank_model_id}
+        query_filter = {"rank_model_id": rank_model_id}
         if start_date_obj or end_date_obj:
             date_filter = {}
             if start_date_obj:

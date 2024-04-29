@@ -431,12 +431,18 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
 
 
 
-
-@router.post("/pseudotag-classifier-scores/set-image-classifier-score-list", 
+@router.post("/pseudotag-classifier-scores/set-image-classifier-score", 
              status_code=200,
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
-             description="Set classifier image score",
+             description="Sets the score an image received from a specific pseudotag classifier. If a previous score for the classifier was set before, it is replaced",
              tags=["pseudotag-classifier-scores"], 
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
+             )
+@router.post("/pseudotag/add-pseudo-tag-to-image", 
+             status_code=200,
+             response_model=StandardSuccessResponseV1[ClassifierScoreV1],
+             description="Sets the score an image received from a pseudotag classifier for a specific tag. If the image already has a score for the tag asociated with the classifier, it is replaced, no mater if it was asigned by the same classifier or another one.",
+             tags=["pseudo_tags"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
 async def set_image_classifier_score_list(request: Request, classifier_score_list: List[ClassifierScoreRequest]):

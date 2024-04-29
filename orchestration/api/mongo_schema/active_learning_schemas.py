@@ -56,7 +56,6 @@ class RankActiveLearningPair(BaseModel):
     rank_model_string: str
     active_learning_policy_id: int
     active_learning_policy: str
-    dataset_name: str
     metadata: str
     generation_string: str
     creation_date: str
@@ -69,7 +68,6 @@ class RankActiveLearningPair(BaseModel):
             "rank_model_string": self.rank_model_string,
             "active_learning_policy_id": self.active_learning_policy_id,
             "active_learning_policy": self.active_learning_policy,
-            "dataset_name": self.dataset_name,
             "metadata": self.metadata,
             "generation_string": self.generation_string,
             "creation_date": self.creation_date,
