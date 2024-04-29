@@ -22,7 +22,7 @@ from .api_tag import get_tag_list_for_image_v1
 from .api_ranking import get_image_rank_use_count_v1
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
-import tqdm
+from tqdm import tqdm
 
 
 router = APIRouter()
