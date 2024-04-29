@@ -32,13 +32,16 @@ def main():
     scores = np.array(scores).reshape(-1, 1)
     clip_vectors = clip_vectors[~np.isnan(clip_vectors).any(axis=1)]
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
-    n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
+    
+    clip_vectors_original = clip_vectors.copy()
 
+    n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
+    
     # Create the OMP feature selector
     omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
     # Fit the OMP feature selector to the data
-    omp.fit(clip_vectors, scores)
+    omp.fit(clip_vectors_original, scores)
 
     clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
 
