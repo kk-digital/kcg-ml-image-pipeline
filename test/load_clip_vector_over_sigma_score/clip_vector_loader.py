@@ -25,7 +25,7 @@ def get_clip_0_sigma(count=0):
     if count > mmap_config["len-mmap"]:
         count = mmap_config["len-mmap"]
 
-    return mmapping_array[:count, 1280], mmapping_array[:count, -1]
+    return mmapping_array[:count, 1280].tolist(), mmapping_array[:count, -1].tolist()
 
 
 if __name__ == '__main__':
