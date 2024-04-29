@@ -1934,9 +1934,12 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
 sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
 
+sorted_images_x = []
 
+tag_name = tag_name_x
 for i in range (0,len(sorted_images)):
-    sorted_images[i][2] = new_scores[i]
+    sorted_images_x.append((sorted_images[i][0], sorted_images[i][1], new_scores[i],sorted_images[i][3])) 
+    #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
 sorted_images_and_hashes = sorted_images
