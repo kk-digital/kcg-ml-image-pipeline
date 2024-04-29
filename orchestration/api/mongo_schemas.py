@@ -3,6 +3,7 @@ from typing import List, Union, Optional, Dict
 import json
 import re
 from typing import Union, Tuple
+from datetime import datetime
 import bson
 
 class Task(BaseModel):
@@ -12,9 +13,9 @@ class Task(BaseModel):
     model_file_name: Union[str, None] = None
     model_file_path: Union[str, None] = None
     model_hash: Union[str, None] = None
-    task_creation_time: Union[str, None] = None
-    task_start_time: Union[str, None] = None
-    task_completion_time: Union[str, None] = None
+    task_creation_time: Union[datetime, None] = None
+    task_start_time: Union[datetime, None] = None
+    task_completion_time: Union[datetime, None] = None
     task_error_str: Union[str, None] = None
     task_input_dict: dict  # required
     task_input_file_dict: Union[dict, None] = None
@@ -22,6 +23,16 @@ class Task(BaseModel):
     task_attributes_dict: Union[dict, None] = {}
     prompt_generation_data: Union[dict, None] = {}
 
+    @validator('task_creation_time', 'task_start_time', 'task_completion_time', pre=True, always=True)
+    def default_datetime(cls, value):
+        return value or datetime.now()
+
+    @validator('task_creation_time', 'task_start_time', 'task_completion_time', pre=False)
+    def format_datetime(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+    
     def to_dict(self):
         return {
             "task_type": self.task_type,
@@ -338,6 +349,9 @@ class ListClassifierScore(BaseModel):
 
 class ListClassifierScore1(BaseModel):
     images: List[ClassifierScoreV1]
+
+class ListClassifierScore2(BaseModel):
+    scores: List[ClassifierScoreV1]
 
 class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]
