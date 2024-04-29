@@ -45,7 +45,7 @@ def main():
 
     clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
 
-    print(clip_vectors[:2])
+    print(clip_vectors[:2].tolist())
 
 
 if __name__ == '__main__':
