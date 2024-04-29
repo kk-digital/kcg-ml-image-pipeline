@@ -1733,6 +1733,7 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     print("Length of mapped_scores:", len(mapped_scores))
     print(f'max score is {max_score} and min score is {min_score}')
     # Generate additional points for higher granularity (64 segments)
+
     x_dense = np.linspace(min(xs), max(xs), 64)
     y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
@@ -1771,6 +1772,8 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     os.remove("output/rank.png")
     # Clear the current figure
     plt.clf()
+
+    return sorted_images_and_hashes, mapped_scores
 
 
 
@@ -1929,7 +1932,84 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
+sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
+
+
+for i in range (0,len(sorted_images)):
+    sorted_images[i][2] = new_scores[i]
+
+
+sorted_images_and_hashes = sorted_images
+
+rank = 1
+for image in sorted_images_and_hashes:
+    #
+    print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+    rank += 0
+# Tag the images
+
+selected_structure_first_50 = sorted_images_and_hashes[:52] 
+selected_structure_second_50 = sorted_images_and_hashes[52:103]
+selected_structure_third_50 = sorted_images_and_hashes[103:154]
+
+tier4 = sorted_images_and_hashes[150:200] 
+tier5 = sorted_images_and_hashes[200:250]
+tier6 = sorted_images_and_hashes[250:300]
+tier7 = sorted_images_and_hashes[300:350] 
+tier8 = sorted_images_and_hashes[350:400]
+tier9 = sorted_images_and_hashes[400:450]
+
+
+
+tier10 = sorted_images_and_hashes[450:500] 
+tier11 = sorted_images_and_hashes[500:550]
+tier12 = sorted_images_and_hashes[550:750]
+tier13 = sorted_images_and_hashes[750:950]
+tier14 = sorted_images_and_hashes[950:1150]
+tier15 = sorted_images_and_hashes[1150:1350]
+
+#tag_image(file_hash,tag_id,user)
+
+
+plot_name1 = tag_name + "_tier1_hs"
+plot_name2 = tag_name + "_tier2_hs"
+plot_name3  = tag_name + "_tier3_hs"
+plot_name4 = tag_name + "_tier4_hs"
+plot_name5 = tag_name + "_tier5_hs"
+plot_name6  = tag_name + "_tier6_hs"
+plot_name7 = tag_name + "_tier7_hs"
+plot_name8  = tag_name + "_tier8_hs"
+plot_name9  = tag_name + "_tier9_hs"
+
+plot_name10 = tag_name + "_tier10_hs"
+plot_name11  = tag_name + "_tier11_hs"
+plot_name12  = tag_name + "_tier12_hs"
+
+
+plot_name13 = tag_name + "_tier13_hs"
+plot_name14  = tag_name + "_tier14_hs"
+plot_name15  = tag_name + "_tier15_hs"
+
+plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+
+plot_images_with_scores_hasheless(tier4,plot_name4)
+plot_images_with_scores_hasheless(tier5,plot_name5)
+plot_images_with_scores_hasheless(tier6,plot_name6)
+plot_images_with_scores_hasheless(tier7,plot_name7)
+plot_images_with_scores_hasheless(tier8,plot_name8)
+plot_images_with_scores_hasheless(tier9,plot_name9)
+
+plot_images_with_scores_hasheless(tier10,plot_name10)
+plot_images_with_scores_hasheless(tier11,plot_name11)
+plot_images_with_scores_hasheless(tier12,plot_name12)
+
+
+plot_images_with_scores_hasheless(tier13,plot_name13)
+plot_images_with_scores_hasheless(tier14,plot_name14)
+plot_images_with_scores_hasheless(tier15,plot_name15)
+
 ############################ Train ########################
 
 
