@@ -25,6 +25,9 @@ for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
 # Add shape into app
 app.shape = shape
 
+# Add request count into app
+app.count_requested = 0
+
 # Endpoint to get clip-h vector for single image_global_id
 @app.route('/get_clip_vector/<int:image_global_id>', methods=['GET'])
 def get_clip_vector(image_global_id):
