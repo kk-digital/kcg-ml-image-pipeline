@@ -1897,7 +1897,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
+#plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
 ############################ Train ########################
 
 
@@ -1927,55 +1927,55 @@ plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dat
 
 ########## comb
 
-# model_list = []
+model_list = []
 
-# model_1_name =  "perspective-3d" #"perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
-# model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= model_1_name,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
+model_1_name =  "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= model_1_name,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
 
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-
-
-# model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
-
-# model_list.append(model_1)
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
 
 
+model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
 
-# model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
-# model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= model_2_name ,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
-
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
+model_list.append(model_1)
 
 
-# model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
 
-# model_list.append(model_2)
+model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= model_2_name ,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
 
-# tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
 
-# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
+
+model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
+
+model_list.append(model_2)
+
+tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
 
 
 
