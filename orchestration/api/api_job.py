@@ -526,7 +526,7 @@ def update_completed_jobs_with_better_name(request: Request, task_type_mapping: 
     
     return total_count_updated
 
-@router.put("/queue/image-generation/update-completed-job-for-safe-delete", response_class=PrettyJSONResponse)
+@router.put("/queue/image-generation/update-completed-job-for-safe-delete")
 def update_completed_jobs_for_safe_delete(request: Request):
     # Use the limit parameter in the find query to limit the results
     total_count_no_tag = 0
