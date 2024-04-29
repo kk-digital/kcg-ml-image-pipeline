@@ -1653,6 +1653,75 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     # Clear the current figure
     plt.clf()
 
+
+
+
+def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
+
+    images_paths = get_file_paths(dataset_name,number_of_samples)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    ranks = []  # List to store ranks
+    scores = []  # List to store scores
+
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        ranks.append(rank)
+        scores.append(image[2])
+        rank += 1
+    # Tag the images
+
+    max_score = sorted_images_and_hashes[0][0]
+    min_score = sorted_images_and_hashes[0][number_of_samples-1]
+    
+    xs = ranks
+    ys = scores
+    # Generate additional points for higher granularity (64 segments)
+    x_dense = np.linspace(min(xs), max(xs), 64)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+
+    # Linear interpolation function with higher granularity
+    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+
+    # Plot the original function and the piecewise linear approximation with segments
+    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title(f'Real data VS Linear Approximation: {tag_name} using {model_type}')
+    plt.legend()
+    plt.grid(True)
+
+    # # Plotting the graph
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(ranks, scores, marker='o')
+    # plt.xlabel('Rank')
+    # plt.ylabel('Score')
+    # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
+    # plt.grid(True)
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
+
+
+
 def get_file_paths(dataset,num_samples):
         
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
@@ -1861,7 +1930,7 @@ model_list.append(model_1)
 
 
 
-model_2_name =  "content-has-character"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
