@@ -8,27 +8,24 @@ app = Flask(__name__)
 from flask_cors import CORS
 CORS(app)
 
-# Initialize the memory-mapped array at startup
-@app.before_first_request
-def initialize():
-    # Set the count of requests to 0
-    app.count_requested = 0
+# Set the count of requests to 0
+app.count_requested = 0
 
-    shape = (10000, 1280)
-    dtype = np.float16
+shape = (10000, 1280)
+dtype = np.float16
 
-    # Create memory-mapped array
-    filename = 'output/clip_vectors_{}.dat'.format(shape[0])
+# Create memory-mapped array
+filename = 'output/clip_vectors_{}.dat'.format(shape[0])
 
-    with open(filename, 'w+b') as f:
-        app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
+with open(filename, 'w+b') as f:
+    app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
 
-    # Initialize the memory mapped array
-    for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
-        app.mmapped_array[i, :] = np.random.rand(shape[1])
+# Initialize the memory mapped array
+for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
+    app.mmapped_array[i, :] = np.random.rand(shape[1])
 
-    # Add shape into app
-    app.shape = shape
+# Add shape into app
+app.shape = shape
 
 # Endpoint to get clip-h vector for single image_global_id
 @app.route('/get_clip_vector/<int:image_global_id>', methods=['GET'])
