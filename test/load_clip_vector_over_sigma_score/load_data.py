@@ -50,8 +50,11 @@ def main():
         for dataset_name in dataset_names:
             
             data_loader.dataset = dataset_name
-            data_loader.load_ranking_model()
-
+            try:
+                data_loader.load_ranking_model()
+            except Exception as e:
+                print("Error occured in loading ranking model ", e)
+                continue
             loaded_count = data_loader.load_clip_vector_data(args.min_score, limit=args.max_count)
 
             if args.max_count - loaded_count <= 0:
