@@ -1929,7 +1929,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000,tag_name =tag_name_x, model_type = "EBM Model" )
+plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
 ############################ Train ########################
 
 
