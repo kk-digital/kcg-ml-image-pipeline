@@ -24,7 +24,10 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    clip_vectors, scores = get_clip_0_sigma()
+
+    args = parse_args()
+
+    clip_vectors, scores = get_clip_0_sigma(args.count)
 
     n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
 
