@@ -25,6 +25,9 @@ for i in tqdm(range(shape[0]), desc="Initializing memory-mapped array"):
 # Add shape into app
 app.shape = shape
 
+# Add request count into app
+app.count_requested = 0
+
 # Endpoint to get clip-h vector for single image_global_id
 @app.route('/get_clip_vector/<int:image_global_id>', methods=['GET'])
 def get_clip_vector(image_global_id):
@@ -60,12 +63,6 @@ def cache_info():
             "count_requested": 0
         }
     })
-
-# Middleware to track and increment the request count
-@app.before_request
-def increase_request_count():
-    # Increase the count of request when getting the request
-    app.count_requested += 1
 
 # Save memory mapped array on shutdown
 @app.teardown_appcontext
@@ -146,7 +143,7 @@ def increase_request_count():
 # Save memory mapped array on shutdown
 @app.teardown_appcontext
 def shutdown_db_client(exception=None):
-    del app.mmapped_array
+    print("Error", exception)
 
 if __name__ == '__main__':
     app.run(debug=True)
