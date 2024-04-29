@@ -52,7 +52,7 @@ def main(increment, max_num, worker_count):
     else:
         return None
 
-    total_elapsed_time = format_duration(int(sum(elapsed_time_list)))
+    total_elapsed_time = format_duration(int(elapsed_time_list[-1]))
     plt.figure(figsize=(10, 5))
     plt.figtext(0.02, 0.7, ("Number of clip vectors stored: {}\n"
                 "Size of memory mapped file: {}(GB)\n"
