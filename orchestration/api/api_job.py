@@ -578,6 +578,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
     # Use the limit parameter in the find query to limit the results
     total_count_no_tag = 0
     total_count_no_rank = 0
+    total_safe_to_delete = 0
     
     completed_jobs = list(request.app.completed_jobs_collection.find({}))
 
@@ -603,6 +604,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
                     total_count_no_rank += 1
 
                 if tag_count == 0 and ranking_count == 0:
+                    total_safe_to_delete += 1
                     request.app.completed_jobs_collection.update_many(
                         {"uuid": task_uuid},
                         {
@@ -614,8 +616,9 @@ def update_completed_jobs_for_safe_delete(request: Request):
         except Exception as e:
             print("Error occured while updating safe_to_delete for task_uuid: ", task_uuid, e)
     return {
-        total_count_no_tag: total_count_no_tag,
-        total_count_no_rank: total_count_no_rank
+        "total_count_no_tag": total_count_no_tag,
+        "total_count_no_rank": total_count_no_rank,
+        "total_safe_to_delete": total_safe_to_delete
     }
 
 
