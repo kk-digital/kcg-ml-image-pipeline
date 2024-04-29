@@ -10,7 +10,7 @@ def get_clip_0_sigma(count=0):
     dtype = np.float16
     shape = (1000000, 1281)
 
-    with open('data.json', 'r') as file:
+    with open('output/clip_0_sigma.json', 'r') as file:
         json_string = file.read()
     
     mmap_config = json.loads(json_string)
