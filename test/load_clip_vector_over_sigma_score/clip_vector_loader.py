@@ -10,7 +10,7 @@ def get_clip_0_sigma():
     shape = (1000000, 1281)
 
     with open('output/clip_0_sigma.dat', 'r') as f:
-        mmapping_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
+        mmapping_array = np.memmap(f, dtype=dtype, mode='r', shape=shape)
 
         for i in range(100):
             print(mmapping_array[i, :])
