@@ -18,9 +18,6 @@ def get_clip_0_sigma(count=0):
     with open('output/clip_0_sigma.dat', 'r') as f:
         mmapping_array = np.memmap(f, dtype=dtype, mode='r', shape=shape)
 
-        for i in range(100):
-            print(mmapping_array[i, :])
-
     # update the count
     if count > mmap_config["len-mmap"]:
         count = mmap_config["len-mmap"]
@@ -29,4 +26,6 @@ def get_clip_0_sigma(count=0):
 
 
 if __name__ == '__main__':
-    print(get_clip_0_sigma(100))
+    clip_vecotors, scores = get_clip_0_sigma(100)
+    for clip_vector, score in zip(clip_vecotors, scores):
+        print(clip_vector, score)
