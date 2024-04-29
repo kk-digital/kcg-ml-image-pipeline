@@ -1654,8 +1654,8 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     plt.clf()
 
 
-def piecewise_linear(x, x0, y0, x1, y1):
-    return (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0)
+def piecewise_linear(score, start_x, start_y, end_x, end_y):
+    return (start_y * (end_x - score) + end_y * (score - start_x)) / (end_x - start_x)
 
 def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
 
@@ -1707,10 +1707,10 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     # Define mapping functions for each bin
     mapping_functions = []
     for bin_idx in range(1, num_bins + 1):
-        bin_start = bins[bin_idx - 1]
-        bin_end = bins[bin_idx]
+        bin_start = min_score
+        bin_end = max_score
         # Map scores in each bin from +x to -x to 1 to -1
-        mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
+        mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , max_score, +1)
         
         mapping_functions.append(mapping_function)
 
