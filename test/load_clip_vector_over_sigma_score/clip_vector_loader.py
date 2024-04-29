@@ -5,7 +5,7 @@ import json
 base_dir = './'
 sys.path.insert(0, base_dir)
 
-def get_clip_0_sigma(count=0):
+def get_clip_0_sigma(start_index, end_index):
 
     dtype = np.float16
     shape = (1000000, 1281)
@@ -22,7 +22,7 @@ def get_clip_0_sigma(count=0):
     if count > mmap_config["len-mmap"]:
         count = mmap_config["len-mmap"]
 
-    return mmapping_array[:count, :1280].tolist(), mmapping_array[:count, -1].tolist()
+    return mmapping_array[start_index:end_index, :1280].tolist(), mmapping_array[start_index:end_index, -1].tolist()
 
 
 if __name__ == '__main__':
