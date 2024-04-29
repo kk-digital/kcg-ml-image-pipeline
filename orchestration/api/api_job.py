@@ -533,7 +533,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
     total_safe_to_delete = 0
     total_count_images = 0
     print("start update completed jobs")
-    completed_jobs = list(request.app.completed_jobs_collection.find({}), limit=100)
+    completed_jobs = list(request.app.completed_jobs_collection.find({}, limit=100))
     total_count_images = len(completed_jobs)
     request.app.completed_jobs_collection.update_many({}, {
         "$set": {
