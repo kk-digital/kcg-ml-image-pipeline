@@ -33,11 +33,13 @@ def main(increment, max_num, worker_count):
     loading_clip_vector_count_list = list(range(increment, max_num + increment, increment))
     # Measure the speed of serving clip vectors
         
-    start_time = time.time()
-    for _ in loading_clip_vector_count_list:
+    for clip_vector_count in loading_clip_vector_count_list:
+        
+        start_time = time.time()
+        
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             futures = []
-            for _ in range(0, increment):  # Send 1000 requests
+            for _ in range(0, clip_vector_count):  # Send 1000 requests
                 futures.append(executor.submit(get_clip_vector, server_url, random.randint(0, 10000)))
             for _ in tqdm(as_completed(futures), total=len(futures)):
                 pass

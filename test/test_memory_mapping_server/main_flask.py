@@ -60,7 +60,7 @@ def cache_info():
         "data": {
             "num_clip_vectors_stored": len(app.mmapped_array),
             "size_of_mem_mapped_file": app.mmapped_array.nbytes / (1024 ** 3),
-            "count_requested": 0
+            "count_requested": app.count_requested
         }
     })
 
