@@ -535,11 +535,11 @@ def update_completed_jobs_for_safe_delete(request: Request):
     print("start update completed jobs")
     completed_jobs = list(request.app.completed_jobs_collection.find({}, limit=100))
     total_count_images = len(completed_jobs)
-    request.app.completed_jobs_collection.update_many({}, {
-        "$set": {
-            "safe_to_delete": 0
-        }
-    })
+    # request.app.completed_jobs_collection.update_many({}, {
+    #     "$set": {
+    #         "safe_to_delete": 0
+    #     }
+    # })
     
     with ThreadPoolExecutor(max_workers=16) as executer:
         futures = []
