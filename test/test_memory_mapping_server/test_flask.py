@@ -49,6 +49,8 @@ def main(increment, max_num, worker_count):
     response = requests.get(f"{server_url}/cache_info")
     if response.status_code == 200:
         cache_info = response.json()["data"]
+    else:
+        return None
 
     total_elapsed_time = format_duration(int(sum(elapsed_time_list)))
     plt.figure(figsize=(10, 5))
