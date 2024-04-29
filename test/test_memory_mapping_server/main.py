@@ -89,5 +89,4 @@ def initialize():
 # Save memory mapped array
 @app.on_event("shutdown")
 def shutdown_db_client():
-    app.mongodb_client.close()
     del app.mmapped_array
