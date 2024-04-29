@@ -62,19 +62,17 @@ def main():
             if args.max_count - loaded_count <= 0:
                 break
 
-        config_file = 'output/clip_{}_sigma.json'.format(args.min_score)
-        
-        mmapped_array = data_loader.mmapped_array
-
         mmapped_array.flush()
 
-        with open(config_file, 'w') as file:
-            json.dump({
-                'loaded-count': loaded_count,
-                'size': '{}GB'.format(mmapped_array.nbytes / (1024 ** 3))
-            }, file, indent=4)
+        config_file = 'output/clip_{}_sigma.json'.format(args.min_score)
+        
+    with open(config_file, 'w') as file:
+        json.dump({
+            'loaded-count': loaded_count,
+            'size': '{}GB'.format(round(mmapped_array.nbytes / (1024 ** 3), 4))
+        }, file, indent=4)
 
+    del mmapped_array
 
-        del mmapped_array
 if __name__ == "__main__":
     main()
