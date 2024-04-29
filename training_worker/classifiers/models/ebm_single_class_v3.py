@@ -1687,8 +1687,21 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     bins = np.linspace(min_score, max_score, num_bins+1)
     bin_indices = np.digitize(scores, bins)
 
+    # mapping_functions = []
+    # for bin_idx in range(1, num_bins+1):
+    #     bin_start = bins[bin_idx - 1]
+    #     bin_end = bins[bin_idx]
+    #     # Map scores in each bin from +x to -x to 1 to -1
+    #     mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
+    #     mapping_functions.append(mapping_function)
+
+    # # Apply mapping functions to scores in each bin
+    # mapped_scores = [mapping_functions[bin_idx - 1](score) for bin_idx, score in zip(bin_indices, scores)]
+
+
+    # Define mapping functions for each bin
     mapping_functions = []
-    for bin_idx in range(1, num_bins+1):
+    for bin_idx in range(1, num_bins + 1):
         bin_start = bins[bin_idx - 1]
         bin_end = bins[bin_idx]
         # Map scores in each bin from +x to -x to 1 to -1
