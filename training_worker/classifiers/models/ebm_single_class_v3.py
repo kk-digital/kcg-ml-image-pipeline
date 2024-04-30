@@ -2224,6 +2224,7 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
 
     for item_one in sorted_images_and_hashes_updated_1:
+        print(f'item : {item_one}')
         path = item_one['path']
         score_one = item_one['score']
 
@@ -2494,7 +2495,7 @@ tag_name = tag_name_combined
 sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
                                                         loaded_model_2 = model_2,
                                                           dataset_name = "environmental",
-                                                            number_of_samples = 2000 ,
+                                                            number_of_samples = 1024 ,
                                                             tag_name =tag_name_x,
                                                               model_type = "EBM Model" )
 # rank = 1
