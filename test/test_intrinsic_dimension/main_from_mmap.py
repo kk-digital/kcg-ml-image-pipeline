@@ -52,7 +52,7 @@ def main():
             writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vector", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
         
         elif args.library == Library.SCIKIT_DIMENSION.value:
-            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of vae vectors", "Dimension of vae vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
+            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vectors", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
             
         writer.writeheader()
 
