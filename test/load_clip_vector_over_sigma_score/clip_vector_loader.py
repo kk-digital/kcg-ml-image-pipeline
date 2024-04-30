@@ -54,7 +54,8 @@ class ClipVectorLoader:
 
         random_index = np.random.choice(np.arange(self.mmap_config["loaded-count"]), count)
 
-        return self.mmapping_array[random_index]
+        return self.mmapping_array[random_index, :1280].tolist(), \
+            self.mmapping_array[random_index, -1].tolist()
 
 def parse_args():
     parser = argparse.ArgumentParser()
