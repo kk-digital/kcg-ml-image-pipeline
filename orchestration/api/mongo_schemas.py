@@ -544,3 +544,13 @@ class RequestRankActiveLearningPolicy(BaseModel):
             "rank_active_learning_policy": self.rank_active_learning_policy,
             "rank_active_learning_policy_description": self.rank_active_learning_policy_description,
         }
+
+class Dataset(BaseModel):
+    dataset_name: str
+
+    def to_dict(self):
+        return{
+            "dataset_name": self.dataset_name
+        }    
+class ListDataset(BaseModel):
+    datasets: List[Dataset]   

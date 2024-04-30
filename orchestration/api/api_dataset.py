@@ -8,7 +8,7 @@ from datetime import datetime
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse
-from .mongo_schemas import FlaggedDataUpdate, RankingModel
+from .mongo_schemas import FlaggedDataUpdate, RankingModel, Dataset, ListDataset
 from orchestration.api.mongo_schema.selection_schemas import ListRelevanceSelection, ListRankingSelection
 from pymongo import ReturnDocument
 router = APIRouter()
@@ -919,3 +919,63 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
             http_status_code=500
         )        
     
+@router.post("/add-new-dataset",
+            description="add new dataset in mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[Dataset],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+async def add_new_dataset(request: Request, dataset: Dataset):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    if request.app.datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='dataset already exist',
+            http_status_code=400
+        )    
+    
+    request.app.datasets_collection.insert_one(dataset.to_dict())
+
+    return response_handler.create_success_response_v1(
+                response_data={"dataset_name":dataset.dataset_name}, 
+                http_status_code=200
+            )    
+    
+@router.get("/list-datasets",
+            description="list datasets from mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    datasets = list(request.app.datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )       
+
+
+@router.delete("/remove-dataset/{dataset_name}",
+               description="remove dataset in mongodb",
+               tags=["dataset"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422]))
+async def remove_dataset(request: Request, dataset_name: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    result = request.app.datasets_collection.delete_one({"dataset_name": dataset_name})
+    if result.deleted_count == 0:
+        return response_handler.create_success_delete_response_v1(
+                False, 
+                http_status_code=200
+            )
+    
+
+    return response_handler.create_success_delete_response_v1(
+                True, 
+                http_status_code=200
+            )
