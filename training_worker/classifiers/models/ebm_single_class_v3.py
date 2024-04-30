@@ -2129,7 +2129,7 @@ sorted_images_x = []
 #structure.append((image_path, embedding, score.item(),image)) 
 tag_name = tag_name_x
 for i in range (0,len(sorted_images)):
-    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i]))
+    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images["image_tensor"]))
     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
