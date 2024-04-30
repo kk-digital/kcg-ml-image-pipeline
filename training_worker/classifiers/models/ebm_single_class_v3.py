@@ -2114,9 +2114,20 @@ sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping_v2(lo
 
 sorted_images_x = []
 
+
+      
+        # image_dict = {
+        #     'path': images_paths[i],
+        #     'embedding': embedding,
+        #     'score': score.item(),
+        #     'image_tensor': image,
+        #     'hash': hashes[i],
+        #     'uuid': uuid[i]
+        # }
+
 tag_name = tag_name_x
 for i in range (0,len(sorted_images)):
-    sorted_images_x.append((sorted_images[i][0], sorted_images[i][1], new_scores[i],sorted_images[i][3])) 
+    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["hash"], new_scores[i],sorted_images[i]["image"])) 
     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
