@@ -1984,7 +1984,7 @@ async def count_non_empty_task_attributes(request: Request, task_type: str = "im
         )
 
 @router.post("/update-jobs")
-async def update_completed_jobs(request: Request):
+def update_completed_jobs(request: Request):
     # Use projection to fetch only necessary fields
     cursor = request.app.completed_jobs_collection.find(
         {"safe_to_delete": {"$exists": False}},
@@ -1992,17 +1992,16 @@ async def update_completed_jobs(request: Request):
     )
     bulk_updates = []
 
-    # Asynchronous iteration over the cursor
-    async for job in cursor:
+    for job in cursor:
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
         if not output_file_hash:
             continue
 
-        # Asynchronously count occurrences in image_tags_collection
-        tag_count = await request.app.image_tags_collection.count_documents({'image_hash': output_file_hash})
+        # Count occurrences in image_tags_collection
+        tag_count = request.app.image_tags_collection.count_documents({'image_hash': output_file_hash})
 
-        # Asynchronously count occurrences in image_pair_ranking_collection
-        ranking_count = await request.app.image_pair_ranking_collection.count_documents(
+        # Count occurrences in image_pair_ranking_collection
+        ranking_count = request.app.image_pair_ranking_collection.count_documents(
             {'$or': [{'image_1_metadata.file_hash': output_file_hash},
                      {'image_2_metadata.file_hash': output_file_hash}]}
         )
@@ -2022,7 +2021,7 @@ async def update_completed_jobs(request: Request):
 
     # Execute all bulk updates at once
     if bulk_updates:
-        result = await request.app.completed_jobs_collection.bulk_write(bulk_updates)
+        result = request.app.completed_jobs_collection.bulk_write(bulk_updates)
         return {"message": f"Update process completed, {result.modified_count} documents updated."}
 
     return {"message": "No updates performed."}
