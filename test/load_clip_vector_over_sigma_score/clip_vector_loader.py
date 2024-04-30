@@ -18,7 +18,7 @@ class ClipVectorLoader:
         self.dtype = np.float16
         self.min_sigma_score = min_sigma_score
 
-        self.mmap_config, self.mmap_array = self.load_mmap()
+        self.mmap_config, self.mmapping_array = self.load_mmap()
 
     def get_file_name(self, min_sigma_score):
         mmap_fname = 'output/clip_{}_sigma.dat'.format(min_sigma_score)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     args = parse_args()
 
-    clip_vector_loader = ClipVectorLoader(min_sigma_score=0)
+    clip_vector_loader = ClipVectorLoader(min_sigma_score=args.min_sigma_score)
 
     clip_vecotors, scores = \
         clip_vector_loader.get_clip_vector(start_index=args.start, end_index=args.end)
