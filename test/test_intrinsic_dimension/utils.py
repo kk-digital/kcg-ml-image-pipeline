@@ -8,7 +8,11 @@ MINIO_ADDRESS = "192.168.3.5:9000"
 # define the measure the running time
 def measure_running_time(func, *args, **kwargs):
     start_time = time.time()
-    result = func(*args, **kwargs)
+    try:
+        result = func(*args, **kwargs)
+    except Exception as e:
+        print(func.__str__, e)
+        result = 'Nan'
     end_time = time.time()
     elapsed_time = end_time - start_time
     return result, elapsed_time
