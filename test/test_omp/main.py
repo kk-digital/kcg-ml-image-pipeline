@@ -27,7 +27,7 @@ def main():
 
     args = parse_args()
 
-    clip_vectors, scores = get_clip_0_sigma(args.count)
+    clip_vectors, scores = get_clip_0_sigma(0, args.count)
     clip_vectors = np.array(clip_vectors)
     scores = np.array(scores).reshape(-1, 1)
     clip_vectors = clip_vectors[~np.isnan(clip_vectors).any(axis=1)]
