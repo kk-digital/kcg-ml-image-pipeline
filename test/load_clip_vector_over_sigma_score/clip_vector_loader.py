@@ -74,5 +74,8 @@ if __name__ == '__main__':
     clip_vecotors, scores = \
         clip_vector_loader.get_clip_vector(start_index=args.start, end_index=args.end)
 
-    for clip_vector, score in zip(clip_vecotors, scores):
-        print(clip_vector, score)
+    # for clip_vector, score in zip(clip_vecotors, scores):
+    #     print(clip_vector, score)
+
+    clip_vecotors, scores = \
+        clip_vector_loader.get_clip_vector_by_random(count=10)
