@@ -34,7 +34,7 @@ def main():
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
     try:
-        n_features = round(skdim.id.TwoNN().fit(clip_vectors.astype(np.float64)).dimension_)
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
         
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
