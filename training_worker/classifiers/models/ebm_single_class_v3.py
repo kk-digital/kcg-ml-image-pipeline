@@ -1663,7 +1663,7 @@ def plot_samples_graph_interpolation_plus_mapping(loaded_model,dataset_name, num
     
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
-
+    
     rank = 1
     ranks = []  # List to store ranks
     scores = []  # List to store scores
@@ -1874,6 +1874,183 @@ def plot_samples_hashless_combination(loaded_model_list,dataset_name, number_of_
     plot_images_with_scores_hasheless(tier15,plot_name15)
 
 
+def get_file_paths_and_hashes_uuid(dataset,num_samples):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
+        
+        jobs_full = json.loads(response.content)
+        
+        jobs = jobs_full.get('response', [])
+        #print(jobs)
+        file_paths=[job['image_path'] for job in jobs]
+        hashes=[job['image_hash'] for job in jobs]
+        uuid =[job['uuid'] for job in jobs] 
+        #image_hashes=[job['image_hash'] for job in jobs]
+
+        for i in  range(len(file_paths)):
+            print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+        
+        return file_paths, hashes,uuid
+
+
+def process_and_sort_dataset_with_hashes_uui_dict(images_paths, hashes,uuid, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for i in range(len(images_paths)):
+        # Extract embedding and image tensor from the image path
+        print(images_paths[i])
+        image, embedding = get_clip_and_image_from_path(images_paths[i])
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        image_dict = {
+            'path': images_paths[i],
+            'embedding': embedding,
+            'score': score.item(),
+            'image_tensor': image,
+            'hash': hashes[i],
+            'uuid': uuid[i]
+        }
+
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append(image_dict)  # Assuming score is a tensor, use .item() to get the value
+
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x['score'], reverse=True)
+
+    return sorted_structure
+
+
+
+
+
+def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
+
+
+
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
+
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_dict(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+
+    rank = 1
+    ranks = []  # List to store ranks
+    scores = []  # List to store scores
+
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", image["rank"], " Path : ", image["path"], " Score : ",image["score"])
+        ranks.append(rank)
+        scores.append(image[2])
+        rank += 1
+    # Tag the images
+
+    xs = ranks
+    ys = scores
+
+    max_score = sorted_images_and_hashes[0]["score"]
+    min_score = sorted_images_and_hashes[number_of_samples-1]["score"]
+    
+   
+
+    # Categorize scores into bins
+    num_bins = 1024
+    bins = np.linspace(min_score, max_score, num_bins+1)
+    bin_indices = np.digitize(scores, bins)
+
+    # mapping_functions = []
+    # for bin_idx in range(1, num_bins+1):
+    #     bin_start = bins[bin_idx - 1]
+    #     bin_end = bins[bin_idx]
+    #     # Map scores in each bin from +x to -x to 1 to -1
+    #     mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
+    #     mapping_functions.append(mapping_function)
+
+    # # Apply mapping functions to scores in each bin
+    # mapped_scores = [mapping_functions[bin_idx - 1](score) for bin_idx, score in zip(bin_indices, scores)]
+
+
+    # Adjust bin indices to ensure they don't exceed the number of bins
+    bin_indices = np.clip(bin_indices, 1, num_bins)
+
+    # Define mapping functions for each bin
+    mapping_functions = []
+    for bin_idx in range(1, num_bins + 1):
+        bin_start = min_score
+        bin_end = max_score
+        # Map scores in each bin from +x to -x to 1 to -1
+        mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , max_score, +1)
+        
+        mapping_functions.append(mapping_function)
+
+    # Debugging prints
+    print("Length of mapping_functions:", len(mapping_functions))
+    print("Length of bin_indices:", len(bin_indices))
+
+    # Apply mapping functions to scores in each bin
+    mapped_scores = []
+    for bin_idx, score in zip(bin_indices, scores):
+        if bin_idx >= 1 and bin_idx <= num_bins:
+            mapping_function = mapping_functions[bin_idx - 1]
+            mapped_score = mapping_function(score)
+            mapped_scores.append(mapped_score)
+            print(f'the bin {bin_idx} values is {mapped_score}')
+        else:
+            print(f"Invalid bin index: {bin_idx}")
+
+    # Print mapped_scores for inspection
+    print("Length of mapped_scores:", len(mapped_scores))
+    print(f'max score is {max_score} and min score is {min_score}')
+    # Generate additional points for higher granularity (64 segments)
+
+    x_dense = np.linspace(min(xs), max(xs), 64)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+
+    # Linear interpolation function with higher granularity
+    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+
+    # Plot the original function and the piecewise linear approximation with segments
+    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title(f'Mapping data for: {tag_name} using {model_type}')
+    plt.legend()
+    plt.grid(True)
+
+    # # Plotting the graph
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(ranks, scores, marker='o')
+    # plt.xlabel('Rank')
+    # plt.ylabel('Score')
+    # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
+    # plt.grid(True)
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
+    return sorted_images_and_hashes, mapped_scores
+
+
+
 
 
 ######### let's go
@@ -1933,7 +2110,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 100000 ,tag_name =tag_name_x, model_type = "EBM Model" )
+sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping_v2(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
 
 sorted_images_x = []
 
