@@ -1994,6 +1994,7 @@ def update_completed_jobs(request: Request):
             continue
 
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
+        print(output_file_hash)
         if not output_file_hash:
             continue
 
