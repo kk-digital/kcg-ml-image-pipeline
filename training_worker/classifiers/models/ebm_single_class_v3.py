@@ -2534,7 +2534,7 @@ model_list.append(model_1)
 
 
 
-model_2_name = "concept-cybernetic"  # "topic-desert"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -2565,7 +2565,7 @@ tag_name = tag_name_combined
 sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
                                                         loaded_model_2 = model_2,
                                                           dataset_name = "environmental",
-                                                            number_of_samples = 100000 ,
+                                                            number_of_samples = 40000 ,
                                                             tag_name =tag_name_x,
                                                               model_type = "EBM Model" )
 # rank = 1
