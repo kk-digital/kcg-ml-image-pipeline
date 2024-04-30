@@ -33,7 +33,6 @@ def parse_args():
     parser.add_argument('--minio-addr', type=str, help='Minio address')
     parser.add_argument('--library', type=int, default=0, help='Lirary used for getting intrinsic dimension of data, ["intrinsic_dimension", "scipy"], now there are two available libraries')
     parser.add_argument('--count-list', type=int, nargs='+', default=[100], help="list of count for getting intrinsic dimension")
-    parser.add_argument('--dataset', type=str, default="environmental", help="Dataset name")
     parser.add_argument('--min-sigma-score', type=int, default=0)
     return parser.parse_args()
 
@@ -62,7 +61,7 @@ def main():
 
         for count in args.count_list:
 
-            feature_data = dataloader.get_clip_vector_by_random(count=count)
+            feature_data, _ = dataloader.get_clip_vector_by_random(count=count)
             # get specific count of data for gettting intrinsic dimension
             data = torch.tensor(feature_data, device=device)
 
