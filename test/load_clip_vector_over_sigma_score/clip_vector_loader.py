@@ -7,7 +7,7 @@ sys.path.insert(0, base_dir)
 
 def get_clip_0_sigma(start_index, end_index):
 
-    dtype = np.float64
+    dtype = np.float16
     shape = (1000000, 1281)
 
     with open('output/clip_0_sigma.json', 'r') as file:
