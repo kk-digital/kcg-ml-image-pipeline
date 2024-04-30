@@ -33,17 +33,19 @@ def main():
     clip_vectors = clip_vectors[~np.isnan(clip_vectors).any(axis=1)]
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
-    n_features = round(skdim.id.TwoNN().fit(clip_vectors.astype(np.float64)).dimension_)
-    
-    # Create the OMP feature selector
-    omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
+    try:
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors.astype(np.float64)).dimension_)
+        
+        # Create the OMP feature selector
+        omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
-    # Fit the OMP feature selector to the data
-    omp.fit(clip_vectors, scores)
+        # Fit the OMP feature selector to the data
+        omp.fit(clip_vectors, scores)
 
-    clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
+        clip_vectors[:, np.argsort(-np.abs(omp.coef_))[n_features:]] = 0
 
-    print(clip_vectors[:2].tolist())
-
+        print(clip_vectors[:2].tolist())
+    except Exception as e:
+        print('Error occured! ', e)
 if __name__ == '__main__':
     main()
