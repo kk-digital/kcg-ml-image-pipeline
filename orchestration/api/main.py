@@ -209,7 +209,7 @@ def startup_db_client():
     tagged_image_hash_index=[
     ('image_hash', pymongo.ASCENDING)
     ]
-    create_index_if_not_exists(app.completed_jobs_collection ,tagged_image_hash_index, 'tagged_image_hash_index')
+    create_index_if_not_exists(app.image_tags_collection ,tagged_image_hash_index, 'tagged_image_hash_index')
 
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
