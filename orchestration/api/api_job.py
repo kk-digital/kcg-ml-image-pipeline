@@ -1987,27 +1987,30 @@ async def count_non_empty_task_attributes(request: Request, task_type: str = "im
 async def update_completed_jobs(request: Request):
     # Use projection to fetch only necessary fields
     cursor = request.app.completed_jobs_collection.find(
-        {"safe_to_delete": {"$exists": False}}, 
+        {"safe_to_delete": {"$exists": False}},
         {'task_output_file_dict': 1}
     )
     bulk_updates = []
 
+    # Asynchronous iteration over the cursor
     async for job in cursor:
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
-        print(output_file_hash)
         if not output_file_hash:
             continue
 
-        # Use projection in count_documents might not be applicable but using it for example purposes
-        tag_count = await request.app.image_tags_collection.count_documents(
-            {'image_hash': output_file_hash}
-        )
+        # Asynchronously count occurrences in image_tags_collection
+        tag_count = await request.app.image_tags_collection.count_documents({'image_hash': output_file_hash})
+
+        # Asynchronously count occurrences in image_pair_ranking_collection
         ranking_count = await request.app.image_pair_ranking_collection.count_documents(
             {'$or': [{'image_1_metadata.file_hash': output_file_hash},
                      {'image_2_metadata.file_hash': output_file_hash}]}
         )
+
+        # Determine if the image is safe to delete
         safe_to_delete = tag_count == 0 and ranking_count == 0
 
+        # Append the operation to the bulk updates list
         bulk_updates.append(UpdateOne(
             {'_id': ObjectId(job['_id'])},
             {'$set': {
@@ -2017,9 +2020,11 @@ async def update_completed_jobs(request: Request):
             }}
         ))
 
+    # Execute all bulk updates at once
     if bulk_updates:
         result = await request.app.completed_jobs_collection.bulk_write(bulk_updates)
         return {"message": f"Update process completed, {result.modified_count} documents updated."}
+
     return {"message": "No updates performed."}
 
 
