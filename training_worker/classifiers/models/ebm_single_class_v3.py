@@ -1560,9 +1560,9 @@ def plot_samples_graph(loaded_model,dataset_name, number_of_samples,tag_name):
 
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        
         ranks.append(rank)
-        scores.append(image[2])
+        scores.append(image["score"])
         rank += 1
     # Tag the images
 
@@ -1607,7 +1607,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
         #
         print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
         ranks.append(rank)
-        scores.append(image[2])
+        scores.append(image["score"])
         rank += 1
     # Tag the images
 
@@ -1946,7 +1946,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
         #
         print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
         ranks.append(rank)
-        scores.append(image[2])
+        scores.append(image["score"])
         rank += 1
     # Tag the images
 
