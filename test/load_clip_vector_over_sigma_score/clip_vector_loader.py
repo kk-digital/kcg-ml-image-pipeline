@@ -62,6 +62,7 @@ def parse_args():
 
     parser.add_argument('--start', type=int, default=0)
     parser.add_argument('--end', type=int, default=10)
+    parser.add_argument('--count', type=int, default=2)
     parser.add_argument('--min-sigma-score', type=int, default=0)
 
     return parser.parse_args()
@@ -74,9 +75,12 @@ if __name__ == '__main__':
 
     clip_vecotors, scores = \
         clip_vector_loader.get_clip_vector(start_index=args.start, end_index=args.end)
-
-    # for clip_vector, score in zip(clip_vecotors, scores):
-    #     print(clip_vector, score)
-
+    
     clip_vecotors, scores = \
-        clip_vector_loader.get_clip_vector_by_random(count=10)
+        clip_vector_loader.get_clip_vector_by_random(count=args.count)
+
+    for clip_vector, score in zip(clip_vecotors, scores):
+        print(clip_vector, score)
+
+    
+    
