@@ -18,9 +18,10 @@ def get_clip_0_sigma(start_index, end_index):
     with open('output/clip_0_sigma.dat', 'r') as f:
         mmapping_array = np.memmap(f, dtype=dtype, mode='r', shape=shape)
 
-    # update the count
-    if count > mmap_config["len-mmap"]:
-        count = mmap_config["len-mmap"]
+    start_index = max([0, start_index])
+    end_index = max([0, end_index])
+    start_index = min([start_index, mmap_config["loaded-count"]])
+    end_index = min([end_index, mmap_config["loaded-count"]])
 
     return mmapping_array[start_index:end_index, :1280].tolist(), mmapping_array[start_index:end_index, -1].tolist()
 
