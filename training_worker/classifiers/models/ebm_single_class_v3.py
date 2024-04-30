@@ -1196,7 +1196,7 @@ def plot_images_with_scores_hasheless_v2(sorted_dataset,name):
             # Convert PIL Image to a format suitable for matplotlib
             image = np.array(element["image_tensor"])
             score = element["score"]
-        i = i+1
+        
 
     # for i, (image_path, _, score, image_tensor) in enumerate(sorted_dataset):
     #     # Check if image_tensor is a PIL Image; no need to convert if already a numpy array
@@ -1208,7 +1208,7 @@ def plot_images_with_scores_hasheless_v2(sorted_dataset,name):
         axes[i].imshow(image)
         axes[i].set_title(f"Score: {score:.2f}")
         axes[i].axis('off')  # Hide axis ticks and labels
-
+        i = i+1
     # Hide any unused subplots
     for j in range(i + 1, len(axes)):
         axes[j].axis('off')
