@@ -1963,17 +1963,6 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     bins = np.linspace(min_score, max_score, num_bins+1)
     bin_indices = np.digitize(scores, bins)
 
-    # mapping_functions = []
-    # for bin_idx in range(1, num_bins+1):
-    #     bin_start = bins[bin_idx - 1]
-    #     bin_end = bins[bin_idx]
-    #     # Map scores in each bin from +x to -x to 1 to -1
-    #     mapping_function = lambda score: piecewise_linear(score, bin_start, 1, bin_end, -1)
-    #     mapping_functions.append(mapping_function)
-
-    # # Apply mapping functions to scores in each bin
-    # mapped_scores = [mapping_functions[bin_idx - 1](score) for bin_idx, score in zip(bin_indices, scores)]
-
 
     # Adjust bin indices to ensure they don't exceed the number of bins
     bin_indices = np.clip(bin_indices, 1, num_bins)
@@ -2053,6 +2042,211 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
 
 
 
+
+
+def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_model_2, dataset_name, number_of_samples,tag_name, model_type):
+
+
+
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
+
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_dict(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+
+    rank = 1
+    ranks = []  # List to store ranks
+    scores = []  # List to store scores
+
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
+        ranks.append(rank)
+        scores.append(image["score"])
+        rank += 1
+    # Tag the images
+
+    xs = ranks
+    ys = scores
+
+    max_score = sorted_images_and_hashes[0]["score"]
+    min_score = sorted_images_and_hashes[number_of_samples-1]["score"]
+    
+   
+
+    # Categorize scores into bins
+    num_bins = 1024
+    bins = np.linspace(min_score, max_score, num_bins+1)
+    bin_indices = np.digitize(scores, bins)
+
+
+    # Adjust bin indices to ensure they don't exceed the number of bins
+    bin_indices = np.clip(bin_indices, 1, num_bins)
+
+    # Define mapping functions for each bin
+    mapping_functions = []
+    for bin_idx in range(1, num_bins + 1):
+        bin_start = min_score
+        bin_end = max_score
+        # Map scores in each bin from +x to -x to 1 to -1
+        mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , max_score, +1)
+        
+        mapping_functions.append(mapping_function)
+
+    # Debugging prints
+    print("Length of mapping_functions:", len(mapping_functions))
+    print("Length of bin_indices:", len(bin_indices))
+
+    # Apply mapping functions to scores in each bin
+    mapped_scores = []
+    for bin_idx, score in zip(bin_indices, scores):
+        if bin_idx >= 1 and bin_idx <= num_bins:
+            mapping_function = mapping_functions[bin_idx - 1]
+            mapped_score = mapping_function(score)
+            mapped_scores.append(mapped_score)
+            print(f'the bin {bin_idx} values is {mapped_score}')
+        else:
+            print(f"Invalid bin index: {bin_idx}")
+
+
+
+    # Process the images
+    sorted_images_and_hashes_2 = process_and_sort_dataset_with_hashes_uui_dict(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model_2) 
+
+    rank_2 = 1
+    ranks_2 = []  # List to store ranks
+    scores_2 = []  # List to store scores
+
+    for image in sorted_images_and_hashes_2:
+        #
+        print("Rank : ", rank_2, " Path : ", image["path"], " Score : ",image["score"])
+        ranks_2.append(rank_2)
+        scores_2.append(image["score"])
+        rank_2 += 1
+    # Tag the images
+
+    xs_2 = ranks_2
+    ys_2 = scores_2
+
+    max_score_2 = sorted_images_and_hashes_2[0]["score"]
+    min_score_2 = sorted_images_and_hashes_2[number_of_samples-1]["score"]
+    
+   
+
+    # Categorize scores into bins
+    num_bins = 1024
+    bins = np.linspace(min_score_2, max_score_2, num_bins+1)
+    bin_indices = np.digitize(scores_2, bins)
+
+
+    # Adjust bin indices to ensure they don't exceed the number of bins
+    bin_indices = np.clip(bin_indices, 1, num_bins)
+
+    # Define mapping functions for each bin
+    mapping_functions = []
+    for bin_idx in range(1, num_bins + 1):
+        bin_start = min_score_2
+        bin_end = max_score_2
+        # Map scores in each bin from +x to -x to 1 to -1
+        mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , bin_end, +1)
+        
+        mapping_functions.append(mapping_function)
+
+    # Debugging prints
+    print("Length of mapping_functions:", len(mapping_functions))
+    print("Length of bin_indices:", len(bin_indices))
+
+    # Apply mapping functions to scores in each bin
+    mapped_scores_2 = []
+    for bin_idx, score in zip(bin_indices, scores):
+        if bin_idx >= 1 and bin_idx <= num_bins:
+            mapping_function = mapping_functions[bin_idx - 1]
+            mapped_score = mapping_function(score)
+            mapped_scores_2.append(mapped_score)
+            print(f'the bin {bin_idx} values is {mapped_score}')
+        else:
+            print(f"Invalid bin index: {bin_idx}")
+
+
+    # # Print mapped_scores for inspection
+    # print("Length of mapped_scores:", len(mapped_scores))
+    # print(f'max score is {max_score} and min score is {min_score}')
+    # # Generate additional points for higher granularity (64 segments)
+
+    # x_dense = np.linspace(min(xs), max(xs), 64)
+    # y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+
+    # # Linear interpolation function with higher granularity
+    # interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+
+    # # Plot the original function and the piecewise linear approximation with segments
+    # plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    # plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    # plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
+    # plt.xlabel('x')
+    # plt.ylabel('f(x)')
+    # plt.title(f'Mapping data for: {tag_name} using {model_type}')
+    # plt.legend()
+    # plt.grid(True)
+
+    # # # Plotting the graph
+    # # plt.figure(figsize=(8, 6))
+    # # plt.plot(ranks, scores, marker='o')
+    # # plt.xlabel('Rank')
+    # # plt.ylabel('Score')
+    # # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
+    # # plt.grid(True)
+    # plt.savefig("output/rank.png")
+
+    # # Save the figure to a file
+    # buf = io.BytesIO()
+    # plt.savefig(buf, format='png')
+    # buf.seek(0)
+
+    # # upload the graph report
+    # minio_path="environmental/output/my_tests"
+    # minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    # cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # # Remove the temporary file
+    # os.remove("output/rank.png")
+    # # Clear the current figure
+    # plt.clf()
+
+    combined_data = []
+    sorted_images_and_hashes_updated_1 = []
+    sorted_images_and_hashes_updated_2 = []
+
+    for i in range (0,len(sorted_images_and_hashes)):
+        sorted_images_and_hashes_updated_1.append((sorted_images_and_hashes[i]["path"], sorted_images_and_hashes[i]["embedding"], mapped_scores[i], sorted_images_and_hashes[i]["image_tensor"]))
+
+    for i in range (0,len(sorted_images_and_hashes_2)):
+        sorted_images_and_hashes_updated_2.append((sorted_images_and_hashes_2[i]["path"], sorted_images_and_hashes_2[i]["embedding"], mapped_scores_2[i], sorted_images_and_hashes_2[i]["image_tensor"]))
+
+
+    for item_one in sorted_images_and_hashes_updated_1:
+        path = item_one['path']
+        score_one = item_one['score']
+
+        for item_two in sorted_images_and_hashes_updated_2:
+            if item_two['path'] == path:
+                combined_score = score_one + item_two['score']
+                # sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"])
+
+                # append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"]))
+                combined_element = {'path': item_one['path'], 'score': combined_score, "embedding": item_one["embedding"], "image_tensor": item_one["image_tensor"] }
+                combined_data.append(combined_element)
+                break  # Stop searching in list_two once we find the matching path
+
+   
+
+
+    return  combined_data  #sorted_images_and_hashes, sorted_images_and_hashes_2, mapped_scores, mapped_scores_2
+
+
+
+
+
+
 ######### let's go
 
 
@@ -2110,31 +2304,199 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # graph interpol
 #plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x, model_type = "EBM Model" )
-sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping_v2(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
+# sorted_images , new_scores = plot_samples_graph_interpolation_plus_mapping_v2(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 2000 ,tag_name =tag_name_x, model_type = "EBM Model" )
 
-sorted_images_x = []
+# sorted_images_x = []
 
 
       
-        # image_dict = {
-        #     'path': images_paths[i],
-        #     'embedding': embedding,
-        #     'score': score.item(),
-        #     'image_tensor': image,
-        #     'hash': hashes[i],
-        #     'uuid': uuid[i]
-        # }
+#         # image_dict = {
+#         #     'path': images_paths[i],
+#         #     'embedding': embedding,
+#         #     'score': score.item(),
+#         #     'image_tensor': image,
+#         #     'hash': hashes[i],
+#         #     'uuid': uuid[i]
+#         # }
 
 
-#structure.append((image_path, embedding, score.item(),image)) 
-tag_name = tag_name_x
-for i in range (0,len(sorted_images)):
-    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"]))
-    #sorted_images_x  sorted_images[i][2] = new_scores[i]
+# #structure.append((image_path, embedding, score.item(),image)) 
+# tag_name = tag_name_x
+# for i in range (0,len(sorted_images)):
+#     sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"]))
+#     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
-sorted_images_and_hashes = sorted_images_x
+# sorted_images_and_hashes = sorted_images_x
 
+# # rank = 1
+# # for image in sorted_images_and_hashes:
+# #     #
+# #     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
+# #     rank += 0
+# # # Tag the images
+
+# selected_structure_first_50 = sorted_images_and_hashes[:52] 
+# selected_structure_second_50 = sorted_images_and_hashes[52:103]
+# selected_structure_third_50 = sorted_images_and_hashes[103:154]
+
+# tier4 = sorted_images_and_hashes[150:200] 
+# tier5 = sorted_images_and_hashes[200:250]
+# tier6 = sorted_images_and_hashes[250:300]
+# tier7 = sorted_images_and_hashes[300:350] 
+# tier8 = sorted_images_and_hashes[350:400]
+# tier9 = sorted_images_and_hashes[400:450]
+
+
+
+# tier10 = sorted_images_and_hashes[450:500] 
+# tier11 = sorted_images_and_hashes[500:550]
+# tier12 = sorted_images_and_hashes[550:750]
+# tier13 = sorted_images_and_hashes[750:950]
+# tier14 = sorted_images_and_hashes[950:1150]
+# tier15 = sorted_images_and_hashes[1150:1350]
+
+# #tag_image(file_hash,tag_id,user)
+
+
+# plot_name1 = tag_name + "_tier1_hs"
+# plot_name2 = tag_name + "_tier2_hs"
+# plot_name3  = tag_name + "_tier3_hs"
+# plot_name4 = tag_name + "_tier4_hs"
+# plot_name5 = tag_name + "_tier5_hs"
+# plot_name6  = tag_name + "_tier6_hs"
+# plot_name7 = tag_name + "_tier7_hs"
+# plot_name8  = tag_name + "_tier8_hs"
+# plot_name9  = tag_name + "_tier9_hs"
+
+# plot_name10 = tag_name + "_tier10_hs"
+# plot_name11  = tag_name + "_tier11_hs"
+# plot_name12  = tag_name + "_tier12_hs"
+
+
+# plot_name13 = tag_name + "_tier13_hs"
+# plot_name14  = tag_name + "_tier14_hs"
+# plot_name15  = tag_name + "_tier15_hs"
+
+# plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+# plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+# plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+
+# plot_images_with_scores_hasheless(tier4,plot_name4)
+# plot_images_with_scores_hasheless(tier5,plot_name5)
+# plot_images_with_scores_hasheless(tier6,plot_name6)
+# plot_images_with_scores_hasheless(tier7,plot_name7)
+# plot_images_with_scores_hasheless(tier8,plot_name8)
+# plot_images_with_scores_hasheless(tier9,plot_name9)
+
+# plot_images_with_scores_hasheless(tier10,plot_name10)
+# plot_images_with_scores_hasheless(tier11,plot_name11)
+# plot_images_with_scores_hasheless(tier12,plot_name12)
+
+
+# plot_images_with_scores_hasheless(tier13,plot_name13)
+# plot_images_with_scores_hasheless(tier14,plot_name14)
+# plot_images_with_scores_hasheless(tier15,plot_name15)
+
+
+
+############################ comb with - + 1 ########################
+
+
+
+
+
+
+
+
+############################ Train ########################
+
+
+# tag_name_x_2 =  "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+#                             dataset= "environmental",
+#                             class_name= tag_name_x_2,
+#                             model = None,
+#                             save_name = "bla",
+#                             class_id =  get_tag_id_by_name(tag_name_x_2),
+#                             training_batch_size=64,
+#                             num_samples= 32000,
+#                             epochs= 20,
+#                             learning_rate= 0.001)
+
+
+# defect_test.train_v2()
+
+
+# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
+# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x_2)
+
+
+
+
+
+########## comb
+
+model_list = []
+
+model_1_name =  "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= model_1_name,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
+
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+
+
+model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
+
+model_list.append(model_1)
+
+
+
+model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= model_2_name ,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
+
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+
+
+model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
+
+model_list.append(model_2)
+
+tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
+
+
+
+tag_name = tag_name_combined
+sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
+                                                        loaded_model_2 = model_2,
+                                                          dataset_name = "environmental",
+                                                            number_of_samples = 2000 ,
+                                                            tag_name =tag_name_x,
+                                                              model_type = "EBM Model" )
 # rank = 1
 # for image in sorted_images_and_hashes:
 #     #
@@ -2203,88 +2565,6 @@ plot_images_with_scores_hasheless(tier12,plot_name12)
 plot_images_with_scores_hasheless(tier13,plot_name13)
 plot_images_with_scores_hasheless(tier14,plot_name14)
 plot_images_with_scores_hasheless(tier15,plot_name15)
-
-############################ Train ########################
-
-
-# tag_name_x_2 =  "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
-# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#                             dataset= "environmental",
-#                             class_name= tag_name_x_2,
-#                             model = None,
-#                             save_name = "bla",
-#                             class_id =  get_tag_id_by_name(tag_name_x_2),
-#                             training_batch_size=64,
-#                             num_samples= 32000,
-#                             epochs= 20,
-#                             learning_rate= 0.001)
-
-
-# defect_test.train_v2()
-
-
-# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
-# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x_2)
-
-
-
-
-
-########## comb
-
-# model_list = []
-
-# model_1_name =  "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
-# model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= model_1_name,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
-
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-
-
-# model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
-
-# model_list.append(model_1)
-
-
-
-# model_2_name =  "topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
-# model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= model_2_name ,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
-
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-
-
-# model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
-
-# model_list.append(model_2)
-
-# tag_name_combined = f"{model_1_name}-and-{model_2_name}"
-
-# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
-
-
-
 
 
 
