@@ -2565,7 +2565,7 @@ tag_name = tag_name_combined
 sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
                                                         loaded_model_2 = model_2,
                                                           dataset_name = "environmental",
-                                                            number_of_samples = 1024 ,
+                                                            number_of_samples = 100000 ,
                                                             tag_name =tag_name_x,
                                                               model_type = "EBM Model" )
 # rank = 1
