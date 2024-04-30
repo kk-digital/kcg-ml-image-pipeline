@@ -2135,12 +2135,12 @@ for i in range (0,len(sorted_images)):
 
 sorted_images_and_hashes = sorted_images_x
 
-rank = 1
-for image in sorted_images_and_hashes:
-    #
-    print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
-    rank += 0
-# Tag the images
+# rank = 1
+# for image in sorted_images_and_hashes:
+#     #
+#     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
+#     rank += 0
+# # Tag the images
 
 selected_structure_first_50 = sorted_images_and_hashes[:52] 
 selected_structure_second_50 = sorted_images_and_hashes[52:103]
