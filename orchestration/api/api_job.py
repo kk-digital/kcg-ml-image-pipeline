@@ -2021,3 +2021,10 @@ def update_completed_jobs(request: Request):
         )
 
     return {"message": "Update process completed."}
+
+
+@router.get("/count-updated-jobs")
+def get_completed_job_count(request: Request):
+    # Count documents where "safe_to_delete" field exists
+    count = request.app.completed_jobs_collection.count_documents({"safe_to_delete": {"$exists": True}})
+    return {"completed_job_count": count}
