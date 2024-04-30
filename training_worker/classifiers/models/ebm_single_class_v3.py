@@ -1944,7 +1944,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
 
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank " Path : ", image["path"], " Score : ",image["score"])
+        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
         ranks.append(rank)
         scores.append(image[2])
         rank += 1
