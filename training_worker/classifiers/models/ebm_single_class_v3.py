@@ -2125,9 +2125,11 @@ sorted_images_x = []
         #     'uuid': uuid[i]
         # }
 
+
+#structure.append((image_path, embedding, score.item(),image)) 
 tag_name = tag_name_x
 for i in range (0,len(sorted_images)):
-    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["hash"], new_scores[i],sorted_images[i]["image"])) 
+    sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i]))
     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
@@ -2136,7 +2138,7 @@ sorted_images_and_hashes = sorted_images_x
 rank = 1
 for image in sorted_images_and_hashes:
     #
-    print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+    print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
     rank += 0
 # Tag the images
 
