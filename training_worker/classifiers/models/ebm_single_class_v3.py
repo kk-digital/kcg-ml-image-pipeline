@@ -2217,10 +2217,17 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     sorted_images_and_hashes_updated_2 = []
 
     for i in range (0,len(sorted_images_and_hashes)):
-        sorted_images_and_hashes_updated_1.append((sorted_images_and_hashes[i]["path"], sorted_images_and_hashes[i]["embedding"], mapped_scores[i], sorted_images_and_hashes[i]["image_tensor"]))
+        sorted_images_and_hashes_updated_1.append({"path": sorted_images_and_hashes[i]["path"], 
+                                                   "embedding": sorted_images_and_hashes[i]["embedding"],
+                                                    "score": mapped_scores[i],
+                                                      "image_tensor": sorted_images_and_hashes[i]["image_tensor"]})
+                                                       
 
     for i in range (0,len(sorted_images_and_hashes_2)):
-        sorted_images_and_hashes_updated_2.append((sorted_images_and_hashes_2[i]["path"], sorted_images_and_hashes_2[i]["embedding"], mapped_scores_2[i], sorted_images_and_hashes_2[i]["image_tensor"]))
+        sorted_images_and_hashes_updated_2.append({"path": sorted_images_and_hashes_2[i]["path"], 
+                                                    "embedding": sorted_images_and_hashes_2[i]["embedding"], 
+                                                    "score": mapped_scores_2[i],
+                                                    "image_tensor":  sorted_images_and_hashes_2[i]["image_tensor"]})
 
 
     for item_one in sorted_images_and_hashes_updated_1:
