@@ -1166,6 +1166,69 @@ def plot_images_with_scores_hasheless(sorted_dataset,name):
     # Clear the current figure
     plt.clf()
 
+
+
+
+# Try it for dictionary
+def plot_images_with_scores_hasheless_v2(sorted_dataset,name):
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+    # Number of images
+    num_images = len(sorted_dataset)
+    
+    # Fixed columns to 4
+    cols = 4
+    # Calculate rows needed for 4 images per row
+    rows = math.ceil(num_images / cols)
+
+    # Create figure with subplots
+    # Adjust figsize here: width, height in inches. Increase for larger images.
+    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))  # 4 inches per image in each dimension
+    fig.tight_layout(pad=3.0)  # Adjust padding as needed
+    # Flatten axes array for easy indexing
+    axes = axes.flatten()
+
+    # Loop over sorted dataset and plot each image with its score
+    i = 0
+    for element in sorted_dataset:
+        if not isinstance(element["image_tensor"], np.ndarray):
+            # Convert PIL Image to a format suitable for matplotlib
+            image = np.array(element["image_tensor"])
+            score = element["score"]
+        i = i+1
+
+    # for i, (image_path, _, score, image_tensor) in enumerate(sorted_dataset):
+    #     # Check if image_tensor is a PIL Image; no need to convert if already a numpy array
+    #     if not isinstance(image_tensor, np.ndarray):
+    #         # Convert PIL Image to a format suitable for matplotlib
+    #         image = np.array(image_tensor)
+        
+        # Plot the image
+        axes[i].imshow(image)
+        axes[i].set_title(f"Score: {score:.2f}")
+        axes[i].axis('off')  # Hide axis ticks and labels
+
+    # Hide any unused subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].axis('off')
+
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_ds_"+ name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
 def process_and_sort_dataset(images_paths, model):
     # Initialize an empty list to hold the structure for each image
     structure = []
@@ -1298,25 +1361,25 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_name14  = tag_name + "_tier14_hs"
     plot_name15  = tag_name + "_tier15_hs"
 
-    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
-    plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
-    plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+    plot_images_with_scores_hasheless_v2(selected_structure_first_50,plot_name1)
+    plot_images_with_scores_hasheless_v2(selected_structure_second_50,plot_name2)
+    plot_images_with_scores_hasheless_v2(selected_structure_third_50,plot_name3)
 
-    plot_images_with_scores_hasheless(tier4,plot_name4)
-    plot_images_with_scores_hasheless(tier5,plot_name5)
-    plot_images_with_scores_hasheless(tier6,plot_name6)
-    plot_images_with_scores_hasheless(tier7,plot_name7)
-    plot_images_with_scores_hasheless(tier8,plot_name8)
-    plot_images_with_scores_hasheless(tier9,plot_name9)
+    plot_images_with_scores_hasheless_v2(tier4,plot_name4)
+    plot_images_with_scores_hasheless_v2(tier5,plot_name5)
+    plot_images_with_scores_hasheless_v2(tier6,plot_name6)
+    plot_images_with_scores_hasheless_v2(tier7,plot_name7)
+    plot_images_with_scores_hasheless_v2(tier8,plot_name8)
+    plot_images_with_scores_hasheless_v2(tier9,plot_name9)
 
-    plot_images_with_scores_hasheless(tier10,plot_name10)
-    plot_images_with_scores_hasheless(tier11,plot_name11)
-    plot_images_with_scores_hasheless(tier12,plot_name12)
+    plot_images_with_scores_hasheless_v2(tier10,plot_name10)
+    plot_images_with_scores_hasheless_v2(tier11,plot_name11)
+    plot_images_with_scores_hasheless_v2(tier12,plot_name12)
 
     
-    plot_images_with_scores_hasheless(tier13,plot_name13)
-    plot_images_with_scores_hasheless(tier14,plot_name14)
-    plot_images_with_scores_hasheless(tier15,plot_name15)
+    plot_images_with_scores_hasheless_v2(tier13,plot_name13)
+    plot_images_with_scores_hasheless_v2(tier14,plot_name14)
+    plot_images_with_scores_hasheless_v2(tier15,plot_name15)
 
 
 
