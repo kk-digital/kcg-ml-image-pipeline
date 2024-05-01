@@ -11,12 +11,13 @@ def update_completed_jobs():
     tags_collection = db['image_tags']
     ranking_collection = db['image_pair_ranking']
 
-    # Retrieve all jobs from completed_jobs_collection
-    all_jobs = list(completed_jobs.find())
+    # Retrieve all jobs from completed_jobs_collection that do not have 'safe_to_delete' field
+    all_jobs = list(completed_jobs.find({"safe_to_delete": {"$exists": False}}))
 
     # Iterate over each job in completed_jobs_collection with a progress bar
     for job in all_jobs:
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
+
         print(output_file_hash)
 
         # Count occurrences in image_tags_collection
