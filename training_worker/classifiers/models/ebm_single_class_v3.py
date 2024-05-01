@@ -2539,7 +2539,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 model_list = []
 
-model_1_name =  "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+model_1_name = "topic-medieval" # "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
 model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -2562,7 +2562,7 @@ model_list.append(model_1)
 
 
 
-model_2_name =  "topic-medieval"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name = "perspective-isometric"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
