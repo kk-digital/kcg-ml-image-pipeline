@@ -102,7 +102,7 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
         feature_data = load_featurs_data(minio_client, data_type, max_count, dataset)
         if len(feature_data) == 0:
             print("Error loading feature data from {} dataset".format(dataset))
-            return
+            return result
 
         for count in count_list:
 
@@ -156,7 +156,8 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                         "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
                         "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
                 })
-            return result
+
+    return result
 
 def main():
     args = parse_args()
@@ -198,9 +199,10 @@ def main():
         if results:
             for result in results:
                 df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
+                
     df.groupby("Number of vectors")
-    with open(get_file_name(), mode='w') as file:
-        df.to_csv(get_file_name(), index=False)
+
+    df.to_csv(get_file_name(), index=False)
         
 if __name__ == "__main__":
     main()
