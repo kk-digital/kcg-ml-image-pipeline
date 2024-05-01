@@ -188,7 +188,7 @@ def main():
                               data_type_list=args.data_type_list)
             if results:
                 for result in results:
-                    df = pd.concat([df, pd.DataFrame(result)], ignore_index=True)
+                    df = pd.concat([df, pd.DataFrame(result)])
     
     else:
         results = get_intrinsic_dimenstions(minio_client=minio_client, 
@@ -198,8 +198,8 @@ def main():
                               data_type_list=args.data_type_list)
         if results:
             for result in results:
-                df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
-                
+                df = pd.concat([df, pd.DataFrame(results)])
+
     df.groupby("Number of vectors")
 
     df.to_csv(get_file_name(), index=False)
