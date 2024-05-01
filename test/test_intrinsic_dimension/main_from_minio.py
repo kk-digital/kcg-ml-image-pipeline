@@ -185,7 +185,7 @@ def main():
                               data_type_list=args.data_type_list)
             
             for result in results:
-                df.append(result, ignore_index=True)
+                df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
     
     else:
         result = get_intrinsic_dimenstions(minio_client=minio_client, 
@@ -194,7 +194,7 @@ def main():
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
         for result in results:
-            df.append(result, ignore_index=True)
+            df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
     df.groupby("Number of vectors")
     with open(get_file_name(), mode='w') as file:
         df.to_csv(get_file_name(), index=False)
