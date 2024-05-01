@@ -2270,8 +2270,9 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
     # Plot the original function and the piecewise linear approximation with segments
-    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    #plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
     plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    plt.plot(xs_2, ys_2,  label='Real data points model 2', markersize=3,linestyle='--')
     plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
     plt.plot(np.arange(len(mapped_scores_2)), mapped_scores_2,  label='pricewise linear model 2', markersize=3,linestyle='--')
     plt.xlabel('x')
