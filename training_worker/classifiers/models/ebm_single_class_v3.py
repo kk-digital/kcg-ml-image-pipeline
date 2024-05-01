@@ -2328,7 +2328,7 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
         for item_two in sorted_images_and_hashes_updated_2:
             if item_two['path'] == path:
                 combined_score = score_one + item_two['score']
-                print(f"path 1: {path} is path 2: {item_two['path']} old score is {score_one} new score is {item_two['score']} and new score is {combined_score}")
+                print(f"path 1: {path} is path 2: {item_two['path']} old score is {score_one} new score is {item_two['score']} and combined is {combined_score}")
                 # sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"])
 
                 # append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"]))
@@ -2562,7 +2562,7 @@ model_list.append(model_1)
 
 
 
-model_2_name =  "perspective-isometric"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name =  "topic-medieval"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
