@@ -149,7 +149,7 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                 result.append({
                         "Dataset": dataset,
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                        "Number of vectors": data.shape[0],
+                        "Number of vector": data.shape[0],
                         "Dimension of vector": data.shape[1],
                         "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
@@ -171,7 +171,7 @@ def main():
         df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
     
     elif args.library == Library.SCIKIT_DIMENSION.value:
-        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vectors", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
+        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
     else:
         print("Not support such library")
         return
@@ -187,7 +187,7 @@ def main():
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
             for result in results:
-                df = pd.concat([df, pd.DataFrame(result)], ignore_index=True)
+                df.loc[len(df)] = result
     
     else:
         results = get_intrinsic_dimenstions(minio_client=minio_client, 
@@ -196,7 +196,7 @@ def main():
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
         for result in results:
-            df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
+            df.loc[len(df)] = result
 
     df.groupby("Number of vectors")
 
