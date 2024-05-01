@@ -2197,7 +2197,14 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     
    
 
+   
 
+    # Categorize scores into bins
+    # num_bins = 1024
+    # bins = np.linspace(min_score, max_score, num_bins+1)
+    # bin_indices = np.digitize(scores, bins)
+    # # Adjust bin indices to ensure they don't exceed the number of bins
+    # bin_indices = np.clip(bin_indices, 1, num_bins)
 
     # Categorize scores into bins
     num_bins_2 = 1024
@@ -2206,7 +2213,7 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
 
     # Adjust bin indices to ensure they don't exceed the number of bins
-    bin_indices_2 = np.clip(bin_indices_2, 1, bins_2)
+    bin_indices_2 = np.clip(bin_indices_2, 1, num_bins_2)
 
     # Define mapping functions for each bin
     mapping_functions_2 = []
