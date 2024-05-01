@@ -31,10 +31,9 @@ def update_completed_jobs():
 
         # Count occurrences in image_pair_ranking_collection
         start_time = time.time()
-        ranking_count = ranking_collection.count_documents(
-            {'$or': [{'image_1_metadata.file_hash': output_file_hash}, 
-                     {'image_2_metadata.file_hash': output_file_hash}]}
-        )
+        count1 = ranking_collection.count_documents({'image_1_metadata.file_hash': output_file_hash})
+        count2 = ranking_collection.count_documents({'image_2_metadata.file_hash': output_file_hash})
+        ranking_count = count1 + count2
         print("Time to count rankings: {:.2f} seconds".format(time.time() - start_time))
 
         # Determine if the image is safe to delete
