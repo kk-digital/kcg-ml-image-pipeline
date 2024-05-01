@@ -187,7 +187,7 @@ def main():
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
             for result in results:
-                df = pd.concat([df, pd.DataFrame(result)])
+                df = pd.concat([df, pd.DataFrame(result)], ignore_index=True)
     
     else:
         results = get_intrinsic_dimenstions(minio_client=minio_client, 
@@ -196,7 +196,7 @@ def main():
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
         for result in results:
-            df = pd.concat([df, pd.DataFrame(results)])
+            df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
 
     df.groupby("Number of vectors")
 
