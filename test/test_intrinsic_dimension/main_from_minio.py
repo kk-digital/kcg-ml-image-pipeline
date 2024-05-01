@@ -107,7 +107,8 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
             # load feature data from environment dataset
             feature_data = load_featurs_data(minio_client, data_type, max_count, dataset)
             if len(feature_data) == 0:
-                raise Exception("Failed the loading of feature data")
+                print("Error loading feature data from {} dataset".format(dataset))
+                return
 
             for count in count_list:
 
