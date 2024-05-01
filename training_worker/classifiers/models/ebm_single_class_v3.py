@@ -2258,49 +2258,50 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
             print(f"Invalid bin index: {bin_idx_2}")
 
 
-    # # Print mapped_scores for inspection
-    # print("Length of mapped_scores:", len(mapped_scores))
-    # print(f'max score is {max_score} and min score is {min_score}')
-    # # Generate additional points for higher granularity (64 segments)
+    # Print mapped_scores for inspection
+    print("Length of mapped_scores:", len(mapped_scores))
+    print(f'max score is {max_score} and min score is {min_score}')
+    # Generate additional points for higher granularity (64 segments)
 
-    # x_dense = np.linspace(min(xs), max(xs), 64)
-    # y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+    x_dense = np.linspace(min(xs), max(xs), 64)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
-    # # Linear interpolation function with higher granularity
-    # interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+    # Linear interpolation function with higher granularity
+    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
-    # # Plot the original function and the piecewise linear approximation with segments
-    # plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
-    # plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
-    # plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
-    # plt.xlabel('x')
-    # plt.ylabel('f(x)')
-    # plt.title(f'Mapping data for: {tag_name} using {model_type}')
-    # plt.legend()
+    # Plot the original function and the piecewise linear approximation with segments
+    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores_2)), mapped_scores_2,  label='pricewise linear model 2', markersize=3,linestyle='--')
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title(f'Mapping data for: {tag_name} using {model_type}')
+    plt.legend()
+    plt.grid(True)
+
+    # # Plotting the graph
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(ranks, scores, marker='o')
+    # plt.xlabel('Rank')
+    # plt.ylabel('Score')
+    # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
     # plt.grid(True)
+    plt.savefig("output/rank.png")
 
-    # # # Plotting the graph
-    # # plt.figure(figsize=(8, 6))
-    # # plt.plot(ranks, scores, marker='o')
-    # # plt.xlabel('Rank')
-    # # plt.ylabel('Score')
-    # # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
-    # # plt.grid(True)
-    # plt.savefig("output/rank.png")
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
 
-    # # Save the figure to a file
-    # buf = io.BytesIO()
-    # plt.savefig(buf, format='png')
-    # buf.seek(0)
-
-    # # upload the graph report
-    # minio_path="environmental/output/my_tests"
-    # minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
-    # cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-    # # Remove the temporary file
-    # os.remove("output/rank.png")
-    # # Clear the current figure
-    # plt.clf()
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
 
     combined_data = []
     sorted_images_and_hashes_updated_1 = []
@@ -2593,7 +2594,7 @@ tag_name = tag_name_combined
 sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
                                                         loaded_model_2 = model_2,
                                                           dataset_name = "environmental",
-                                                            number_of_samples = 1024 ,
+                                                            number_of_samples = 2048 ,
                                                             tag_name =tag_name_x,
                                                               model_type = "EBM Model" )
 # rank = 1
