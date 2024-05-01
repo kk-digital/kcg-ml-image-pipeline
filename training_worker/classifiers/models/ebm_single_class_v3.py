@@ -2309,9 +2309,9 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
                 break  # Stop searching in list_two once we find the matching path
 
    
+    result = sorted(combined_data, key=lambda x: x['score'], reverse=True)            
 
-
-    return  combined_data  #sorted_images_and_hashes, sorted_images_and_hashes_2, mapped_scores, mapped_scores_2
+    return  result  #sorted_images_and_hashes, sorted_images_and_hashes_2, mapped_scores, mapped_scores_2
 
 
 
