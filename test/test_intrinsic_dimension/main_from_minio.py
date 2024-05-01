@@ -142,18 +142,18 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                 dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
 
                 if dimension_by_mle != 'Nan':
-                    dimension_by_mle = dimension_by_mle.dimension_
+                    dimension_by_mle = round(dimension_by_mle.dimension_, 2)
                 if dimension_by_twonn_numpy != 'Nan':
-                    dimension_by_twonn_numpy = dimension_by_twonn_numpy.dimension_
+                    dimension_by_twonn_numpy = round(dimension_by_twonn_numpy.dimension_, 2)
 
                 result.append({
                         "Dataset": dataset,
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
                         "Number of vector": data.shape[0],
                         "Dimension of vector": data.shape[1],
-                        "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
+                        "MLE intrinsic dimension": "{}".format(dimension_by_mle),
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                        "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
+                        "Twonn Intrinsic dimension": "{}".format(dimension_by_twonn_numpy),
                         "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
                 })
 
