@@ -2117,6 +2117,10 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_dict(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
 
+
+
+
+
     rank = 1
     ranks = []  # List to store ranks
     scores = []  # List to store scores
@@ -2173,8 +2177,11 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
 
 
+    ###################### Element 2
+
     # Process the images
     sorted_images_and_hashes_2 = process_and_sort_dataset_with_hashes_uui_dict(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model_2) 
+
 
     rank_2 = 1
     ranks_2 = []  # List to store ranks
@@ -2195,16 +2202,7 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     max_score_2 = sorted_images_and_hashes_2[0]["score"]
     min_score_2 = sorted_images_and_hashes_2[number_of_samples-1]["score"]
     
-   
 
-   
-
-    # Categorize scores into bins
-    # num_bins = 1024
-    # bins = np.linspace(min_score, max_score, num_bins+1)
-    # bin_indices = np.digitize(scores, bins)
-    # # Adjust bin indices to ensure they don't exceed the number of bins
-    # bin_indices = np.clip(bin_indices, 1, num_bins)
 
     # Categorize scores into bins
     num_bins_2 = 1024
@@ -2215,19 +2213,38 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     # Adjust bin indices to ensure they don't exceed the number of bins
     bin_indices_2 = np.clip(bin_indices_2, 1, num_bins_2)
 
+
+
+    # # Define mapping functions for each bin
+    # mapping_functions = []
+    # for bin_idx in range(1, num_bins + 1):
+    #     bin_start = min_score
+    #     bin_end = max_score
+    #     # Map scores in each bin from +x to -x to 1 to -1
+    #     mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , max_score, +1)
+        
+    #     mapping_functions.append(mapping_function)
+
+
+
+
     # Define mapping functions for each bin
+    
     mapping_functions_2 = []
     for bin_idx_2 in range(1, num_bins_2 + 1):
         bin_start_2 = min_score_2
         bin_end_2 = max_score_2
         # Map scores in each bin from +x to -x to 1 to -1
-        mapping_function_2 = lambda score: piecewise_linear(score, bin_start_2, -1 , bin_end_2, +1)
+        mapping_function_2 = lambda score: piecewise_linear(score, bin_start_2, -1 , max_score_2, +1)
         
         mapping_functions_2.append(mapping_function_2)
 
     # Debugging prints
     print("Length of mapping_functions:", len(mapping_functions_2))
     print("Length of bin_indices:", len(bin_indices_2))
+
+
+
 
     # Apply mapping functions to scores in each bin
     mapped_scores_2 = []
@@ -2545,7 +2562,7 @@ model_list.append(model_1)
 
 
 
-model_2_name =  "concept-cybernetic"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name =  "perspective-isometric"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
