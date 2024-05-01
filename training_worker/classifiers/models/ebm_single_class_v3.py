@@ -2197,38 +2197,38 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
    
 
     # Categorize scores into bins
-    num_bins = 1024
-    bins = np.linspace(min_score_2, max_score_2, num_bins+1)
-    bin_indices = np.digitize(scores_2, bins)
+    num_bins_2 = 1024
+    bins_2 = np.linspace(min_score_2, max_score_2, num_bins_2+1)
+    bin_indices_2 = np.digitize(scores_2, num_bins_2)
 
 
     # Adjust bin indices to ensure they don't exceed the number of bins
-    bin_indices = np.clip(bin_indices, 1, num_bins)
+    bin_indices_2 = np.clip(bin_indices_2, 1, bins_2)
 
     # Define mapping functions for each bin
-    mapping_functions = []
-    for bin_idx in range(1, num_bins + 1):
-        bin_start = min_score_2
-        bin_end = max_score_2
+    mapping_functions_2 = []
+    for bin_idx_2 in range(1, num_bins_2 + 1):
+        bin_start_2 = min_score_2
+        bin_end_2 = max_score_2
         # Map scores in each bin from +x to -x to 1 to -1
-        mapping_function = lambda score: piecewise_linear(score, bin_start, -1 , bin_end, +1)
+        mapping_function_2 = lambda score: piecewise_linear(score, bin_start_2, -1 , bin_end_2, +1)
         
-        mapping_functions.append(mapping_function)
+        mapping_functions_2.append(mapping_function_2)
 
     # Debugging prints
-    print("Length of mapping_functions:", len(mapping_functions))
-    print("Length of bin_indices:", len(bin_indices))
+    print("Length of mapping_functions:", len(mapping_functions_2))
+    print("Length of bin_indices:", len(bin_indices_2))
 
     # Apply mapping functions to scores in each bin
     mapped_scores_2 = []
-    for bin_idx, score in zip(bin_indices, scores):
-        if bin_idx >= 1 and bin_idx <= num_bins:
-            mapping_function = mapping_functions[bin_idx - 1]
-            mapped_score = mapping_function(score)
-            mapped_scores_2.append(mapped_score)
-            print(f'the bin {bin_idx} values is {mapped_score}')
+    for bin_idx_2, score in zip(bin_indices_2, scores):
+        if bin_idx_2 >= 1 and bin_idx_2 <= num_bins_2:
+            mapping_function_2 = mapping_functions_2[bin_idx_2 - 1]
+            mapped_score_2 = mapping_function_2(score)
+            mapped_scores_2.append(mapped_score_2)
+            print(f'the bin {bin_idx_2} values is {mapped_score_2}')
         else:
-            print(f"Invalid bin index: {bin_idx}")
+            print(f"Invalid bin index: {bin_idx_2}")
 
 
     # # Print mapped_scores for inspection
@@ -2558,7 +2558,7 @@ model_list.append(model_2)
 
 tag_name_combined = f"{model_1_name}-and-{model_2_name}"
 
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
+#plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
 
 
 
@@ -2566,7 +2566,7 @@ tag_name = tag_name_combined
 sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
                                                         loaded_model_2 = model_2,
                                                           dataset_name = "environmental",
-                                                            number_of_samples = 30000 ,
+                                                            number_of_samples = 1500 ,
                                                             tag_name =tag_name_x,
                                                               model_type = "EBM Model" )
 # rank = 1
