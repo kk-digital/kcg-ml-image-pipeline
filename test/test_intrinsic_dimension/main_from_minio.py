@@ -2,7 +2,10 @@ import argparse
 import os
 import sys
 
+
 import torch
+import numpy as np
+import pandas as pd
 import csv
 
 from datetime import datetime
@@ -91,46 +94,36 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
     # max count of clip vectors for testing intrinsic dimension
     max_count = max(count_list) * 2
 
+    result = []
 
-    with open(get_file_name(dataset), mode='w', newline='') as file:
+    for data_type in data_type_list:
 
-        if library == Library.INTRINSIC_DIMENSION.value:
-            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vector", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
-        
-        elif library == Library.SCIKIT_DIMENSION.value:
-            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of vae vectors", "Dimension of vae vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
+        # load feature data from environment dataset
+        feature_data = load_featurs_data(minio_client, data_type, max_count, dataset)
+        if len(feature_data) == 0:
+            print("Error loading feature data from {} dataset".format(dataset))
+            return
+
+        for count in count_list:
+
+            # get specific count of data for gettting intrinsic dimension
+            data = torch.tensor(feature_data[:count], device=device)
+
+            # wrangle the latent vector [1, 4, 64, 64]
+            if data_type == "vae":
+                data = data.reshape((data.size(0), -1))
             
-        writer.writeheader()
+            if library == Library.INTRINSIC_DIMENSION.value:
 
-        for data_type in data_type_list:
+                dimension_by_mle, mle_elapsed_time = \
+                    measure_running_time(mle_id, data, k=2)
 
-            # load feature data from environment dataset
-            feature_data = load_featurs_data(minio_client, data_type, max_count, dataset)
-            if len(feature_data) == 0:
-                print("Error loading feature data from {} dataset".format(dataset))
-                return
+                dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
+                    measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
 
-            for count in count_list:
-
-                # get specific count of data for gettting intrinsic dimension
-                data = torch.tensor(feature_data[:count], device=device)
-
-                # wrangle the latent vector [1, 4, 64, 64]
-                if data_type == "vae":
-                    data = data.reshape((data.size(0), -1))
-                
-                if library == Library.INTRINSIC_DIMENSION.value:
-
-                    dimension_by_mle, mle_elapsed_time = \
-                        measure_running_time(mle_id, data, k=2)
-
-                    dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
-                        measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
-
-                    dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
-                        measure_running_time(twonn_pytorch, data, return_xy=False)
-
-                    writer.writerow({
+                dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
+                    measure_running_time(twonn_pytorch, data, return_xy=False)
+                result.append({
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
                         "Number of clip vector": data.size(0),
                         "Dimension of clip vector": data.size(1),
@@ -140,19 +133,19 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                         "Twonn_numpy elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
                         "twonn_pytorch intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
                         "twonn_pytorch elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time))
-                    })
+                })
 
-                elif library == Library.SCIKIT_DIMENSION.value:
-                    data = data.cpu().numpy()
-                    dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
-                    dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
+            elif library == Library.SCIKIT_DIMENSION.value:
+                data = data.cpu().numpy()
+                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
+                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
 
-                    if dimension_by_mle != 'Nan':
-                        dimension_by_mle = dimension_by_mle.dimension_
-                    if dimension_by_twonn_numpy != 'Nan':
-                        dimension_by_twonn_numpy = dimension_by_twonn_numpy.dimension_
+                if dimension_by_mle != 'Nan':
+                    dimension_by_mle = dimension_by_mle.dimension_
+                if dimension_by_twonn_numpy != 'Nan':
+                    dimension_by_twonn_numpy = dimension_by_twonn_numpy.dimension_
 
-                    writer.writerow({
+                result.append({
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
                         "Number of vae vectors": data.shape[0],
                         "Dimension of vae vector": data.shape[1],
@@ -160,9 +153,8 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                         "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
                         "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
-                    })
-                
-        file.flush()
+                })
+            return result
 
 def main():
     args = parse_args()
@@ -172,22 +164,40 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
+    if args.library == Library.INTRINSIC_DIMENSION.value:
+        df = pd.DataFrame(columns=["Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
+    
+    elif args.library == Library.SCIKIT_DIMENSION.value:
+        df = pd.DataFrame(columns=["Data type", "Number of vectors", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
+    else:
+        print("Not support such library")
+        return
+
     if args.dataset == 'all':
         dataset_names = request.http_get_dataset_names()
 
         for dataset in dataset_names:
 
-            get_intrinsic_dimenstions(minio_client=minio_client, 
+            results = get_intrinsic_dimenstions(minio_client=minio_client, 
                               dataset=dataset, 
                               library=args.library, 
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
+            
+            for result in results:
+                df.append(result, ignore_index=True)
+    
     else:
-        get_intrinsic_dimenstions(minio_client=minio_client, 
+        result = get_intrinsic_dimenstions(minio_client=minio_client, 
                               dataset=args.dataset, 
                               library=args.library, 
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
+        for result in results:
+            df.append(result, ignore_index=True)
+    df.groupby("Number of vectors")
+    with open(get_file_name(), mode='w') as file:
+        df.to_csv(get_file_name(), index=False)
         
 if __name__ == "__main__":
     main()
