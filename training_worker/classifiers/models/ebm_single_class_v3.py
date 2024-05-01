@@ -2107,7 +2107,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
 
 
 
-def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_model_2, dataset_name, number_of_samples,tag_name, model_type):
+def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_model_2, dataset_name, number_of_samples,tag_name, model_type,tag_name_1,tag_name_2):
 
 
 
@@ -2271,13 +2271,13 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
     # Plot the original function and the piecewise linear approximation with segments
     #plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
-    plt.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
-    plt.plot(xs_2, ys_2,  label='Real data points model 2', markersize=3,linestyle='--')
-    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label='pricewise linear(1024 segs, limited to -+ 1)', markersize=3,linestyle='--')
-    plt.plot(np.arange(len(mapped_scores_2)), mapped_scores_2,  label='pricewise linear model 2', markersize=3,linestyle='--')
+    plt.plot(xs, ys,  label=f'Real data points for {tag_name_1}', markersize=3,linestyle='--')
+    plt.plot(xs_2, ys_2,  label=f'Real data points for {tag_name_2}', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores)), mapped_scores,  label=f'pricewise linear for {tag_name_1}', markersize=3,linestyle='--')
+    plt.plot(np.arange(len(mapped_scores_2)), mapped_scores_2,  label=f'pricewise linear for {tag_name_2} ', markersize=3,linestyle='--')
     plt.xlabel('x')
     plt.ylabel('f(x)')
-    plt.title(f'Mapping data for: {tag_name} using {model_type}')
+    plt.title(f'Mapping data for: {tag_name_1} &nd {tag_name_2} using {model_type}')
     plt.legend()
     plt.grid(True)
 
@@ -2541,7 +2541,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 model_list = []
 
-model_1_name = "topic-medieval" # "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+model_1_name = "topic-forest" #"topic-medieval" # "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
 model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -2564,7 +2564,7 @@ model_list.append(model_1)
 
 
 
-model_2_name = "perspective-isometric"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name = "concept-cybernetic"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -2597,7 +2597,9 @@ sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combine
                                                           dataset_name = "environmental",
                                                             number_of_samples = 10000 ,
                                                             tag_name =tag_name_x,
-                                                              model_type = "EBM Model" )
+                                                              model_type = "EBM Model",
+                                                               tag_name_1=model_1_name,
+                                                                tag_name_2= model_2_name)
 # rank = 1
 # for image in sorted_images_and_hashes:
 #     #
