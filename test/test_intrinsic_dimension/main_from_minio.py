@@ -182,7 +182,7 @@ def main():
         dataset_names = request.http_get_dataset_names()
 
         for dataset in dataset_names:
-
+            print("Getting intrinsic dimension for dataset: {}".format(dataset))
             results = get_intrinsic_dimenstions(minio_client=minio_client, 
                               dataset=dataset, 
                               library=args.library, 
@@ -190,6 +190,8 @@ def main():
                               data_type_list=args.data_type_list)
             for result in results:
                 df.loc[len(df)] = result
+
+            print("Getted intrinsic dimension for dataset: {}".format(dataset))
     
     else:
         results = get_intrinsic_dimenstions(minio_client=minio_client, 
