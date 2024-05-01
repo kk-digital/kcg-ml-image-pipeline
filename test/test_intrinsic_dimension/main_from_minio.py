@@ -144,17 +144,21 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
 
                 elif library == Library.SCIKIT_DIMENSION.value:
                     data = data.cpu().numpy()
-
                     dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
                     dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
+
+                    if dimension_by_mle != 'Nan':
+                        dimension_by_mle = dimension_by_mle.dimension_
+                    if dimension_by_twonn_numpy != 'Nan':
+                        dimension_by_twonn_numpy = dimension_by_twonn_numpy.dimension_
 
                     writer.writerow({
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
                         "Number of vae vectors": data.shape[0],
                         "Dimension of vae vector": data.shape[1],
-                        "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
+                        "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                        "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
+                        "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
                         "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
                     })
                 
