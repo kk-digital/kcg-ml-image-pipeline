@@ -18,7 +18,7 @@ from bson import ObjectId
 
 router = APIRouter()
 
-@router.post("/rank-active-learning-queue/add-new-policy", 
+@router.post("/rank-active-learning-queue/add-new-rank-active-learning-policy", 
              status_code=200,
              response_model=StandardSuccessResponseV1[RankActiveLearningPolicy],
              tags=["rank active learning policy"],
@@ -120,15 +120,12 @@ def list_rank_active_learning_policies(request: Request):
         # Convert ObjectId and datetime to strings directly in the list comprehension
         policies_list = [{k: v.isoformat() if isinstance(v, datetime) else str(v) if isinstance(v, ObjectId) else v for k, v in policy.items()} for policy in policies_list]
 
-        if not policies_list:
-            return api_response_handler.create_success_response([], 200)
-
         return api_response_handler.create_success_response_v1(response_data={"policies":policies_list}, http_status_code=200)
     except Exception as e:
         return api_response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string=str(e), http_status_code=500)
     
 
-@router.delete("/rank-active-learning-queue/remmove-active-learning-policy", 
+@router.delete("/rank-active-learning-queue/remove-rank-active-learning-policy", 
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                status_code=200,
                tags=["rank active learning policy"],

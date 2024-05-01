@@ -58,22 +58,32 @@ class ListFilePathResponse(BaseModel):
     file_paths: List[FilePathResponse]
 
 class DatasetConfig(BaseModel):
-    dataset_name: str
-    last_update: datetime
-    dataset_rate: str
-    relevance_model: str 
-    ranking_model: str
-    hourly_limit: str
-    top_k: str
-    generation_policy: str
-    relevance_threshold: int
+    dataset_name: Optional[str]
+    dataset_rate: Optional[str]
+    relevance_model: Optional[str]
+    ranking_model: Optional[str]
+    hourly_limit: Optional[int]
+    top_k: Optional[int]
+    generation_policy: Optional[str]
+    relevance_threshold: Optional[int]
+
+class ResponseDatasetConfig(BaseModel):
+    dataset_name: Optional[str]
+    last_update: Optional[datetime]
+    dataset_rate: Optional[str]
+    relevance_model: Optional[str]
+    ranking_model: Optional[str]
+    hourly_limit: Optional[int]
+    top_k: Optional[int]
+    generation_policy: Optional[str]
+    relevance_threshold: Optional[int]    
 
 class RankinModelResponse(BaseModel):
     last_update: datetime
     ranking_model: str
 
 class ListDatasetConfig(BaseModel):
-    configs: List[DatasetConfig]
+    configs: List[ResponseDatasetConfig]
 
 class SingleModelResponse(BaseModel):
     model_name: str
@@ -118,6 +128,9 @@ class CountResponse(BaseModel):
 
 class RechableResponse(BaseModel):
     reachable: bool
+
+class ResponsePolicies(BaseModel):
+    generation_policies: List[str]
 
 class VectorIndexUpdateRequest(BaseModel):
     vector_index: int
@@ -447,4 +460,4 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
     
 
 class CountLastHour(BaseModel):
-    jobs_count_last_n_hour: dict
+    jobs_count: dict

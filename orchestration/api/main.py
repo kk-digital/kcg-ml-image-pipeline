@@ -196,6 +196,9 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+
+    app.datasets_collection = app.mongodb_db["datasets"]
+
     # ab ranking
     app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
     app.image_ranks_collection = app.mongodb_db["image_ranks"]
@@ -205,6 +208,12 @@ def startup_db_client():
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
+
+    tagged_images_hash_index=[
+    ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_tags_collection ,tagged_images_hash_index, 'tagged_images_hash_index')
+
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
     # pseudo tags
@@ -383,6 +392,13 @@ def startup_db_client():
     app.image_rank_use_count_collection = app.mongodb_db["image-rank-use-count"]
 
     app.image_pair_ranking_collection = app.mongodb_db["image_pair_ranking"]
+
+    pair_rank_hash_index = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING),
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index, 'pair_rank_hash_index')
 
     print("Connected to the MongoDB database!")
 

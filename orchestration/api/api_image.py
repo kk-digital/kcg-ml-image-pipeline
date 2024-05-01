@@ -508,7 +508,8 @@ def list_prompt_generation_policies():
             "gradient_descent_optimization",
             "variant_generation",
             "gaussian-top-k-sphere-sampling",
-            "top-k-sphere-sampling"]
+            "top-k-sphere-sampling",
+            "rapidly_exploring_tree_search"]
 
 
 

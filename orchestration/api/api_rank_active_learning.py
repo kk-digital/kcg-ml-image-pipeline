@@ -2,9 +2,9 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListRankSelection
+from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse
-from orchestration.api.mongo_schema.active_learning_schemas import ActiveLearningPolicy, ActiveLearningQueuePair, RankActiveLearningPair, ListRankActiveLearningPair
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair
 import os
 from fastapi.responses import JSONResponse
 from pymongo.collection import Collection
@@ -15,13 +15,12 @@ from bson import ObjectId
 from typing import Optional
 import json
 from collections import OrderedDict
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection
 
 router = APIRouter()
 
 
-@router.post("/rank-active-learning-queue/add-queue-pair-to-mongo",
-             description="add new image pair for rank active ranking",
+@router.post("/rank-active-learning-queue/add-image-pair",
+             description="Adds a new image pair to the rank active ranking queue",
              status_code=200,
              response_model=StandardSuccessResponseV1[RankActiveLearningPair],
              tags=["Rank Active Learning"],  
@@ -81,9 +80,6 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
         )
 
 
-    rank_model_string = rank.get("rank_model_string", "")
-
-
     policy = request.app.rank_active_learning_policies_collection.find_one(
         {"rank_active_learning_policy_id": rank_active_learning_policy_id}
     )
@@ -96,14 +92,11 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
 
     combined_job_details = {
         "rank_model_id": rank_model_id,
-        "rank_model_string": rank_model_string,
         "rank_active_learning_policy_id": rank_active_learning_policy_id,
-        "rank_active_learning_policy": policy["rank_active_learning_policy"],
-        "dataset_name": job_details_1['image_path_1'].split('/')[1],  # Extract dataset name
         "metadata": metadata,
         "generation_string": generation_string,
         "creation_date": datetime.utcnow().isoformat(),  # UTC time
-        "images": [job_details_1, job_details_2]
+        "images_data": [job_details_1, job_details_2]
     }
 
     creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time_1"]).strftime("%Y-%m-%d")
@@ -116,19 +109,16 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"environmental/rank-active-learning-queue/{combined_job_details['rank_active_learning_policy']}/{json_file_name}"
+    full_path = f"environmental/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
 
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
 
     mongo_combined_job_details = {"file_name": json_file_name, **combined_job_details}
-    mongo_combined_job_details['_id'] = str(mongo_combined_job_details['_id']) if '_id' in mongo_combined_job_details else None
-
-    # Attempt to pop '_id' only if it exists in the dictionary
-    if '_id' in combined_job_details:
-        combined_job_details.pop('_id')
-
     request.app.rank_active_learning_pairs_collection.insert_one(mongo_combined_job_details)
+
+    mongo_combined_job_details.pop('_id', None)
+
 
     return api_response_handler.create_success_response_v1(
             response_data=mongo_combined_job_details,
@@ -137,8 +127,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
 
 
 
-@router.get("/rank-active-learning-queue/list-queue-pair-from-mongo",
-            description="list active learning datapoints",
+@router.get("/rank-active-learning-queue/list-image-pairs",
+            description="Lists all the rank active learning image pairs",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
             tags=["Rank Active Learning"],  
@@ -149,14 +139,6 @@ def get_image_rank_scores_by_model_id(request: Request):
     # check if exist
     items = list(request.app.rank_active_learning_pairs_collection.find({}))
     
-    if not items:
-        # If no items found, use ApiResponseHandler to return a standardized error response
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="No scores found for specified model_id.",
-            http_status_code=400
-        )
-    
     score_data = []
     for item in items:
         # remove the auto generated '_id' field
@@ -165,12 +147,12 @@ def get_image_rank_scores_by_model_id(request: Request):
     
     # Return a standardized success response with the score data
     return api_response_handler.create_success_response_v1(
-        response_data=score_data,
+        response_data={"pairs": score_data},
         http_status_code=200
     )
 
-@router.delete("/rank-active-learning-queue/delete-queue-pair-from-mongo",
-               description="Delete an image rank data point by file name",
+@router.delete("/rank-active-learning-queue/delete-image-pair",
+               description="Deletes an image pair from the rank active learning queue",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                status_code=200,
                tags=["Rank Active Learning"],
@@ -205,17 +187,26 @@ async def delete_image_rank_data_point(request: Request, file_name: str = Query(
     
 
 
-@router.get("/active-learning-queue/count-queue-pairs", 
+@router.get("/rank-active-learning-queue/count-image-pairs", 
             response_model=StandardSuccessResponseV1[CountResponse],
             status_code=200,
             tags=["Rank Active Learning"],
-            description="Counts",
+            description="Counts how many image pairs in the rank active learning queue for specified policy and model.",
             responses=ApiResponseHandlerV1.listErrors([500]))
-async def count_queue_pairs(request: Request):
+async def count_queue_pairs(request: Request, 
+                            policy_id: int = Query(None, description="Filter by the rank active learning policy ID"), 
+                            rank_model_id: int = Query(None, description="Filter by the rank model ID")):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Count documents in the rank_active_learning_pairs_collection
-        count = request.app.rank_active_learning_pairs_collection.count_documents({})
+        # Build the query based on the provided parameters
+        query = {}
+        if policy_id is not None:
+            query['rank_active_learning_policy_id'] = policy_id
+        if rank_model_id is not None:
+            query['rank_model_id'] = rank_model_id
+
+        # Count documents in the rank_active_learning_pairs_collection with the constructed query
+        count = request.app.rank_active_learning_pairs_collection.count_documents(query)
 
         return api_response_handler.create_success_response_v1(
             response_data={"count": count},
@@ -227,17 +218,17 @@ async def count_queue_pairs(request: Request):
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
             http_status_code=500
-        )   
+        ) 
 
 
 
-@router.get("/rank-active-learning-queue/get-random-queue-pair-from-mongo", 
+@router.get("/rank-active-learning-queue/get-random-image-pair", 
             description="list random rank active learning datapoints",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, dataset: Optional[str] = None, rank_active_learning_policy_id: Optional[int] = None):
+async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, rank_active_learning_policy_id: Optional[int] = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -248,8 +239,6 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         match_filter = {}
         if rank_model_id:
             match_filter["rank_model_id"] = rank_model_id
-        if dataset:
-            match_filter["dataset"] = dataset
         if rank_active_learning_policy_id:
             match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
 
@@ -269,8 +258,8 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
             random_pairs.append(pair)
 
         return api_response_handler.create_success_response_v1(
-            response_data={"datapoints": random_pairs},
-            http_status_code=201
+            response_data={"pairs": random_pairs},
+            http_status_code=200
         )
 
     except Exception as e:
@@ -287,7 +276,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 @router.post("/rank-training/add-ranking-data-point", 
              status_code=201,
              tags = ['Rank Active Learning'],
-             response_model=StandardSuccessResponseV1[RankSelection],
+             response_model=StandardSuccessResponseV1[ResponseRankSelection],
              responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_datapoints(request: Request, selection: RankSelection):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -323,7 +312,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
         file_name = f"{current_time}-{selection.username}.json"
         dataset = selection.image_1_metadata.file_path.split('/')[1]
-        selection.datetime = current_time
         rank_model_string = rank.get("rank_model_string", None)
         rank_active_learning = policy.get("rank_active_learning_policy", None)
 
@@ -333,10 +321,8 @@ async def add_datapoints(request: Request, selection: RankSelection):
         mongo_data = OrderedDict([
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
-            ("dataset", dataset),
-            ('rank_model_string', rank_model_string),
             *dict_data.items(), # Unpack the rest of dict_data
-            ('rank_active_learning', rank_active_learning),
+            ("datetime", current_time)
         ])
 
         # Insert the ordered data into MongoDB
@@ -346,7 +332,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        path = f"data/rank/{rank_model_string}"
+        path = f"data/rank/{selection.rank_model_id}"
         full_path = os.path.join("environmental", path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
@@ -355,10 +341,10 @@ async def add_datapoints(request: Request, selection: RankSelection):
         cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
  
-
+        mongo_data.pop("_id")
         # Return a success response
         return api_handler.create_success_response_v1(
-            response_data=minio_data,
+            response_data=mongo_data,
             http_status_code=201
         )
 
@@ -370,9 +356,9 @@ async def add_datapoints(request: Request, selection: RankSelection):
             http_status_code=500
         )
 
-@router.get("/rank-training/list-ranking-datapoints-from-mongo",
-            description="list active learning datapoints",
-            response_model=StandardSuccessResponseV1[ListRankSelection],
+@router.get("/rank-training/list-ranking-datapoints",
+            description="Lists all the ranking datapoints",
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -381,14 +367,6 @@ def list_ranking_datapoints(request: Request):
     
     # check if exist
     items = list(request.app.ranking_datapoints_collection.find({}))
-    
-    if not items:
-        # If no items found, use ApiResponseHandler to return a standardized error response
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="No scores found for specified model_id.",
-            http_status_code=400
-        )
     
     score_data = []
     for item in items:
@@ -405,11 +383,10 @@ def list_ranking_datapoints(request: Request):
 @router.get("/rank-training/sort-ranking-data-by-date", 
             description="Sort rank data by date",
             tags=["Rank Active Learning"],
-            response_model=StandardSuccessResponseV1[ListRankSelection],  
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
     request: Request,
-    dataset: str = Query(..., description="Dataset to filter by"),
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
     rank_model_id: int = Query(None, description="Rank model ID to filter by"),
     end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
@@ -424,7 +401,7 @@ async def sort_ranking_data_by_date_v2(
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
         # Build the query filter based on dataset and optional dates
-        query_filter = {"dataset": dataset, "rank_model_id": rank_model_id}
+        query_filter = {"rank_model_id": rank_model_id}
         if start_date_obj or end_date_obj:
             date_filter = {}
             if start_date_obj:
@@ -459,15 +436,24 @@ async def sort_ranking_data_by_date_v2(
     
 
 @router.get("/rank-training/count-ranking-data-points", 
-            description="count ranking data",
+            description="Count ranking data points based on specific rank models or policies",
             tags=["Rank Active Learning"],
             response_model=StandardSuccessResponseV1[CountResponse],  
             responses=ApiResponseHandlerV1.listErrors([500]))
-def count_ranking_data(request: Request):
-    response_handler = ApiResponseHandlerV1(request)
+async def count_ranking_data(request: Request, 
+                             policy_id: int = Query(None, description="Filter by the rank active learning policy ID"), 
+                             rank_model_id: int = Query(None, description="Filter by the rank model ID")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Get the count of documents in the image_pair_ranking_collection
-        count = request.app.ranking_datapoints_collection.count_documents({})
+        # Build the query based on the provided parameters
+        query = {}
+        if policy_id is not None:
+            query['rank_active_learning_policy_id'] = policy_id
+        if rank_model_id is not None:
+            query['rank_model_id'] = rank_model_id
+
+        # Get the count of documents in the ranking_datapoints_collection based on the constructed query
+        count = request.app.ranking_datapoints_collection.count_documents(query)
 
         # Return the count with a success response
         return response_handler.create_success_response_v1(
@@ -480,4 +466,4 @@ def count_ranking_data(request: Request):
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500,
-        )    
+        )

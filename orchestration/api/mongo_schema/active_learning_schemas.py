@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, constr, validator
 from typing import List, Union, Optional
 import re
+from datetime import datetime
 from orchestration.api.mongo_schemas import ImageMetadata
 
 
@@ -55,11 +56,10 @@ class RankActiveLearningPair(BaseModel):
     rank_model_string: str
     active_learning_policy_id: int
     active_learning_policy: str
-    dataset_name: str
     metadata: str
     generation_string: str
     creation_date: str
-    images: List[str]
+    images_data: List[str]
 
     def to_dict(self):
         return {
@@ -68,16 +68,15 @@ class RankActiveLearningPair(BaseModel):
             "rank_model_string": self.rank_model_string,
             "active_learning_policy_id": self.active_learning_policy_id,
             "active_learning_policy": self.active_learning_policy,
-            "dataset_name": self.dataset_name,
             "metadata": self.metadata,
             "generation_string": self.generation_string,
             "creation_date": self.creation_date,
-            "images": self.images
+            "images_data": self.images_data
         }
     
 
 class ListRankActiveLearningPair(BaseModel):
-    datapoints: List[RankActiveLearningPair]
+    pairs: List[RankActiveLearningPair]
 
 
 class RankSelection(BaseModel):
@@ -86,11 +85,10 @@ class RankSelection(BaseModel):
     username: str
     image_1_metadata: ImageMetadata
     image_2_metadata: ImageMetadata
-    selected_image_index: Union[int, None] = None
-    selected_image_hash: Union[str, None] = None
-    datetime: Union[str, None] = None
-    training_mode: Union[str, None] = None
-    rank_active_learning_policy_id: int
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
 
     def to_dict(self):
         return {
@@ -101,10 +99,21 @@ class RankSelection(BaseModel):
             "image_2_metadata": self.image_2_metadata.to_dict(),
             "selected_image_index": self.selected_image_index,
             "selected_image_hash": self.selected_image_hash,
-            "datetime": self.datetime,
             "training_mode": self.training_mode,
             "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
         }
     
-class ListRankSelection(BaseModel):
-    datapoints: List[RankSelection]    
+class ResponseRankSelection(BaseModel):
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+    datetime: datetime
+    
+class ListResponseRankSelection(BaseModel):
+    datapoints: List[ResponseRankSelection]    
