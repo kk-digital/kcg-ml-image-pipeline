@@ -124,9 +124,10 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                 dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
                     measure_running_time(twonn_pytorch, data, return_xy=False)
                 result.append({
+                        "Dataset": dataset,
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                        "Number of clip vector": data.size(0),
-                        "Dimension of clip vector": data.size(1),
+                        "Number of vector": data.size(0),
+                        "Dimension of vector": data.size(1),
                         "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                         "Twonn_numpy intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
@@ -146,9 +147,10 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                     dimension_by_twonn_numpy = dimension_by_twonn_numpy.dimension_
 
                 result.append({
+                        "Dataset": dataset,
                         "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                        "Number of vae vectors": data.shape[0],
-                        "Dimension of vae vector": data.shape[1],
+                        "Number of vectors": data.shape[0],
+                        "Dimension of vector": data.shape[1],
                         "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
                         "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                         "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
@@ -165,10 +167,10 @@ def main():
                                         minio_ip_addr=args.minio_addr)
     
     if args.library == Library.INTRINSIC_DIMENSION.value:
-        df = pd.DataFrame(columns=["Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
+        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
     
     elif args.library == Library.SCIKIT_DIMENSION.value:
-        df = pd.DataFrame(columns=["Data type", "Number of vectors", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
+        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vectors", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
     else:
         print("Not support such library")
         return
