@@ -2179,10 +2179,11 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     rank_2 = 1
     ranks_2 = []  # List to store ranks
     scores_2 = []  # List to store scores
+    print(f"the length of hash 2 is {len(sorted_images_and_hashes_2)}")
 
     for image in sorted_images_and_hashes_2:
         #
-        print("Rank : ", rank_2, " Path : ", image["path"], " Score : ",image["score"])
+        print("Rank 2: ", rank_2, " Path 2: ", image["path"], " Score 2: ",image["score"])
         ranks_2.append(rank_2)
         scores_2.append(image["score"])
         rank_2 += 1
@@ -2196,10 +2197,12 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
     
    
 
+
+
     # Categorize scores into bins
     num_bins_2 = 1024
     bins_2 = np.linspace(min_score_2, max_score_2, num_bins_2+1)
-    bin_indices_2 = np.digitize(scores_2, num_bins_2)
+    bin_indices_2 = np.digitize(scores_2, bins_2)
 
 
     # Adjust bin indices to ensure they don't exceed the number of bins
