@@ -107,7 +107,7 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
         for count in count_list:
             try:
                 # get specific count of data for gettting intrinsic dimension
-                data = torch.tensor(feature_data[:count], device=device)
+                data = torch.tensor(feature_data[:count])
 
                 # wrangle the latent vector [1, 4, 64, 64]
                 if data_type == "vae":
