@@ -188,7 +188,7 @@ def main():
                 df = pd.concat([df, pd.DataFrame(results)], ignore_index=True)
     
     else:
-        result = get_intrinsic_dimenstions(minio_client=minio_client, 
+        results = get_intrinsic_dimenstions(minio_client=minio_client, 
                               dataset=args.dataset, 
                               library=args.library, 
                               count_list=args.count_list, 
