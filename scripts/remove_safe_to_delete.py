@@ -10,7 +10,7 @@ def remove_safe_to_delete_fields():
     # Remove "safe_to_delete" and "safe-to-delete" fields from all documents
     result = completed_jobs.update_many(
         {},  # The empty query object {} means "match all documents"
-        {'$unset': {'safe_to_delete': "", 'safe-to-delete': ""}}
+        {'$unset': {'safe_to_delete': "", 'ranking_count': "", 'tag_count': ""}}
     )
 
     # Output the result of the operation

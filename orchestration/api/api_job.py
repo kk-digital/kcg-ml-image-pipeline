@@ -21,6 +21,8 @@ import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountLastHour, CountResponse
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
+import time
+
 
 
 router = APIRouter()
@@ -1990,41 +1992,43 @@ def update_completed_jobs(request: Request):
         {"safe_to_delete": {"$exists": False}},
         {'task_output_file_dict': 1}
     )
-    bulk_updates = []
+
+    updated_count = 0
 
     for job in cursor:
         output_file_hash = job.get('task_output_file_dict', {}).get('output_file_hash', '')
-        if not output_file_hash:
-            continue
 
         # Count occurrences in image_tags_collection
         tag_count = request.app.image_tags_collection.count_documents({'image_hash': output_file_hash})
 
-        # Count occurrences in image_pair_ranking_collection
-        ranking_count = request.app.image_pair_ranking_collection.count_documents(
-            {'$or': [{'image_1_metadata.file_hash': output_file_hash},
-                     {'image_2_metadata.file_hash': output_file_hash}]}
-        )
+        start_time = time.time()
+        count1 = request.app.image_pair_ranking_collection.count_documents({'image_1_metadata.file_hash': output_file_hash})
+        count2 = request.app.image_pair_ranking_collection.count_documents({'image_2_metadata.file_hash': output_file_hash})
+        ranking_count = count1 + count2
+        print("Time to count rankings: {:.2f} seconds".format(time.time() - start_time))
 
         # Determine if the image is safe to delete
         safe_to_delete = tag_count == 0 and ranking_count == 0
 
-        # Append the operation to the bulk updates list
-        bulk_updates.append(UpdateOne(
+        # Update the job document individually
+        update_result = request.app.completed_jobs_collection.update_one(
             {'_id': ObjectId(job['_id'])},
             {'$set': {
                 'ranking_count': ranking_count,
                 'safe_to_delete': safe_to_delete,
                 'tag_count': tag_count,
             }}
-        ))
+        )
 
-    # Execute all bulk updates at once
-    if bulk_updates:
-        result = request.app.completed_jobs_collection.bulk_write(bulk_updates)
-        return {"message": f"Update process completed, {result.modified_count} documents updated."}
+        if update_result.modified_count > 0:
+            updated_count += 1
 
-    return {"message": "No updates performed."}
+    # Return a message about how many documents were updated
+    if updated_count > 0:
+        return {"message": f"Update process completed, {updated_count} documents updated."}
+    else:
+        return {"message": "No updates performed."}
+
 
 
 @router.get("/count-updated-jobs")
