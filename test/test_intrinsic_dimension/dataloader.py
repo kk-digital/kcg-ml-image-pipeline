@@ -63,12 +63,9 @@ class KandinskyDatasetLoader:
                 file_path= job['file_path']
                 _, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
-
                 input_clip_path = file_path + "_embedding.msgpack"
-                print("input_file_path = " + input_clip_path)
                 clip_data = get_object(self.minio_client, input_clip_path)
                 input_clip_vector = msgpack.unpackb(clip_data, object_hook=self.decode_ndarray, raw=False)["image_embedding"]
-                print(type(input_clip_vector))
                 feature_vectors.append(input_clip_vector)
             except Exception as e:
                 print("An error occured", e)
