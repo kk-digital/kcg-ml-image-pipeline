@@ -27,6 +27,9 @@ from test.test_omp.model.scoring_fc import ScoringFCNetwork
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
+    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--count', type=int, default=100, help='count of clip vectors')
     parser.add_argument('--min_sigma_score', 
                         type=int, 
