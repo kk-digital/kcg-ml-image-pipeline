@@ -2277,7 +2277,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('Rank')
     ax1.set_ylabel('Energy')
-    ax1.plot(xs, ys, label='Real data points', label='Real data',markersize=3, linestyle='--', color='blue')
+    ax1.plot(xs, ys, label='Real data points',markersize=3, linestyle='--', color='blue')
 
     # Create a second y-axis for the second plot
     ax2 = ax1.twinx()
