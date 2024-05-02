@@ -65,6 +65,11 @@ class ClipVectorLoader:
 
         return self.mmapping_array[random_index, :1280].tolist(), \
             self.mmapping_array[random_index, -1].tolist()
+    
+    def get_all_clip_vector(self):
+
+        return self.mmapping_array[np.arange(self.mmap_config["loaded-count"]), :1280].tolist(), \
+            self.mmapping_array[np.arange(self.mmap_config["loaded-count"]), -1].tolist()
 
 def parse_args():
     parser = argparse.ArgumentParser()
