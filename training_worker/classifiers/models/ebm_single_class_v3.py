@@ -2165,7 +2165,19 @@ def process_and_sort_dataset_with_hashes_uui_dict(images_paths, hashes,uuid, mod
     return sorted_structure
 
 
+def get_segment_points(min_score, max_score, num_segments):
+    segment_size = (max_score - min_score) / num_segments
+    return [min_score + segment_size * i for i in range(num_segments + 1)]
 
+def map_scores(x, min_score, max_score, num_segments, target_min=0, target_max=1):
+    segment_points = get_segment_points(min_score, max_score, num_segments)
+    slope_list = [(target_max - target_min) / (segment_points[1] - segment_points[0]) for segment_points in zip(segment_points[:-1], segment_points[1:])]
+
+    for i, slope in enumerate(slope_list):
+        if x < segment_points[i + 1]:
+            intercept = target_min - slope * segment_points[i]
+            y = slope * x + intercept
+            return y
 
 
 def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
@@ -2198,40 +2210,43 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     
    
 
-    # Categorize scores into bins
-    num_bins = 256
-    bins = np.linspace(min_score, max_score, num_bins+1)
-    bin_indices = np.digitize(scores, bins)
+    # # Categorize scores into bins
+    # num_bins = 256
+    # bins = np.linspace(min_score, max_score, num_bins+1)
+    # bin_indices = np.digitize(scores, bins)
 
 
-    # Adjust bin indices to ensure they don't exceed the number of bins
-    bin_indices = np.clip(bin_indices, 1, num_bins)
+    # # Adjust bin indices to ensure they don't exceed the number of bins
+    # bin_indices = np.clip(bin_indices, 1, num_bins)
 
-    # Define mapping functions for each bin
-    mapping_functions = []
-    for bin_idx in range(1, num_bins + 1):
-        bin_start = min_score
-        bin_end = max_score
-        # Map scores in each bin from +x to -x to 1 to -1
-        mapping_function = lambda score: piecewise_linear(score, bin_start, 0 , max_score, 1)
+    # # Define mapping functions for each bin
+    # mapping_functions = []
+    # for bin_idx in range(1, num_bins + 1):
+    #     bin_start = min_score
+    #     bin_end = max_score
+    #     # Map scores in each bin from +x to -x to 1 to -1
+    #     mapping_function = lambda score: piecewise_linear(score, bin_start, 0 , max_score, 1)
         
-        mapping_functions.append(mapping_function)
+    #     mapping_functions.append(mapping_function)
 
-    # Debugging prints
-    print("Length of mapping_functions:", len(mapping_functions))
-    print("Length of bin_indices:", len(bin_indices))
+    # # Debugging prints
+    # print("Length of mapping_functions:", len(mapping_functions))
+    # print("Length of bin_indices:", len(bin_indices))
 
-    # Apply mapping functions to scores in each bin
-    mapped_scores = []
-    for bin_idx, score in zip(bin_indices, scores):
-        if bin_idx >= 1 and bin_idx <= num_bins:
-            mapping_function = mapping_functions[bin_idx - 1]
-            mapped_score = mapping_function(score)
-            mapped_scores.append(mapped_score)
-            print(f'the bin {bin_idx} values is {mapped_score}')
-        else:
-            print(f"Invalid bin index: {bin_idx}")
+    # # Apply mapping functions to scores in each bin
+    # mapped_scores = []
+    # for bin_idx, score in zip(bin_indices, scores):
+    #     if bin_idx >= 1 and bin_idx <= num_bins:
+    #         mapping_function = mapping_functions[bin_idx - 1]
+    #         mapped_score = mapping_function(score)
+    #         mapped_scores.append(mapped_score)
+    #         print(f'the bin {bin_idx} values is {mapped_score}')
+    #     else:
+    #         print(f"Invalid bin index: {bin_idx}")
 
+
+
+    mapped_scores  = [map_scores(score, min_score, max_score, 256) for score in scores]
     # Print mapped_scores for inspection
     print("Length of mapped_scores:", len(mapped_scores))
     print(f'max score is {max_score} and min score is {min_score}')
@@ -2262,12 +2277,12 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('Rank')
     ax1.set_ylabel('Energy')
-    ax1.plot(xs, ys, label='Real data points', markersize=3, linestyle='--')
+    ax1.plot(xs, ys, label='Real data points', label='Real data',markersize=3, linestyle='--', color='blue')
 
     # Create a second y-axis for the second plot
     ax2 = ax1.twinx()
     ax2.set_ylabel('Energy approximation')
-    ax2.plot(np.arange(len(mapped_scores)), mapped_scores, label='Piecewise Linear', markersize=3, linestyle='--')
+    ax2.plot(np.arange(len(mapped_scores)), mapped_scores, label='Piecewise Linear', markersize=3, linestyle='--',color='red')
 
     # Set the y-axis limits for the second plot dynamically based on the real data
     ax2.set_ylim(min(mapped_scores), max(mapped_scores))
