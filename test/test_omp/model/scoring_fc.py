@@ -273,6 +273,7 @@ class ScoringFCNetwork(nn.Module):
 
         # plot histogram of training residuals
         print("train residuals", train_residuals)
+        print(train_residuals.shape)
         # axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
         # axs[1][0].set_xlabel('Residuals')
         # axs[1][0].set_ylabel('Frequency')
