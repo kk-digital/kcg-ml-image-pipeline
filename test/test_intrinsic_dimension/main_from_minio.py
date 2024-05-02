@@ -202,7 +202,7 @@ def main():
         for result in results:
             df.loc[len(df)] = result
 
-    df.groupby("Number of vector")
+    df = df.sort_values(['Data type', 'Number of vector'])
 
     df.to_csv(get_file_name(), index=False)
         
