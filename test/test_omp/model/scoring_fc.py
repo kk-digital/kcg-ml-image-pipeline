@@ -272,10 +272,10 @@ class ScoringFCNetwork(nn.Module):
         axs[0][1].set_xlabel('Predicted')
 
         # plot histogram of training residuals
-        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1][0].set_xlabel('Residuals')
-        axs[1][0].set_ylabel('Frequency')
-        axs[1][0].set_title('Training Residual Histogram')
+        # axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        # axs[1][0].set_xlabel('Residuals')
+        # axs[1][0].set_ylabel('Frequency')
+        # axs[1][0].set_title('Training Residual Histogram')
 
         # plot histogram of validation residuals
         axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
