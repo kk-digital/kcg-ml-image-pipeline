@@ -102,7 +102,7 @@ def remove_duplicates(list_a, list_b):
     # unique_list_a = list(set_a)
     # unique_list_b = list(set_b)
 
-    print(f'before {len(set_b)}, after {len(result)}')
+    print(f'before {len(list_b)}, after {len(result)}')
 
     return result
 
