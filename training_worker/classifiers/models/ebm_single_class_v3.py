@@ -2245,18 +2245,20 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     #         print(f"Invalid bin index: {bin_idx}")
 
 
+    # x_dense = np.linspace(min(xs), max(xs), 64)
+    # y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+    # interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
     mapped_scores  = [map_scores(score, min_score, max_score, 256) for score in scores]
+    print(mapped_scores)
     # Print mapped_scores for inspection
     print("Length of mapped_scores:", len(mapped_scores))
     print(f'max score is {max_score} and min score is {min_score}')
     # Generate additional points for higher granularity (64 segments)
 
-    x_dense = np.linspace(min(xs), max(xs), 64)
-    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
     # Linear interpolation function with higher granularity
-    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+ 
 
     # # Plot the original function and the piecewise linear approximation with segments
     # fig, ax1 = plt.subplots()
