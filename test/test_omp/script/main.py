@@ -107,7 +107,13 @@ def main():
         print(np.array(scores).shape)
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
-        loss = model.train(inputs=sparse_clip_vectors, outputs=scores, num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
+
+        loss = model.train(inputs=np.array(sparse_clip_vectors), 
+                           outputs=np.array(scores).squeeze(), 
+                           num_epochs= args.epochs, 
+                           batch_size=args.training_batch_size, 
+                           learning_rate=args.learning_rate)
+        
         model.save_model()
         print("Model trained successfully!")
 
