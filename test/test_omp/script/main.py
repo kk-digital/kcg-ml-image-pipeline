@@ -101,7 +101,7 @@ def main():
         sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
         
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
-        loss = model.train(sparse_clip_vectors, scores, num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
+        loss = model.train(sparse_clip_vectors, [scores], num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
         model.save_model()
 
     except Exception as e:
