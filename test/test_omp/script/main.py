@@ -89,21 +89,27 @@ def main():
     
     try:
         n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
-        
+        print("Sparsity dimension: ", n_features)
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
+        print("Start fitting OMP feature selector...")
         # Fit the OMP feature selector to the data
         omp.fit(clip_vectors, scores)
+        print("OMP feature selector fitted successfully!")
 
         save_sparse_index(sparse_index=np.argsort(-np.abs(omp.coef_))[:n_features].tolist(), dataset=args.dataset)
         
+        print("Saved sparse index successfully!")
+        
         sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
         
+        print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
         loss = model.train(sparse_clip_vectors, [scores], num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
         model.save_model()
-
+        print("Model trained successfully!")
+        
     except Exception as e:
         print('Error occured! ', e)
 if __name__ == '__main__':
