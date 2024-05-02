@@ -2277,7 +2277,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('Rank')
     ax1.set_ylabel('Energy')
-    ax1.plot(xs, ys, label='Real data points',markersize=3, linestyle='--', color='blue')
+    ax1.plot(xs, ys, label='Real data points',markersize=3, color='blue')
 
     # Create a second y-axis for the second plot
     ax2 = ax1.twinx()
@@ -2288,7 +2288,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     ax2.set_ylim(min(1, 0))
     #print(f'max score is {max_score} and min score is {min_score}')
     fig.tight_layout()
-    plt.title('Mapping data')
+    plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
     plt.legend()
     plt.grid(True)
 
