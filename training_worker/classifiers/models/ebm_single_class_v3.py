@@ -2587,87 +2587,87 @@ model_list.append(model_2)
 
 tag_name_combined = f"{model_1_name}-and-{model_2_name}"
 
-#plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
+plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
 
 
 
-tag_name = tag_name_combined
-sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
-                                                        loaded_model_2 = model_2,
-                                                          dataset_name = "environmental",
-                                                            number_of_samples = 10000 ,
-                                                            tag_name =tag_name_x,
-                                                              model_type = "EBM Model",
-                                                               tag_name_1=model_1_name,
-                                                                tag_name_2= model_2_name)
-# rank = 1
-# for image in sorted_images_and_hashes:
-#     #
-#     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
-#     rank += 0
-# # Tag the images
+# tag_name = tag_name_combined
+# sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
+#                                                         loaded_model_2 = model_2,
+#                                                           dataset_name = "environmental",
+#                                                             number_of_samples = 10000 ,
+#                                                             tag_name =tag_name_x,
+#                                                               model_type = "EBM Model",
+#                                                                tag_name_1=model_1_name,
+#                                                                 tag_name_2= model_2_name)
+# # rank = 1
+# # for image in sorted_images_and_hashes:
+# #     #
+# #     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
+# #     rank += 0
+# # # Tag the images
 
-selected_structure_first_50 = sorted_images_and_hashes[:52] 
-selected_structure_second_50 = sorted_images_and_hashes[52:103]
-selected_structure_third_50 = sorted_images_and_hashes[103:154]
+# selected_structure_first_50 = sorted_images_and_hashes[:52] 
+# selected_structure_second_50 = sorted_images_and_hashes[52:103]
+# selected_structure_third_50 = sorted_images_and_hashes[103:154]
 
-tier4 = sorted_images_and_hashes[150:200] 
-tier5 = sorted_images_and_hashes[200:250]
-tier6 = sorted_images_and_hashes[250:300]
-tier7 = sorted_images_and_hashes[300:350] 
-tier8 = sorted_images_and_hashes[350:400]
-tier9 = sorted_images_and_hashes[400:450]
-
-
-
-tier10 = sorted_images_and_hashes[450:500] 
-tier11 = sorted_images_and_hashes[500:550]
-tier12 = sorted_images_and_hashes[550:750]
-tier13 = sorted_images_and_hashes[750:950]
-tier14 = sorted_images_and_hashes[950:1150]
-tier15 = sorted_images_and_hashes[1150:1350]
-
-#tag_image(file_hash,tag_id,user)
+# tier4 = sorted_images_and_hashes[150:200] 
+# tier5 = sorted_images_and_hashes[200:250]
+# tier6 = sorted_images_and_hashes[250:300]
+# tier7 = sorted_images_and_hashes[300:350] 
+# tier8 = sorted_images_and_hashes[350:400]
+# tier9 = sorted_images_and_hashes[400:450]
 
 
-plot_name1 = tag_name + "_tier1_hs"
-plot_name2 = tag_name + "_tier2_hs"
-plot_name3  = tag_name + "_tier3_hs"
-plot_name4 = tag_name + "_tier4_hs"
-plot_name5 = tag_name + "_tier5_hs"
-plot_name6  = tag_name + "_tier6_hs"
-plot_name7 = tag_name + "_tier7_hs"
-plot_name8  = tag_name + "_tier8_hs"
-plot_name9  = tag_name + "_tier9_hs"
 
-plot_name10 = tag_name + "_tier10_hs"
-plot_name11  = tag_name + "_tier11_hs"
-plot_name12  = tag_name + "_tier12_hs"
+# tier10 = sorted_images_and_hashes[450:500] 
+# tier11 = sorted_images_and_hashes[500:550]
+# tier12 = sorted_images_and_hashes[550:750]
+# tier13 = sorted_images_and_hashes[750:950]
+# tier14 = sorted_images_and_hashes[950:1150]
+# tier15 = sorted_images_and_hashes[1150:1350]
+
+# #tag_image(file_hash,tag_id,user)
 
 
-plot_name13 = tag_name + "_tier13_hs"
-plot_name14  = tag_name + "_tier14_hs"
-plot_name15  = tag_name + "_tier15_hs"
+# plot_name1 = tag_name + "_tier1_hs"
+# plot_name2 = tag_name + "_tier2_hs"
+# plot_name3  = tag_name + "_tier3_hs"
+# plot_name4 = tag_name + "_tier4_hs"
+# plot_name5 = tag_name + "_tier5_hs"
+# plot_name6  = tag_name + "_tier6_hs"
+# plot_name7 = tag_name + "_tier7_hs"
+# plot_name8  = tag_name + "_tier8_hs"
+# plot_name9  = tag_name + "_tier9_hs"
 
-plot_images_with_scores_hasheless_v2(selected_structure_first_50,plot_name1)
-plot_images_with_scores_hasheless_v2(selected_structure_second_50,plot_name2)
-plot_images_with_scores_hasheless_v2(selected_structure_third_50,plot_name3)
-
-plot_images_with_scores_hasheless_v2(tier4,plot_name4)
-plot_images_with_scores_hasheless_v2(tier5,plot_name5)
-plot_images_with_scores_hasheless_v2(tier6,plot_name6)
-plot_images_with_scores_hasheless_v2(tier7,plot_name7)
-plot_images_with_scores_hasheless_v2(tier8,plot_name8)
-plot_images_with_scores_hasheless_v2(tier9,plot_name9)
-
-plot_images_with_scores_hasheless_v2(tier10,plot_name10)
-plot_images_with_scores_hasheless_v2(tier11,plot_name11)
-plot_images_with_scores_hasheless_v2(tier12,plot_name12)
+# plot_name10 = tag_name + "_tier10_hs"
+# plot_name11  = tag_name + "_tier11_hs"
+# plot_name12  = tag_name + "_tier12_hs"
 
 
-plot_images_with_scores_hasheless_v2(tier13,plot_name13)
-plot_images_with_scores_hasheless_v2(tier14,plot_name14)
-plot_images_with_scores_hasheless_v2(tier15,plot_name15)
+# plot_name13 = tag_name + "_tier13_hs"
+# plot_name14  = tag_name + "_tier14_hs"
+# plot_name15  = tag_name + "_tier15_hs"
+
+# plot_images_with_scores_hasheless_v2(selected_structure_first_50,plot_name1)
+# plot_images_with_scores_hasheless_v2(selected_structure_second_50,plot_name2)
+# plot_images_with_scores_hasheless_v2(selected_structure_third_50,plot_name3)
+
+# plot_images_with_scores_hasheless_v2(tier4,plot_name4)
+# plot_images_with_scores_hasheless_v2(tier5,plot_name5)
+# plot_images_with_scores_hasheless_v2(tier6,plot_name6)
+# plot_images_with_scores_hasheless_v2(tier7,plot_name7)
+# plot_images_with_scores_hasheless_v2(tier8,plot_name8)
+# plot_images_with_scores_hasheless_v2(tier9,plot_name9)
+
+# plot_images_with_scores_hasheless_v2(tier10,plot_name10)
+# plot_images_with_scores_hasheless_v2(tier11,plot_name11)
+# plot_images_with_scores_hasheless_v2(tier12,plot_name12)
+
+
+# plot_images_with_scores_hasheless_v2(tier13,plot_name13)
+# plot_images_with_scores_hasheless_v2(tier14,plot_name14)
+# plot_images_with_scores_hasheless_v2(tier15,plot_name15)
 
 
 
