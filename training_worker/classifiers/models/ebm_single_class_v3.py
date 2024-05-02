@@ -2287,7 +2287,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     # Set the y-axis limits for the second plot dynamically based on the real data
     ax2.set_ylim(min(1, 0))
     #print(f'max score is {max_score} and min score is {min_score}')
-    fig.tight_layout()
+    #fig.tight_layout()
     plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
     plt.legend()
     plt.grid(True)
