@@ -90,7 +90,7 @@ def main():
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
     try:
-        n_features = round(twonn_pytorch(torch.tensor(clip_vectors, device='cuda' if torch.cuda.is_available() else 'cpu'), return_xy=False).item())
+        n_features = round(twonn_pytorch(torch.tensor(clip_vectors, dtype=torch.float16, device='cuda' if torch.cuda.is_available() else 'cpu'), return_xy=False).item())
         print("Sparsity dimension: ", n_features)
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
