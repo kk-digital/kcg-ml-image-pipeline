@@ -2513,25 +2513,25 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 ############################ Train ########################
 
 
-# tag_name_x_2 = "concept-cybernetic" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
-# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#                             dataset= "environmental",
-#                             class_name= tag_name_x_2,
-#                             model = None,
-#                             save_name = "bla",
-#                             class_id =  get_tag_id_by_name(tag_name_x_2),
-#                             training_batch_size=64,
-#                             num_samples= 32000,
-#                             epochs= 20,
-#                             learning_rate= 0.001)
+tag_name_x_2 = "perspective-2d-side-view" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                            dataset= "environmental",
+                            class_name= tag_name_x_2,
+                            model = None,
+                            save_name = "bla",
+                            class_id =  get_tag_id_by_name(tag_name_x_2),
+                            training_batch_size=64,
+                            num_samples= 32000,
+                            epochs= 20,
+                            learning_rate= 0.001)
 
 
-# defect_test.train_v2()
+defect_test.train_v2()
 
 
-# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
-# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x_2)
+defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x_2)
 
 
 
@@ -2539,135 +2539,135 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 ########## comb
 
-model_list = []
+# model_list = []
 
-model_1_name = "concept-cybernetic" # "topic-forest" #"topic-medieval" # "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
-model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_1_name,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
+# model_1_name = "concept-cybernetic" # "topic-forest" #"topic-medieval" # "perspective-isometric" # "perspective-3d" "perspective-isometric" #"topic-medieval"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+# model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_1_name,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-
-
-model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
-
-model_list.append(model_1)
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
 
+# model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
 
-model_2_name =  "perspective-2d-side-view" # "concept-cybernetic"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
-model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_2_name ,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
-
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-
-
-model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
-
-model_list.append(model_2)
-
-tag_name_combined = f"{model_1_name}-and-{model_2_name}"
-
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
+# model_list.append(model_1)
 
 
 
-tag_name = tag_name_combined
-sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
-                                                        loaded_model_2 = model_2,
-                                                          dataset_name = "environmental",
-                                                            number_of_samples = 10000 ,
-                                                            tag_name =tag_name_x,
-                                                              model_type = "EBM Model",
-                                                               tag_name_1=model_1_name,
-                                                                tag_name_2= model_2_name)
-# rank = 1
-# for image in sorted_images_and_hashes:
-#     #
-#     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
-#     rank += 0
-# # Tag the images
+# model_2_name =  "perspective-2d-side-view" # "concept-cybernetic"  #"topic-medieval"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+# model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_2_name ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-selected_structure_first_50 = sorted_images_and_hashes[:52] 
-selected_structure_second_50 = sorted_images_and_hashes[52:103]
-selected_structure_third_50 = sorted_images_and_hashes[103:154]
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
-tier4 = sorted_images_and_hashes[150:200] 
-tier5 = sorted_images_and_hashes[200:250]
-tier6 = sorted_images_and_hashes[250:300]
-tier7 = sorted_images_and_hashes[300:350] 
-tier8 = sorted_images_and_hashes[350:400]
-tier9 = sorted_images_and_hashes[400:450]
+
+# model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
+
+# model_list.append(model_2)
+
+# tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_combined)
 
 
 
-tier10 = sorted_images_and_hashes[450:500] 
-tier11 = sorted_images_and_hashes[500:550]
-tier12 = sorted_images_and_hashes[550:750]
-tier13 = sorted_images_and_hashes[750:950]
-tier14 = sorted_images_and_hashes[950:1150]
-tier15 = sorted_images_and_hashes[1150:1350]
+# tag_name = tag_name_combined
+# sorted_images_and_hashes = plot_samples_graph_interpolation_plus_mapping_combined(loaded_model = model_1,
+#                                                         loaded_model_2 = model_2,
+#                                                           dataset_name = "environmental",
+#                                                             number_of_samples = 10000 ,
+#                                                             tag_name =tag_name_x,
+#                                                               model_type = "EBM Model",
+#                                                                tag_name_1=model_1_name,
+#                                                                 tag_name_2= model_2_name)
+# # rank = 1
+# # for image in sorted_images_and_hashes:
+# #     #
+# #     print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"])
+# #     rank += 0
+# # # Tag the images
 
-#tag_image(file_hash,tag_id,user)
+# selected_structure_first_50 = sorted_images_and_hashes[:52] 
+# selected_structure_second_50 = sorted_images_and_hashes[52:103]
+# selected_structure_third_50 = sorted_images_and_hashes[103:154]
 
-
-plot_name1 = tag_name + "_tier1_hs"
-plot_name2 = tag_name + "_tier2_hs"
-plot_name3  = tag_name + "_tier3_hs"
-plot_name4 = tag_name + "_tier4_hs"
-plot_name5 = tag_name + "_tier5_hs"
-plot_name6  = tag_name + "_tier6_hs"
-plot_name7 = tag_name + "_tier7_hs"
-plot_name8  = tag_name + "_tier8_hs"
-plot_name9  = tag_name + "_tier9_hs"
-
-plot_name10 = tag_name + "_tier10_hs"
-plot_name11  = tag_name + "_tier11_hs"
-plot_name12  = tag_name + "_tier12_hs"
-
-
-plot_name13 = tag_name + "_tier13_hs"
-plot_name14  = tag_name + "_tier14_hs"
-plot_name15  = tag_name + "_tier15_hs"
-
-plot_images_with_scores_hasheless_v2(selected_structure_first_50,plot_name1)
-plot_images_with_scores_hasheless_v2(selected_structure_second_50,plot_name2)
-plot_images_with_scores_hasheless_v2(selected_structure_third_50,plot_name3)
-
-plot_images_with_scores_hasheless_v2(tier4,plot_name4)
-plot_images_with_scores_hasheless_v2(tier5,plot_name5)
-plot_images_with_scores_hasheless_v2(tier6,plot_name6)
-plot_images_with_scores_hasheless_v2(tier7,plot_name7)
-plot_images_with_scores_hasheless_v2(tier8,plot_name8)
-plot_images_with_scores_hasheless_v2(tier9,plot_name9)
-
-plot_images_with_scores_hasheless_v2(tier10,plot_name10)
-plot_images_with_scores_hasheless_v2(tier11,plot_name11)
-plot_images_with_scores_hasheless_v2(tier12,plot_name12)
+# tier4 = sorted_images_and_hashes[150:200] 
+# tier5 = sorted_images_and_hashes[200:250]
+# tier6 = sorted_images_and_hashes[250:300]
+# tier7 = sorted_images_and_hashes[300:350] 
+# tier8 = sorted_images_and_hashes[350:400]
+# tier9 = sorted_images_and_hashes[400:450]
 
 
-plot_images_with_scores_hasheless_v2(tier13,plot_name13)
-plot_images_with_scores_hasheless_v2(tier14,plot_name14)
-plot_images_with_scores_hasheless_v2(tier15,plot_name15)
+
+# tier10 = sorted_images_and_hashes[450:500] 
+# tier11 = sorted_images_and_hashes[500:550]
+# tier12 = sorted_images_and_hashes[550:750]
+# tier13 = sorted_images_and_hashes[750:950]
+# tier14 = sorted_images_and_hashes[950:1150]
+# tier15 = sorted_images_and_hashes[1150:1350]
+
+# #tag_image(file_hash,tag_id,user)
+
+
+# plot_name1 = tag_name + "_tier1_hs"
+# plot_name2 = tag_name + "_tier2_hs"
+# plot_name3  = tag_name + "_tier3_hs"
+# plot_name4 = tag_name + "_tier4_hs"
+# plot_name5 = tag_name + "_tier5_hs"
+# plot_name6  = tag_name + "_tier6_hs"
+# plot_name7 = tag_name + "_tier7_hs"
+# plot_name8  = tag_name + "_tier8_hs"
+# plot_name9  = tag_name + "_tier9_hs"
+
+# plot_name10 = tag_name + "_tier10_hs"
+# plot_name11  = tag_name + "_tier11_hs"
+# plot_name12  = tag_name + "_tier12_hs"
+
+
+# plot_name13 = tag_name + "_tier13_hs"
+# plot_name14  = tag_name + "_tier14_hs"
+# plot_name15  = tag_name + "_tier15_hs"
+
+# plot_images_with_scores_hasheless_v2(selected_structure_first_50,plot_name1)
+# plot_images_with_scores_hasheless_v2(selected_structure_second_50,plot_name2)
+# plot_images_with_scores_hasheless_v2(selected_structure_third_50,plot_name3)
+
+# plot_images_with_scores_hasheless_v2(tier4,plot_name4)
+# plot_images_with_scores_hasheless_v2(tier5,plot_name5)
+# plot_images_with_scores_hasheless_v2(tier6,plot_name6)
+# plot_images_with_scores_hasheless_v2(tier7,plot_name7)
+# plot_images_with_scores_hasheless_v2(tier8,plot_name8)
+# plot_images_with_scores_hasheless_v2(tier9,plot_name9)
+
+# plot_images_with_scores_hasheless_v2(tier10,plot_name10)
+# plot_images_with_scores_hasheless_v2(tier11,plot_name11)
+# plot_images_with_scores_hasheless_v2(tier12,plot_name12)
+
+
+# plot_images_with_scores_hasheless_v2(tier13,plot_name13)
+# plot_images_with_scores_hasheless_v2(tier14,plot_name14)
+# plot_images_with_scores_hasheless_v2(tier15,plot_name15)
 
 
 
