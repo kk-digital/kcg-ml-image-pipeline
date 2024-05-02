@@ -21,9 +21,16 @@ def parse_args():
     parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
     parser.add_argument('--max-count', default=100, type=int, help='Count of clip vectors')
     parser.add_argument('--min-score', default=0, type=int, help='min value of score for filtering')
+    parser.add_argument('--dataset', type=str, default='all', help='Dataset name')
 
     args = parser.parse_args()
     return args
+
+def get_fname(min_score, dataset):
+    
+    mmap_fname = 'output/clip_{}_sigma_{}.dat'.format(min_score, dataset)
+    mmap_config_fname = 'output/clip_{}_sigma_{}.json'.format(min_score, dataset)
+    return mmap_fname, mmap_config_fname
 
 def main():
     args = parse_args()
@@ -32,39 +39,48 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    # if all, train models for all existing datasets
-    # get dataset name list
-    dataset_names = request.http_get_dataset_names()
 
     shape = (args.max_count, 1281)
     dtype = np.float16
 
     # Create memory-mapped array
-    filename = 'output/clip_{}_sigma.dat'.format(args.min_score)
+    mmap_fname, mmap_config = get_fname(args.min_score, args.dataset)
 
-    with open(filename, 'w+b') as f:
+    with open(mmap_fname, 'w+b') as f:
         mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
         
         loaded_count = 0
         data_loader = KandinskyDatasetLoader(minio_client, mmapped_array)
-        for dataset_name in dataset_names:
-            
-            data_loader.dataset = dataset_name
+
+        # if all, train models for all existing datasets
+        if args.dataset == 'all':
+
+            # get dataset name list
+            dataset_names = request.http_get_dataset_names()
+            for dataset_name in dataset_names:
+                
+                data_loader.dataset = dataset_name
+                try:
+                    data_loader.load_ranking_model()
+                except Exception as e:
+                    print("Error occured in loading ranking model ", e)
+                    continue
+                loaded_count = data_loader.load_clip_vector_data(args.min_score, limit=args.max_count)
+
+                if args.max_count - loaded_count <= 0:
+                    break
+        else:
+            data_loader.dataset = args.dataset
             try:
                 data_loader.load_ranking_model()
             except Exception as e:
                 print("Error occured in loading ranking model ", e)
-                continue
+                return
             loaded_count = data_loader.load_clip_vector_data(args.min_score, limit=args.max_count)
 
-            if args.max_count - loaded_count <= 0:
-                break
-
         mmapped_array.flush()
-
-        config_file = 'output/clip_{}_sigma.json'.format(args.min_score)
         
-    with open(config_file, 'w') as file:
+    with open(mmap_config, 'w') as file:
         json.dump({
             'loaded-count': loaded_count,
             'size': '{}GB'.format(round(mmapped_array.nbytes / (1024 ** 3), 4)),
