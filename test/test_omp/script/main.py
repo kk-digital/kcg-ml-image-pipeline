@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 # intrinsic library
 import skdim
@@ -13,7 +12,6 @@ import os
 
 # feature selection library
 from sklearn.linear_model import OrthogonalMatchingPursuit
-from intrinsics_dimension import twonn_pytorch
 
 import sys
 base_dir = './'
@@ -90,7 +88,7 @@ def main():
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
     try:
-        n_features = round(twonn_pytorch(torch.tensor(clip_vectors, dtype=torch.float32, device='cuda' if torch.cuda.is_available() else 'cpu'), return_xy=False))
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
         print("Sparsity dimension: ", n_features)
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
@@ -105,7 +103,7 @@ def main():
         print("Saved sparse index successfully!")
         
         sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
-
+        
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
 
