@@ -106,10 +106,10 @@ def main():
         
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
-        loss = model.train(sparse_clip_vectors, [scores], num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
+        loss = model.train(sparse_clip_vectors, scores, num_epochs= args.epochs, batch_size=args.training_batch_size, learning_rate=args.learning_rate)
         model.save_model()
         print("Model trained successfully!")
-        
+
     except Exception as e:
         print('Error occured! ', e)
 if __name__ == '__main__':
