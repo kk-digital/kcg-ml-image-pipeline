@@ -2246,14 +2246,14 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     # Plot the original function and the piecewise linear approximation with segments
     fig, ax1 = plt.subplots()
     #plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
-    ax1.xlabel('Rank')
-    ax1.ylabel('Energy')
+    ax1.set_xlabel('Rank')
+    ax1.set_ylabel('Energy')
     ax1.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
    
 
     ax2 = ax1.twinx() 
-    ax1.xlabel('Rank')
-    ax1.ylabel('Energy approximation')
+    ax1.set_xlabel('Rank')
+    ax1.set_ylabel('Energy approximation')
     ax2.plot(np.arange(len(mapped_scores)), mapped_scores,  label=f'pricewise linear({num_bins} segs, limited to -+ 1)', markersize=3,linestyle='--')
     fig.tight_layout() 
 
