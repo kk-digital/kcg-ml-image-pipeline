@@ -2654,6 +2654,11 @@ for i in range (0,len(sorted_images)):
     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
 
+
+
+for element in sorted_images_x:
+    print(element)
+
 sorted_images_and_hashes = sorted_images_x
 
 # rank = 1
