@@ -2277,12 +2277,12 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('Rank')
     ax1.set_ylabel('Energy')
-    ax1.plot(xs, ys, label='Real data points',markersize=3, color='blue')
+    ax1.plot(xs, ys, label='Real data points', loc='best', markersize=3, color='blue')
 
     # Create a second y-axis for the second plot
     ax2 = ax1.twinx()
     ax2.set_ylabel('Energy approximation')
-    ax2.plot(np.arange(len(mapped_scores)), mapped_scores, label='Piecewise Linear', markersize=3, linestyle='--',color='red')
+    ax2.plot(np.arange(len(mapped_scores)), mapped_scores, label='Piecewise Linear',  loc='best', markersize=3, linestyle='--',color='red')
 
     # Set the y-axis limits for the second plot dynamically based on the real data
     ax2.set_ylim(min(1, 0))
@@ -2290,7 +2290,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     #fig.tight_layout()
     plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
     
-    plt.legend(loc='best')
+    plt.legend()
     plt.grid(True)
 
 
