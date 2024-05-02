@@ -9,12 +9,6 @@ sys.path.insert(0, base_dir)
 class ClipVectorLoader:
 
     def __init__(self, min_sigma_score, dataset="all"):
-        # available sigma score list
-        self.support_sigma_score = [0]
-
-        # if sigam score is not supported, it will raise the exception
-        if min_sigma_score not in self.support_sigma_score:
-            raise Exception('Not support such min sigma score: {}'.format(min_sigma_score))
 
         # data type of memory mapping of numpy
         self.dtype = np.float16
