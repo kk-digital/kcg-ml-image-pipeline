@@ -2702,24 +2702,24 @@ plot_name14  = tag_name + "_tier14_hs"
 plot_name15  = tag_name + "_tier15_hs"
 
 plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
-plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
-plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+# plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+# plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
 
-plot_images_with_scores_hasheless(tier4,plot_name4)
-plot_images_with_scores_hasheless(tier5,plot_name5)
-plot_images_with_scores_hasheless(tier6,plot_name6)
-plot_images_with_scores_hasheless(tier7,plot_name7)
-plot_images_with_scores_hasheless(tier8,plot_name8)
-plot_images_with_scores_hasheless(tier9,plot_name9)
+# plot_images_with_scores_hasheless(tier4,plot_name4)
+# plot_images_with_scores_hasheless(tier5,plot_name5)
+# plot_images_with_scores_hasheless(tier6,plot_name6)
+# plot_images_with_scores_hasheless(tier7,plot_name7)
+# plot_images_with_scores_hasheless(tier8,plot_name8)
+# plot_images_with_scores_hasheless(tier9,plot_name9)
 
-plot_images_with_scores_hasheless(tier10,plot_name10)
-plot_images_with_scores_hasheless(tier11,plot_name11)
-plot_images_with_scores_hasheless(tier12,plot_name12)
+# plot_images_with_scores_hasheless(tier10,plot_name10)
+# plot_images_with_scores_hasheless(tier11,plot_name11)
+# plot_images_with_scores_hasheless(tier12,plot_name12)
 
 
-plot_images_with_scores_hasheless(tier13,plot_name13)
-plot_images_with_scores_hasheless(tier14,plot_name14)
-plot_images_with_scores_hasheless(tier15,plot_name15)
+# plot_images_with_scores_hasheless(tier13,plot_name13)
+# plot_images_with_scores_hasheless(tier14,plot_name14)
+# plot_images_with_scores_hasheless(tier15,plot_name15)
 
 
 
