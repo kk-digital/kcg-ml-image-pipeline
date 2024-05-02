@@ -80,8 +80,8 @@ def main():
     clip_vector_loader = ClipVectorLoader(min_sigma_score=-1000, dataset=args.dataset)
 
     # load data
-    # clip_vectors, scores = clip_vector_loader.get_all_clip_vector()
-    clip_vectors, scores = clip_vector_loader.get_clip_vector(start_index=0, end_index=1000)
+    clip_vectors, scores = clip_vector_loader.get_all_clip_vector()
+    # clip_vectors, scores = clip_vector_loader.get_clip_vector(start_index=0, end_index=1000)
 
     # remove nan, inf value which causes error
     clip_vectors = np.array(clip_vectors)
