@@ -79,19 +79,31 @@ from utility.http import request
 
 def remove_duplicates(list_a, list_b):
     # Convert lists to sets to remove duplicates
-    set_a = set(list_a)
-    set_b = set(list_b)
+    # set_a = set(list_a)
+    # set_b = set(list_b)
 
+
+    result = []
     # Remove elements from set_b that are in set_a
-    set_b -= set_a
+    # set_b -= set_a
+
+    for element_b in list_b:
+        exist = False   
+        for element_a in list_a:
+            
+            if element_b == element_a:
+             print(f"{list_b} exist") 
+             exist = True
+        if exist == True:
+            result.append(element_b)
 
     # Convert sets back to lists
-    unique_list_a = list(set_a)
-    unique_list_b = list(set_b)
+    # unique_list_a = list(set_a)
+    # unique_list_b = list(set_b)
 
-    print(f'before {len(set_b)}, after {len(unique_list_b)}')
+    print(f'before {len(set_b)}, after {len(result)}')
 
-    return unique_list_b
+    return result
 
 def parse_args():
     parser = argparse.ArgumentParser()
