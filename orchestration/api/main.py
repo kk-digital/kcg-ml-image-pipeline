@@ -400,6 +400,18 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index, 'pair_rank_hash_index')
 
+    pair_rank_hash_index_1 = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_1, 'pair_rank_hash_index_1')
+
+    pair_rank_hash_index_2 = [
+
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_2, 'pair_rank_hash_index_2')
+
     print("Connected to the MongoDB database!")
 
     # get minio client
