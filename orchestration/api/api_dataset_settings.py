@@ -171,48 +171,41 @@ def list_generation_policies():
    
 
 @router.put("/datasets/settings/set-config",
-    description="Set the configuration of a dataset. Only updates properties provided in the request, leaving others unchanged. 'last_update' is calculated internally.",
+    description="Set or create the configuration of a dataset. Updates provided properties and leaves others unchanged or creates a new configuration if none exists.",
     tags=["dataset"],
     response_model=StandardSuccessResponseV1[ResponseDatasetConfig],
     responses=ApiResponseHandlerV1.listErrors([422, 500]),
 )
 async def set_dataset_config(request: Request, config: DatasetConfig):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
-
     try:
-
+        # Verify if the dataset exists in MinIO
         dataset_exists = cmd.get_list_of_objects(request.app.minio_client, "datasets")
         dataset_path = f"{config.dataset_name}/"
 
         if not any(obj.object_name.startswith(dataset_path) for obj in dataset_exists):
-            # Return 422 error if dataset does not exist
+            # Return 422 error if the dataset does not exist in MinIO
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string=f"Dataset '{config.dataset_name}' does not exist.",
+                error_string=f"Dataset '{config.dataset_name}' does not exist in MinIO.",
                 http_status_code=422,
             )
         
-        # Ensure the dataset exists
         query = {"dataset_name": config.dataset_name}
-        item = request.app.dataset_config_collection.find_one(query)
-
-        if item is None:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string=f"Dataset '{config.dataset_name}' does not exist",
-                http_status_code=422,
-            )
-
-        # Prepare the update with the current timestamp
         update_values = config.dict(exclude_unset=True)
-        update_values["last_update"] = datetime.utcnow().isoformat() 
+        update_values["last_update"] = datetime.utcnow().isoformat()
 
-        # Update the dataset configuration in MongoDB
-        request.app.dataset_config_collection.update_one(query, {"$set": update_values})
+        # Use update_one with upsert=True to update or insert if not present
+        result = request.app.dataset_config_collection.update_one(
+            {"dataset_name": config.dataset_name}, 
+            {"$set": update_values}, 
+            upsert=True
+        )
 
-        # Fetch and return the updated dataset configuration
-        updated_item = request.app.dataset_config_collection.find_one(query)
-        updated_item.pop("_id", None)  # Remove MongoDB ObjectId
+        # Fetch and return the updated or new dataset configuration
+        updated_item = request.app.dataset_config_collection.find_one({"dataset_name": config.dataset_name})
+        if updated_item:
+            updated_item.pop("_id", None)  # Remove MongoDB ObjectId
 
         return response_handler.create_success_response_v1(
             response_data=updated_item,
@@ -237,7 +230,6 @@ async def set_dataset_config(request: Request, config: DatasetConfig):
 async def get_dataset_config(request: Request, dataset: str = Query(...)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-
         # Check if the dataset exists in MinIO
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
         dataset_path = f"{dataset}/"
@@ -249,9 +241,17 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
                 http_status_code=422,
             )
 
+        dataset_exists = request.app.datasets_collection.find_one({"dataset_name": dataset})
+        if not dataset_exists:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{dataset}' does not exist in the database.",
+                http_status_code=404,
+            )
+        
         item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
 
-        # Fill in missing properties with None to ensure consistent responses
+        # Define a default configuration that specifies all properties
         default_config = {
             "dataset_name": dataset,
             "last_update": None,
@@ -264,16 +264,19 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
             "relevance_threshold": None,
         }
 
-        # Merge the default values with the item values
-        item.pop("_id", None)  # Remove MongoDB ObjectId
-        # Convert 'last_update' to string using a try-except block
-        try:
-            item["last_update"] = str(item["last_update"])
-        except Exception:
-            item["last_update"] = None  # Set to None if conversion fails
-        
-        # Merge with default_config to ensure all keys are present
-        full_config = {**default_config, **item}
+        if item:
+            item.pop("_id", None)  # Remove MongoDB ObjectId
+            try:
+                # Convert 'last_update' to string, if it exists
+                item["last_update"] = str(item["last_update"]) if item.get("last_update") else None
+            except Exception:
+                item["last_update"] = None
+            
+            # Merge with default_config to ensure all keys are present
+            full_config = {**default_config, **item}
+        else:
+            # Use default config if no item found
+            full_config = default_config
 
         return response_handler.create_success_response_v1(
             response_data=full_config, 
@@ -287,6 +290,7 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
             http_status_code=500,
         )
 
+
     
 
 @router.get("/datasets/settings/get-all-dataset-config",
@@ -299,11 +303,13 @@ async def get_all_dataset_config(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         dataset_configs = []
-        items = list(request.app.dataset_config_collection.find({}))
+
+        # Fetch all datasets from the datasets_collection
+        all_datasets = list(request.app.datasets_collection.find({}, {"dataset_name": 1}))
 
         # Default configuration with None values for unset properties
         default_config = {
-            "dataset_name": None,
+            "dataset_name": None,  
             "last_update": None,
             "dataset_rate": None,
             "relevance_model": None,
@@ -314,14 +320,23 @@ async def get_all_dataset_config(request: Request):
             "relevance_threshold": None,
         }
 
-        for item in items:
-            item.pop("_id", None)  # Remove MongoDB ObjectId
+        # Iterate through all datasets to fetch or default their configs
+        for dataset in all_datasets:
+            dataset_name = dataset["dataset_name"]
+            # Try to find a specific configuration for this dataset
+            item = request.app.dataset_config_collection.find_one({"dataset_name": dataset_name})
 
-            # Convert 'last_update' to string using a try-except block
-            try:
-                item["last_update"] = str(item["last_update"])
-            except Exception:
-                item["last_update"] = None  # Set to None if conversion fails
+            if item:
+                item.pop("_id", None)  # Remove MongoDB ObjectId
+                # Convert 'last_update' to string using a try-except block
+                try:
+                    item["last_update"] = str(item["last_update"])
+                except Exception:
+                    item["last_update"] = None  # Set to None if conversion fails
+            else:
+                # No specific configuration, use a copy of default and update the dataset name
+                item = default_config.copy()
+                item["dataset_name"] = dataset_name
 
             # Merge with default_config to ensure all keys are present
             full_config = {**default_config, **item}
@@ -340,9 +355,9 @@ async def get_all_dataset_config(request: Request):
         )
 
 
-@router.get("/dataset/settings/get-options-list-generation-policies",
+@router.get("/datasets/settings/list-dataset-generation-policies",
             description="Get all generation policy",
-            tags=["datasets settings"],
+            tags=["dataset"],
             response_model=StandardSuccessResponseV1[ResponsePolicies],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_generation_policies(request: Request):
