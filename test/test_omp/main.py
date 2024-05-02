@@ -19,7 +19,12 @@ from test.load_clip_vector_over_sigma_score.clip_vector_loader import get_clip_0
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--count', type=int, default=10000, help='count of clip vectors')
+    parser.add_argument('--count', type=int, default=100, help='count of clip vectors')
+    parser.add_argument('--min_sigma_score', 
+                        type=int, 
+                        default=-1000, 
+                        help='Min sigma score, default is -1000, it means loadding all data')
+    parser.add_argument('--dataset', type=str, default='all', help='Dataset name')
 
     return parser.parse_args()
 

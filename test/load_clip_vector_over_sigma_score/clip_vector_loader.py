@@ -8,7 +8,7 @@ sys.path.insert(0, base_dir)
 
 class ClipVectorLoader:
 
-    def __init__(self, min_sigma_score):
+    def __init__(self, min_sigma_score, dataset="all"):
         # available sigma score list
         self.support_sigma_score = [0]
 
@@ -19,21 +19,22 @@ class ClipVectorLoader:
         # data type of memory mapping of numpy
         self.dtype = np.float16
         self.min_sigma_score = min_sigma_score
+        self.dataset = dataset
 
         # load memory mapping of numpy and config file
         self.mmap_config, self.mmapping_array = self.load_mmap()
 
     # get the memory mapping file name and config file name
-    def get_file_name(self, min_sigma_score):
-        mmap_fname = 'output/clip_{}_sigma.dat'.format(min_sigma_score)
-        config_fname = 'output/clip_{}_sigma.json'.format(min_sigma_score)
+    def get_file_name(self, min_sigma_score, dataset="all"):
+        mmap_fname = 'output/clip_{}_sigma_{}.dat'.format(min_sigma_score, dataset)
+        config_fname = 'output/clip_{}_sigma_{}.json'.format(min_sigma_score, dataset)
 
         return mmap_fname, config_fname
 
     # load memory mapping file and config file
     def load_mmap(self):
 
-        mmap_fname, config_fname = self.get_file_name(self.min_sigma_score)
+        mmap_fname, config_fname = self.get_file_name(self.min_sigma_score, self.dataset)
         
         with open(config_fname, 'r') as file:
             json_string = file.read()
