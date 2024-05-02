@@ -94,7 +94,8 @@ def remove_duplicates(list_a, list_b):
             if element_b == element_a:
              print(f"{list_b} exist") 
              exist = True
-        if exist == True:
+             break
+        if exist == False:
             result.append(element_b)
 
     # Convert sets back to lists
