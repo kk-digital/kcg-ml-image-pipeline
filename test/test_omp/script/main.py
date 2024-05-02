@@ -78,8 +78,8 @@ def main():
     clip_vector_loader = ClipVectorLoader(min_sigma_score=-1000, dataset=args.dataset)
 
     # load data
-    # clip_vectors, scores = clip_vector_loader.get_all_clip_vector()
-    clip_vectors, scores = clip_vector_loader.get_clip_vector(start_index=0, end_index=1000)
+    clip_vectors, scores = clip_vector_loader.get_all_clip_vector()
+    # clip_vectors, scores = clip_vector_loader.get_clip_vector(start_index=0, end_index=1000)
 
     # remove nan, inf value which causes error
     clip_vectors = np.array(clip_vectors)
@@ -103,8 +103,7 @@ def main():
         print("Saved sparse index successfully!")
         
         sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
-        print(np.array(sparse_clip_vectors).shape)
-        print(np.array(scores).shape)
+        
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
 
