@@ -2210,55 +2210,53 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     
    
 
-    # # Categorize scores into bins
-    # num_bins = 256
-    # bins = np.linspace(min_score, max_score, num_bins+1)
-    # bin_indices = np.digitize(scores, bins)
+    # Categorize scores into bins
+    num_bins = 256
+    bins = np.linspace(min_score, max_score, num_bins+1)
+    bin_indices = np.digitize(scores, bins)
 
 
-    # # Adjust bin indices to ensure they don't exceed the number of bins
-    # bin_indices = np.clip(bin_indices, 1, num_bins)
+    # Adjust bin indices to ensure they don't exceed the number of bins
+    bin_indices = np.clip(bin_indices, 1, num_bins)
 
-    # # Define mapping functions for each bin
-    # mapping_functions = []
-    # for bin_idx in range(1, num_bins + 1):
-    #     bin_start = min_score
-    #     bin_end = max_score
-    #     # Map scores in each bin from +x to -x to 1 to -1
-    #     mapping_function = lambda score: piecewise_linear(score, bin_start, 0 , max_score, 1)
+    # Define mapping functions for each bin
+    mapping_functions = []
+    for bin_idx in range(1, num_bins + 1):
+        bin_start = min_score
+        bin_end = max_score
+        # Map scores in each bin from +x to -x to 1 to -1
+        mapping_function = lambda score: piecewise_linear(score, bin_start, 0 , max_score, 1)
         
-    #     mapping_functions.append(mapping_function)
+        mapping_functions.append(mapping_function)
 
-    # # Debugging prints
-    # print("Length of mapping_functions:", len(mapping_functions))
-    # print("Length of bin_indices:", len(bin_indices))
+    # Debugging prints
+    print("Length of mapping_functions:", len(mapping_functions))
+    print("Length of bin_indices:", len(bin_indices))
 
-    # # Apply mapping functions to scores in each bin
-    # mapped_scores = []
-    # for bin_idx, score in zip(bin_indices, scores):
-    #     if bin_idx >= 1 and bin_idx <= num_bins:
-    #         mapping_function = mapping_functions[bin_idx - 1]
-    #         mapped_score = mapping_function(score)
-    #         mapped_scores.append(mapped_score)
-    #         print(f'the bin {bin_idx} values is {mapped_score}')
-    #     else:
-    #         print(f"Invalid bin index: {bin_idx}")
+    # Apply mapping functions to scores in each bin
+    mapped_scores = []
+    for bin_idx, score in zip(bin_indices, scores):
+        if bin_idx >= 1 and bin_idx <= num_bins:
+            mapping_function = mapping_functions[bin_idx - 1]
+            mapped_score = mapping_function(score)
+            mapped_scores.append(mapped_score)
+            print(f'the bin {bin_idx} values is {mapped_score}')
+        else:
+            print(f"Invalid bin index: {bin_idx}")
 
 
-    # x_dense = np.linspace(min(xs), max(xs), 64)
-    # y_dense = interp1d(xs, ys, kind='linear')(x_dense)
-    # interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
-    mapped_scores  = [map_scores(score, min_score, max_score, 256) for score in scores]
-    print(mapped_scores)
+    
     # Print mapped_scores for inspection
     print("Length of mapped_scores:", len(mapped_scores))
     print(f'max score is {max_score} and min score is {min_score}')
     # Generate additional points for higher granularity (64 segments)
 
+    x_dense = np.linspace(min(xs), max(xs), 64)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
     # Linear interpolation function with higher granularity
- 
+    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
     # # Plot the original function and the piecewise linear approximation with segments
     # fig, ax1 = plt.subplots()
@@ -2275,7 +2273,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     # fig.tight_layout() 
 
 
-    # Plot the original function and the piecewise linear approximation with segments
+   # Plot the original function and the piecewise linear approximation with segments
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('Rank')
     ax1.set_ylabel('Energy')
@@ -2293,7 +2291,6 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     plt.title('Mapping data')
     plt.legend()
     plt.grid(True)
-
 
 
 
@@ -2650,14 +2647,8 @@ sorted_images_x = []
 tag_name = tag_name_x
 for i in range (0,len(sorted_images)):
     sorted_images_x.append((sorted_images[i]["path"], sorted_images[i]["embedding"], new_scores[i], sorted_images[i]["image_tensor"]))
-    print (f' da new score is : {new_scores[i]}')
     #sorted_images_x  sorted_images[i][2] = new_scores[i]
 
-
-
-
-for element in sorted_images_x:
-    print(element)
 
 sorted_images_and_hashes = sorted_images_x
 
