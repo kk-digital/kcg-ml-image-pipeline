@@ -32,7 +32,7 @@ def parse_args():
                         type=int, 
                         default=-1000, 
                         help='Min sigma score, default is -1000, it means loadding all data')
-    parser.add_argument('--dataset', type=str, default='all', help='Dataset name')
+    parser.add_argument('--dataset', type=str, default='environmental', help='Dataset name')
     parser.add_argument('--epochs', type=int, default=10, help='epochs')
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--learning-rate', type=float, default=0.001)
