@@ -2289,7 +2289,7 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     #print(f'max score is {max_score} and min score is {min_score}')
     #fig.tight_layout()
     plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
-    plt.legend(["Energy", "Piecewise Linear Aproximation"],loc="lower left")
+    plt.legend()
     plt.grid(True)
 
 
