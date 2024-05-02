@@ -2243,23 +2243,46 @@ def plot_samples_graph_interpolation_plus_mapping_v2(loaded_model,dataset_name, 
     # Linear interpolation function with higher granularity
     interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
-    # Plot the original function and the piecewise linear approximation with segments
-    fig, ax1 = plt.subplots()
-    #plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
-    ax1.set_xlabel('Rank')
-    ax1.set_ylabel('Energy')
-    ax1.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
+    # # Plot the original function and the piecewise linear approximation with segments
+    # fig, ax1 = plt.subplots()
+    # #plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    # ax1.set_xlabel('Rank')
+    # ax1.set_ylabel('Energy')
+    # ax1.plot(xs, ys,  label='Real data points', markersize=3,linestyle='--')
    
 
-    ax2 = ax1.twinx() 
-    ax1.set_xlabel('Rank')
-    ax1.set_ylabel('Energy approximation')
-    ax2.plot(np.arange(len(mapped_scores)), mapped_scores,  label=f'pricewise linear({num_bins} segs, limited to -+ 1)', markersize=3,linestyle='--')
-    fig.tight_layout() 
+    # ax2 = ax1.twinx() 
+    # ax1.set_xlabel('Rank')
+    # ax1.set_ylabel('Energy approximation')
+    # ax2.plot(np.arange(len(mapped_scores)), mapped_scores,  label=f'pricewise linear({num_bins} segs, limited to -+ 1)', markersize=3,linestyle='--')
+    # fig.tight_layout() 
 
-    plt.title(f'Mapping data for: {tag_name} using {model_type}')
+
+    # Plot the original function and the piecewise linear approximation with segments
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel('Rank')
+    ax1.set_ylabel('Energy')
+    ax1.plot(xs, ys, label='Real data points', markersize=3, linestyle='--')
+
+    # Create a second y-axis for the second plot
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Energy approximation')
+    ax2.plot(np.arange(len(mapped_scores)), mapped_scores, label='Piecewise Linear', markersize=3, linestyle='--')
+
+    # Set the y-axis limits for the second plot dynamically based on the real data
+    ax2.set_ylim(min(mapped_scores), max(mapped_scores))
+
+    fig.tight_layout()
+    plt.title('Mapping data')
     plt.legend()
     plt.grid(True)
+
+
+
+
+    # plt.title(f'Mapping data for: {tag_name} using {model_type}')
+    # plt.legend()
+    # plt.grid(True)
 
     # # Plotting the graph
     # plt.figure(figsize=(8, 6))
