@@ -88,6 +88,7 @@ def main():
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
     try:
+        print(len(clip_vectors))
         n_features = round(skdim.id.TwoNN().fit(clip_vectors).dimension_)
         print("Sparsity dimension: ", n_features)
         # Create the OMP feature selector
