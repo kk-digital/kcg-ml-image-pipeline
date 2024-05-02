@@ -12,7 +12,7 @@ def measure_running_time(func, *args, **kwargs):
         result = func(*args, **kwargs)
     except Exception as e:
         print(func.__str__, e)
-        result = 'Nan'
+        result = 'Error'
     end_time = time.time()
     elapsed_time = end_time - start_time
     return result, elapsed_time
