@@ -272,30 +272,28 @@ class ScoringFCNetwork(nn.Module):
         axs[0][1].set_xlabel('Predicted')
 
         # plot histogram of training residuals
-        print("train residuals", train_residuals)
-        print(train_residuals.shape)
-        # axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        # axs[1][0].set_xlabel('Residuals')
-        # axs[1][0].set_ylabel('Frequency')
-        # axs[1][0].set_title('Training Residual Histogram')
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
 
         # plot histogram of validation residuals
-        # axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
-        # axs[1][1].set_xlabel('Residuals')
-        # axs[1][1].set_ylabel('Frequency')
-        # axs[1][1].set_title('Validation Residual Histogram')
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
         
         # plot histogram of predicted values
-        # axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
-        # axs[2][0].set_xlabel('Predicted Values')
-        # axs[2][0].set_ylabel('Frequency')
-        # axs[2][0].set_title('Validation Predicted Values Histogram')
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
         
         # plot histogram of true values
-        # axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
-        # axs[2][1].set_xlabel('Actual values')
-        # axs[2][1].set_ylabel('Frequency')
-        # axs[2][1].set_title('Validation True Values Histogram')
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
