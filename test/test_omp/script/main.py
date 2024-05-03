@@ -107,7 +107,8 @@ def main():
         
         print("Saved sparse index successfully!")
         
-        sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
+        # filter clip vectors to get parse clip vector
+        clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
         
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, 
@@ -116,8 +117,8 @@ def main():
                                  input_type="clip-h",
                                  hidden_sizes=[round(len_clip_vectors // 2), round(len_clip_vectors // 4 + 1) ])
 
-        loss = model.train(inputs=np.array(sparse_clip_vectors), 
-                           outputs=np.array(scores).squeeze(), 
+        loss = model.train(inputs=clip_vectors, 
+                           outputs=scores.squeeze(), 
                            num_epochs= args.epochs, 
                            batch_size=args.training_batch_size, 
                            learning_rate=args.learning_rate)
