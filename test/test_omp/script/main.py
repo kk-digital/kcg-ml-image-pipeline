@@ -92,8 +92,8 @@ def main():
     try:
         len_clip_vectors = len(clip_vectors)
         print(len_clip_vectors)
-        # n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
-        n_features = round(skdim.id.TwoNN().fit(clip_vectors[:args.count_for_id]).dimension_)
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
+        # n_features = round(skdim.id.TwoNN().fit(clip_vectors[:args.count_for_id]).dimension_)
         n_features = max(n_features, args.min_sparsity)
 
         print("Sparsity dimension: ", n_features)
