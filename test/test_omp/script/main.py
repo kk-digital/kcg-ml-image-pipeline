@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--count', type=int, default=100, help='count of clip vectors')
-    parser.add_argument('--count-for-id', type=int, default=100, help='count of clip vectors for getting intrinsic dimension')
+    parser.add_argument('--count-for-id', type=int, default=10000, help='count of clip vectors for getting intrinsic dimension')
     parser.add_argument('--min_sigma_score', 
                         type=int, 
                         default=-1000, 
@@ -92,9 +92,12 @@ def main():
     try:
         len_clip_vectors = len(clip_vectors)
         print(len_clip_vectors)
-        n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
-        print("Sparsity dimension: ", n_features)
+        # n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors[:args.count_for_id]).dimension_)
         n_features = max(n_features, args.min_sparsity)
+
+        print("Sparsity dimension: ", n_features)
+        
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
@@ -112,7 +115,7 @@ def main():
         
         print("Training model...")
         model = ScoringFCNetwork(minio_client=minio_client, 
-                                 dataset="test-generations", 
+                                 dataset=args.dataset, 
                                  input_size=n_features, 
                                  input_type="clip-h",
                                  hidden_sizes=[round(n_features // 2), round(n_features // 4 + 1) ])
