@@ -9,6 +9,7 @@ import msgpack
 from random import shuffle, choice, sample
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -90,7 +91,7 @@ class ABRankingDatasetLoader:
             raise Exception("Dataset is not in minio server")
 
         # if exist then get paths for aggregated selection datapoints
-        dataset = get_aggregated_selection_datapoints(self.minio_client, self.dataset_name)
+        dataset = get_aggregated_selection_datapoints_v1(self.minio_client, self.rank_model_id)
         len_dataset = len(dataset)
         print("# of dataset retrieved=", len_dataset)
         if len(dataset) == 0:
@@ -160,11 +161,13 @@ class ABRankingDatasetLoader:
             input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
-            # TODO: define dataset and replace self.dataset_name
-            file_path_img_1 = file_path_img_1.replace(self.dataset_name,
-                                                      os.path.join(self.dataset_name, "embeddings/text-embedding"))
-            file_path_img_2 = file_path_img_2.replace(self.dataset_name,
-                                                      os.path.join(self.dataset_name, "embeddings/text-embedding"))
+            dataset_name = Path(file_path_img_1).parent.name
+            file_path_img_1 = file_path_img_1.replace(dataset_name,
+                                                      os.path.join(dataset_name, "embeddings/text-embedding"))
+            
+            dataset_name = Path(file_path_img_1).parent.name
+            file_path_img_2 = file_path_img_2.replace(dataset_name,
+                                                      os.path.join(dataset_name, "embeddings/text-embedding"))
 
             input_type_extension = "-text-embedding.msgpack"
             if self.pooling_strategy == constants.AVERAGE_POOLING:
@@ -624,11 +627,13 @@ class ABRankingDatasetLoader:
             input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type == constants.EMBEDDING:
             # replace with new /embeddings
-            # TODO: define dataset and replace self.dataset_name with dataset
-            file_path_img_1 = file_path_img_1.replace(self.dataset_name,
-                                                      os.path.join(self.dataset_name, "embeddings/text-embedding"))
-            file_path_img_2 = file_path_img_2.replace(self.dataset_name,
-                                                      os.path.join(self.dataset_name, "embeddings/text-embedding"))
+            dataset_name = Path(file_path_img_1).parent.name
+            file_path_img_1 = file_path_img_1.replace(dataset_name,
+                                                      os.path.join(dataset_name, "embeddings/text-embedding"))
+            
+            dataset_name = Path(file_path_img_1).parent.name
+            file_path_img_2 = file_path_img_2.replace(dataset_name,
+                                                      os.path.join(dataset_name, "embeddings/text-embedding"))
 
             input_type_extension = "-text-embedding.msgpack"
 
