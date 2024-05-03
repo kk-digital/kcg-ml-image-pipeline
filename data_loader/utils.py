@@ -64,6 +64,35 @@ def get_aggregated_selection_datapoints(minio_client, dataset_name):
     print("Total flagged selection datapoints = {}".format(flagged_count))
     return unflagged_ab_data
 
+def get_aggregated_selection_datapoints_v1(minio_client, rank_model_id):
+    prefix = "ranks/{}/data/ranking/aggregate".format(rank_model_id)
+    dataset_paths = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", prefix=prefix)
+
+    print("Get selection datapoints contents and filter out flagged datapoints...")
+    ab_data_list = [None] * len(dataset_paths)
+    flagged_count = 0
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        count = 0
+        for path in dataset_paths:
+            futures.append(executor.submit(get_ab_data, minio_client=minio_client, path=path, index=count))
+            count += 1
+
+        for future in tqdm(as_completed(futures), total=len(dataset_paths)):
+            ab_data, flagged, index = future.result()
+            if not flagged:
+                ab_data_list[index] = ab_data
+            else:
+                flagged_count += 1
+
+    unflagged_ab_data = []
+    for data in tqdm(ab_data_list):
+        if data is not None:
+            unflagged_ab_data.append(data)
+
+    print("Total flagged selection datapoints = {}".format(flagged_count))
+    return unflagged_ab_data
+
 
 def get_object(client, file_path):
     try:
