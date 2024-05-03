@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=10, help='epochs')
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--learning-rate', type=float, default=0.001)
+    parser.add_argument('--min-sparsity', type=int, default=100, help='min sparsity')
 
     return parser.parse_args()
 
@@ -93,6 +94,7 @@ def main():
         print(len_clip_vectors)
         n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
         print("Sparsity dimension: ", n_features)
+        n_features = max(n_features, args.min_sparsity)
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
 
