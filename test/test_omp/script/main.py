@@ -117,7 +117,7 @@ def main():
         model = ScoringFCNetwork(minio_client=minio_client, 
                                  dataset=args.dataset, 
                                  input_size=n_features, 
-                                 input_type="clip-h",
+                                 input_type="clip-h",   
         )
                                 #  hidden_sizes=[round(n_features // 2), round(n_features // 4 + 1) ])
 
