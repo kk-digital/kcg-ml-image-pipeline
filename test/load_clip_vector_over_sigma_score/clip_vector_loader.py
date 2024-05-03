@@ -87,12 +87,12 @@ if __name__ == '__main__':
         clip_vector_loader.get_clip_vector(start_index=args.start, end_index=args.end)
     try:
         id = skdim.id.MLE().fit(clip_vectors).dimension_
-        print('intrinsic dimensions', id)
+        print(args.start, args.end, 'intrinsic dimensions', id)
 
         # if id == 0:
         #     print("Clip vector", clip_vectors)
     except Exception as e:
-        print(e)
+        print(args.start, args.end, 'Error occurred', e)
         # print("Clip vector", clip_vectors)
     # clip_vecotors, scores = \
         # clip_vector_loader.get_clip_vector_by_random(count=args.count)
