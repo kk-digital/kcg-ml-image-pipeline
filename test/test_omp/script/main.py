@@ -118,7 +118,8 @@ def main():
                                  dataset=args.dataset, 
                                  input_size=n_features, 
                                  input_type="clip-h",
-                                 hidden_sizes=[round(n_features // 2), round(n_features // 4 + 1) ])
+        )
+                                #  hidden_sizes=[round(n_features // 2), round(n_features // 4 + 1) ])
 
         loss = model.train(inputs=clip_vectors, 
                            outputs=scores.squeeze(), 
