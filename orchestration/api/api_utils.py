@@ -17,6 +17,9 @@ from datetime import datetime
 import os
 from urllib.parse import urlparse
 
+class DoneResponse(BaseModel):
+    Done: bool
+
 class DatasetResponse(BaseModel):
     datasets: List[str]
 
@@ -59,13 +62,13 @@ class ListFilePathResponse(BaseModel):
 
 class DatasetConfig(BaseModel):
     dataset_name: Optional[str]
-    dataset_rate: Optional[str]
-    relevance_model: Optional[str]
-    ranking_model: Optional[str]
-    hourly_limit: Optional[int]
-    top_k: Optional[int]
-    generation_policy: Optional[str]
-    relevance_threshold: Optional[int]
+    dataset_rate: str
+    relevance_model: str
+    ranking_model: str
+    hourly_limit: int
+    top_k: int
+    generation_policy: str
+    relevance_threshold: int
 
 class ResponseDatasetConfig(BaseModel):
     dataset_name: Optional[str]

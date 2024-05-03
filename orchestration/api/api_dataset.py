@@ -919,7 +919,7 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
             http_status_code=500
         )        
     
-@router.post("/add-new-dataset",
+@router.post("/datasets/add-new-dataset",
             description="add new dataset in mongodb",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1[Dataset],  
@@ -941,7 +941,7 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 http_status_code=200
             )    
     
-@router.get("/list-datasets",
+@router.get("/datasets/list-datasets",
             description="list datasets from mongodb",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1[ListDataset],  
@@ -959,23 +959,32 @@ async def list_datasets(request: Request):
             )       
 
 
-@router.delete("/remove-dataset/{dataset_name}",
-               description="remove dataset in mongodb",
+@router.delete("/datasets/remove-dataset",
+               description="Remove dataset and its configuration in MongoDB",
                tags=["dataset"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
-async def remove_dataset(request: Request, dataset_name: str):
+async def remove_dataset(request: Request, dataset: str = Query(...)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    result = request.app.datasets_collection.delete_one({"dataset_name": dataset_name})
-    if result.deleted_count == 0:
-        return response_handler.create_success_delete_response_v1(
-                False, 
-                http_status_code=200
-            )
-    
+    # Attempt to delete the dataset
+    dataset_result = request.app.datasets_collection.delete_one({"dataset_name": dataset})
+    # Attempt to delete the dataset configuration
+    config_result = request.app.dataset_config_collection.delete_one({"dataset_name": dataset})
 
-    return response_handler.create_success_delete_response_v1(
-                True, 
-                http_status_code=200
-            )
+    # Check if either the dataset or its configuration was present and deleted
+    was_present = dataset_result.deleted_count > 0 and config_result.deleted_count > 0
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If either was deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            True, 
+            http_status_code=200
+        )
+    else:
+        # If neither was deleted, return False
+        return response_handler.create_success_delete_response_v1(
+            False, 
+            http_status_code=200
+        )

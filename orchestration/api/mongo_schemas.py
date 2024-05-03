@@ -503,6 +503,7 @@ class ListWorker(BaseModel):
 
 
 class SigmaScoreResponse(BaseModel):
+    dataset: str
     job_uuid: str
     file_hash: str
     file_path: str

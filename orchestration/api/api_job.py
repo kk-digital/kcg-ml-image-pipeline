@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, DoneResponse
 from typing import List
 import json
 import paramiko
@@ -264,7 +264,7 @@ def delete_completed_job(request: Request, uuid):
     description="Remove a completed job by UUID.",
     response_model=StandardSuccessResponse[WasPresentResponse],
     tags=["jobs-standardized"],
-    responses=ApiResponseHandler.listErrors([500]),
+    responses=ApiResponseHandler.listErrors([422,500]),
 )
 def delete_completed_job(request: Request, uuid: str):
     api_response_handler = ApiResponseHandler(request)
@@ -1175,7 +1175,7 @@ async def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     
 
 @router.post("/queue/image-generation/add-job",
-    description="Adds an image generation job to the pending queue. If no UUID is provided, an UUID is generated automatically. If no file path is provided, or the provided file path is "", '[auto]' or '[default]', the file path is generated automatically.",
+    description="Adds an image generation job to the pending queue. If no UUID is provided, an UUID is generated automatically. If no file path is provided, or the provided file path is \"\", '[auto]' or '[default]', the file path is generated automatically.",
     status_code=200,
     tags=["jobs-standardized"],
     response_model=StandardSuccessResponseV1[AddJob],
@@ -1231,7 +1231,7 @@ async def add_job(request: Request, task: Task):
 
 
 @router.post("/queue/image-generation/add-kandinsky-job", 
-             description="Add a kandinsky job to the pending queue. If no UUID is provided, an UUID is generated automatically. If no file path is provided, or the provided file path is "", '[auto]' or '[default]', the file path is generated automatically.",
+             description="Add a kandinsky job to the pending queue. If no UUID is provided, an UUID is generated automatically. If no file path is provided, or the provided file path is \"\", '[auto]' or '[default]', the file path is generated automatically.",
              status_code=200,
              tags=["jobs-standardized"],
              response_model=StandardSuccessResponseV1[AddJob],
@@ -1314,23 +1314,22 @@ async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int)
         current_time = datetime.now()
         time_ago = current_time - timedelta(hours=hours)
 
-        # Query the collection to count the documents created in the last N hours
-        pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
-        in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
-        completed_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
+        query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
 
         count = 0
 
         # Take into account pending & in progress & completed jobs
-        pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
-        in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
-        completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+        pending_count = request.app.pending_jobs_collection.count_documents(query)
+        in_progress_count = request.app.in_progress_jobs_collection.count_documents(query)
+        completed_count = request.app.completed_jobs_collection.count_documents(query)
+        failed_count = request.app.failed_jobs_collection.count_documents(query)
 
 
         counts = {
         "pending_count": pending_count,
         "in_progress_count": in_progress_count,
-        "completed_count": completed_count
+        "completed_count": completed_count,
+        "failed_count": failed_count
     }
 
         return response_handler.create_success_response_v1(
@@ -1521,7 +1520,7 @@ async def get_list_failed_jobs(request: Request):
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_list_completed_jobs_by_date(
     request: Request,
-    dataset: str = Query(..., description="dataset input"), 
+    dataset: Optional[str] = Query(None, description="Dataset input"),
     start_date: str = Query(..., description="Start date for filtering jobs"), 
     end_date: str = Query(..., description="End date for filtering jobs"),
     min_clip_sigma_score: Optional[float] = Query(None, description="Minimum CLIP sigma score to filter jobs")
@@ -1537,6 +1536,10 @@ async def get_list_completed_jobs_by_date(
                 "$lt": end_date
             }
         }
+
+        # Conditionally add dataset to the query if provided
+        if dataset:
+            query["task_input_dict.dataset"] = dataset
 
         # Add condition to filter by min_clip_sigma_score if provided
         if min_clip_sigma_score is not None:
@@ -1579,7 +1582,7 @@ async def get_list_completed_jobs_by_date(
 @router.get("/queue/image-generation/get-completed-jobs-using-random-sampling", 
             response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
             tags=["jobs-standardized"],
-            description="list completed jobs by dataset",
+            description="returns list of randomly selected completed jobs",
             responses=ApiResponseHandlerV1.listErrors([422, 500])
             )
 async def get_list_completed_jobs_by_dataset(
@@ -1691,26 +1694,32 @@ async def get_failed_job_count(request: Request,  dataset: Optional[str] = None)
 
 
 @router.put("/queue/image-generation/set-in-progress-job-as-completed", 
-            response_model=StandardSuccessResponseV1[bool],
+            response_model=StandardSuccessResponseV1[DoneResponse],
             status_code=200,
             tags=["jobs-standardized"],
             description="Update an in-progress job and mark as completed.",
-            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-async def update_job_completed(request: Request, task: Task):
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def update_job_completed(request: Request, uuid: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
+        # Retrieve the job with the given UUID
+        job = request.app.in_progress_jobs_collection.find_one({"uuid": uuid})
         if job is None:
             return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string=f"job not found",
-            http_status_code=404
-        )
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string="Job not found",
+                http_status_code=404
+            )
         
-        request.app.completed_jobs_collection.insert_one(task.to_dict())
-        request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
+        # Move the job to the completed jobs collection
+        request.app.completed_jobs_collection.insert_one(job)
+        # Remove the job from the in-progress collection
+        request.app.in_progress_jobs_collection.delete_one({"uuid": uuid})
 
-        return response_handler.create_success_response_v1(response_data=True, http_status_code=200)
+        return response_handler.create_success_response_v1(
+            response_data={"Done": True},
+            http_status_code=200
+        )
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
@@ -1720,7 +1729,7 @@ async def update_job_completed(request: Request, task: Task):
 
 
 @router.put("/queue/image-generation/set-in-progress-job-as-failed", 
-            response_model=StandardSuccessResponseV1[bool],
+            response_model=StandardSuccessResponseV1[DoneResponse],
             status_code=200,
             tags=["jobs-standardized"],
             description="Update an in-progress job and mark as failed.",
@@ -1744,7 +1753,7 @@ async def update_job_failed(request: Request, uuid: str):
 
         # Return a success response indicating the job was marked as failed
         return response_handler.create_success_response_v1(
-            response_data=True,
+            response_data={"Done": True},
             http_status_code=200,
         )
 
@@ -1985,8 +1994,14 @@ async def count_non_empty_task_attributes(request: Request, task_type: str = "im
             http_status_code=500
         )
 
-@router.post("/update-jobs")
-def update_completed_jobs(request: Request):
+@router.post("/update-jobs",
+             description="Adds the 'ranking_count', 'safe_to_delete' and 'tag_count' properties to the completed jobs that still don't have them",
+             tags= "utility",
+             response_model=StandardSuccessResponseV1[CountResponse],
+             responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def update_completed_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
     # Use projection to fetch only necessary fields
     cursor = request.app.completed_jobs_collection.find(
         {"safe_to_delete": {"$exists": False}},
@@ -2025,14 +2040,25 @@ def update_completed_jobs(request: Request):
 
     # Return a message about how many documents were updated
     if updated_count > 0:
-        return {"message": f"Update process completed, {updated_count} documents updated."}
+        return response_handler.create_success_response_v1(response_data=updated_count, http_status_code=200)
     else:
-        return {"message": "No updates performed."}
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to count documents",
+            http_status_code=500
+        )
 
 
 
-@router.get("/count-updated-jobs")
-def get_completed_job_count(request: Request):
+@router.get("/count-updated-jobs",
+            response_model=StandardSuccessResponseV1[CountResponse],
+            tags="utility",
+            description="count updated jobs",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def get_completed_job_count(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
     # Count documents where "safe_to_delete" field exists
     count = request.app.completed_jobs_collection.count_documents({"safe_to_delete": {"$exists": True}})
-    return {"completed_job_count": count}
+    
+    return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
