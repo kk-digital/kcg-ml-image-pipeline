@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import json
 import argparse
+import skdim
 
 base_dir = './'
 sys.path.insert(0, base_dir)
@@ -82,11 +83,11 @@ if __name__ == '__main__':
     # Test the function of ClipVectorLoader class
     clip_vector_loader = ClipVectorLoader(min_sigma_score=args.min_sigma_score)
 
-    clip_vecotors, scores = \
+    clip_vectors, scores = \
         clip_vector_loader.get_clip_vector(start_index=args.start, end_index=args.end)
     
-    clip_vecotors, scores = \
-        clip_vector_loader.get_clip_vector_by_random(count=args.count)
+    print(skdim.id.MLE().fit(clip_vectors).dimension_)
 
-    for clip_vector, score in zip(clip_vecotors, scores):
-        print(clip_vector, score)
+    # clip_vecotors, scores = \
+        # clip_vector_loader.get_clip_vector_by_random(count=args.count)
+
