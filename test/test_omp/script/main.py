@@ -108,7 +108,11 @@ def main():
         sparse_clip_vectors = clip_vectors[:, np.argsort(-np.abs(omp.coef_))[:n_features]]
         
         print("Training model...")
-        model = ScoringFCNetwork(minio_client=minio_client, dataset="test-generations", input_size=n_features, input_type="clip-h")
+        model = ScoringFCNetwork(minio_client=minio_client, 
+                                 dataset="test-generations", 
+                                 input_size=n_features, 
+                                 input_type="clip-h",
+                                 hidden_sizes=[round(len_clip_vectors // 2), round(len_clip_vectors // 4 + 1) ])
 
         loss = model.train(inputs=np.array(sparse_clip_vectors), 
                            outputs=np.array(scores).squeeze(), 
