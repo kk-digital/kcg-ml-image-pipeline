@@ -89,8 +89,9 @@ def main():
     clip_vectors = clip_vectors[~np.isinf(clip_vectors).any(axis=1)]
     
     try:
-        print(len(clip_vectors))
-        n_features = round(skdim.id.TwoNN().fit(clip_vectors[:args.count_for_id]).dimension_)
+        len_clip_vectors = len(clip_vectors)
+        print(len_clip_vectors)
+        n_features = round(skdim.id.TwoNN().fit(clip_vectors[np.random.choice(np.arange(len_clip_vectors), args.count_for_id)]).dimension_)
         print("Sparsity dimension: ", n_features)
         # Create the OMP feature selector
         omp = OrthogonalMatchingPursuit(n_nonzero_coefs=n_features)
