@@ -3,13 +3,12 @@ import torch
 import sys
 from datetime import datetime
 from pytz import timezone
-import argparse
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader_v1 import ABRankingDatasetLoader
@@ -24,27 +23,26 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="embedding",
-                  epochs=8,
+                  epochs=10000,
                   learning_rate=0.05,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.00,
-                  load_data_to_ram=True,
+                  load_data_to_ram=False,
                   debug_asserts=False,
                   normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=1,
                   add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.5,
-                  penalty_range = 5.0):
+                  penalty_range = 5.0
+                  ):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, "ranks/{}/data/ranking/appregate".format(rank_model_info["rank_model_id"]))
-    network_type = "elm-v1"
+    network_type = "linear"
     output_type = "score"
     output_path = "ranks/{}/models/ranking".format(rank_model_info["rank_model_id"])
 
@@ -87,9 +85,7 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingELMModel(inputs_shape=input_shape,
-                                 num_random_layers=num_random_layers,
-                                 elm_sparsity=elm_sparsity)
+    ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -174,9 +170,7 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                         add_loss_penalty=add_loss_penalty,
                                         target_option=target_option,
                                         duplicate_flip_option=duplicate_flip_option,
-                                        randomize_data_per_epoch=randomize_data_per_epoch,
-                                        num_random_layers=num_random_layers,
-                                        elm_sparsity=elm_sparsity)
+                                        randomize_data_per_epoch=randomize_data_per_epoch)
 
     # Upload model to minio
     model_name = "{}.safetensors".format(filename)
@@ -223,9 +217,9 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                   total_images_count,
                                   dataset_loader.datapoints_per_sec)
 
-    # Upload model to minio
+    # Upload text report to minio
     report_name = "{}.txt".format(filename)
-    report_output_path = os.path.join(output_path, report_name)
+    report_output_path = os.path.join(output_path,  report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
 
@@ -269,35 +263,35 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                     dataset_name=rank_model_info["rank_model_string"],
                                     pooling_strategy=pooling_strategy,
                                     normalize_vectors=normalize_vectors,
-                                    num_random_layers=num_random_layers,
+                                    num_random_layers=-1,
                                     add_loss_penalty=add_loss_penalty,
                                     target_option=target_option,
                                     duplicate_flip_option=duplicate_flip_option,
                                     randomize_data_per_epoch=randomize_data_per_epoch,
-                                    elm_sparsity=elm_sparsity,
+                                    elm_sparsity=-1,
                                     training_shuffled_indices_origin=training_shuffled_indices_origin,
                                     validation_shuffled_indices_origin=validation_shuffled_indices_origin,
                                     total_selection_datapoints=dataset_loader.total_selection_datapoints,
                                     loss_penalty_range=penalty_range,
-                                    saved_model_epoch=ab_model.lowest_loss_model_epoch
-                                    )
+                                    saved_model_epoch=ab_model.lowest_loss_model_epoch)
+
     # upload the graph report
-    cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
     # get model card and upload
     model_card_name = "{}.json".format(filename)
     model_card_name_output_path = os.path.join(output_path, model_card_name)
     model_card_buf, model_card = get_model_card_buf(ab_model,
-                                        training_total_size,
-                                        validation_total_size,
-                                        graph_output_path,
-                                        input_type,
-                                        output_type)
+                                                    training_total_size,
+                                                    validation_total_size,
+                                                    graph_output_path,
+                                                    input_type,
+                                                    output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
-    model_type = "elm-v1"
+    model_type = "linear"
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
                                          train_prob_predictions=training_predicted_probabilities,
@@ -311,11 +305,10 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                          training_shuffled_indices_origin=training_shuffled_indices_origin,
                                          validation_shuffled_indices_origin=validation_shuffled_indices_origin)
 
-
     return model_output_path, report_output_path, graph_output_path
 
 
-def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key):
+def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key):
     model_output_path, \
         report_output_path, \
         graph_output_path = train_ranking(rank=training_task["rank_model_infor"],
@@ -329,29 +322,29 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_ip_addr=None,  # will use default if none is given
+    train_ranking(rank_model_info={
+                    "rank_model_string": "test_rank",
+                    "rank_model_id": 2
+                  },
+                  minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  rank_model_info={
-                      "rank_model_string": "test_rank",
-                      "rank_model_id": 2
-                  },
-                  input_type="embedding",
+                  input_type=constants.KANDINSKY_CLIP,
                   epochs=10,
-                  learning_rate=0.1,
+                  learning_rate=0.05,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01,
+                  weight_decay=0.00,
                   load_data_to_ram=True,
-                  debug_asserts=True,
+                  debug_asserts=False,
                   normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=2,
                   add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.0)
+                  )
+
 
 # if __name__ == '__main__':
 #     test_run()
