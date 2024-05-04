@@ -19,6 +19,9 @@ from training_worker.ab_ranking.model import constants
 from data_loader.ab_data import ABData
 from data_loader.utils import *
 
+# import request service for getting rank model list
+from utility.http.request import http_get_rank_model_list
+
 
 class ABRankingDatasetLoader:
     def __init__(self,
@@ -86,8 +89,11 @@ class ABRankingDatasetLoader:
         start_time = time.time()
         print("Loading dataset references...")
 
-        dataset_list = get_datasets(self.minio_client)
-        if self.rank_model_id not in dataset_list:
+        # Getting existing rank model list 
+        rank_model_list = http_get_rank_model_list()
+        rank_model_ids = [rank_model["rank_model_id"] for rank_model in rank_model_list]
+
+        if self.rank_model_id not in rank_model_ids:
             raise Exception("Dataset is not in minio server")
 
         # if exist then get paths for aggregated selection datapoints
