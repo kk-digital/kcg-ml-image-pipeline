@@ -11,7 +11,7 @@ def measure_running_time(func, *args, **kwargs):
     try:
         result = func(*args, **kwargs)
     except Exception as e:
-        print(func.__str__, e)
+        print("Error in getting ID", e)
         result = 'Error'
     end_time = time.time()
     elapsed_time = end_time - start_time
