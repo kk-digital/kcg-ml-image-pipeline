@@ -114,7 +114,7 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                     data = data.reshape((data.size(0), -1))
                 
                 if library == Library.INTRINSIC_DIMENSION.value:
-
+                    print("Dimension", data.size())
                     dimension_by_mle, mle_elapsed_time = \
                         measure_running_time(mle_id, data, k=2)
 
