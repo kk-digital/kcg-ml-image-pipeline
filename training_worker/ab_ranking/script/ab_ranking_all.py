@@ -26,7 +26,7 @@ def parse_args():
 
      # Add arguments for training parameters
     parser.add_argument('--input-type', type=str, default='clip', help='Input type')
-    parser.add_argument('--epochs', type=int, default=10000, help='Number of training epochs')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
     parser.add_argument('--learning-rate', type=float, default=0.05, help='Learning rate')
     parser.add_argument('--train-percent', type=float, default=0.9, help='Percentage of data used for training')
     parser.add_argument('--training-batch-size', type=int, default=1, help='Training batch size')
