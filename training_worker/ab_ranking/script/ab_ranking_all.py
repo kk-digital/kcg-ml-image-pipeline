@@ -56,6 +56,7 @@ def main():
     rank_model_list = http_get_rank_model_list()
 
     for rank_model in rank_model_list:
+        print("{} Ranking....".format(rank_model["rank_model_string"]))
         if args.model_type == 'linear':
             train_ranking_linear(
                 rank_model_info=rank_model,
