@@ -4,8 +4,8 @@ import sys
 base_dir = './'
 sys.path.insert(0, base_dir)
 
-from training_worker.ab_ranking.script.ab_ranking_elm_v2 import train_ranking as train_ranking_elm
-from training_worker.ab_ranking.script.ab_ranking_linear_v2 import train_ranking as train_ranking_linear
+from training_worker.ab_ranking.script.rank_ab_ranking_elm import train_ranking as train_ranking_elm
+from training_worker.ab_ranking.script.rank_ab_ranking_linear import train_ranking as train_ranking_linear
 
 # import http request service for getting rank model list
 from utility.http.request import http_get_rank_model_list

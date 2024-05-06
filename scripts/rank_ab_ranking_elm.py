@@ -11,12 +11,18 @@ sys.path.insert(0, base_directory)
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
-from data_loader.ab_ranking_dataset_loader_v1 import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_v2 import *
+from data_loader.rank_ab_ranking_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
+
+# import http request service for getting rank model list
+from utility.http.request import http_get_rank_model_list
+
+# import constants for training ranking model
+from training_worker.ab_ranking.model import constants
 
 
 def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_id and rank_model_string
@@ -332,30 +338,71 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
     return model_output_path, report_output_path, graph_output_path
 
 
-def test_run():
-    train_ranking(minio_ip_addr=None,  # will use default if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  rank_model_info={
-                      "rank_model_string": "test_rank",
-                      "rank_model_id": 2
-                  },
-                  input_type="embedding",
-                  epochs=10,
-                  learning_rate=0.1,
-                  train_percent=0.9,
-                  training_batch_size=1,
-                  weight_decay=0.01,
-                  load_data_to_ram=True,
-                  debug_asserts=True,
-                  normalize_vectors=True,
-                  pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=2,
-                  add_loss_penalty=True,
-                  target_option=constants.TARGET_1_AND_0,
-                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
-                  randomize_data_per_epoch=True,
-                  elm_sparsity=0.0)
+def parse_args():
+    parser = argparse.ArgumentParser()
 
-# if __name__ == '__main__':
-#     test_run()
+    # Add arguments for MinIO connection
+    parser.add_argument('--minio-ip-addr', type=str, default=None, help='MinIO IP address')
+    parser.add_argument('--minio-access-key', type=str, default=None, help='MinIO access key')
+    parser.add_argument('--minio-secret-key', type=str, default=None, help='MinIO secret key')
+
+     # Add arguments for training parameters
+    parser.add_argument('--input-type', type=str, default='clip', help='Input type')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
+    parser.add_argument('--learning-rate', type=float, default=0.05, help='Learning rate')
+    parser.add_argument('--train-percent', type=float, default=0.9, help='Percentage of data used for training')
+    parser.add_argument('--training-batch-size', type=int, default=1, help='Training batch size')
+    parser.add_argument('--weight-decay', type=float, default=0.0, help='Weight decay')
+    parser.add_argument('--load-data-to-ram', action='store_true', help='Load data to RAM')
+    parser.add_argument('--debug-asserts', action='store_true', help='Enable debug asserts')
+    parser.add_argument('--normalize-vectors', action='store_true', help='Normalize input vectors')
+    parser.add_argument('--pooling-strategy', type=str, default=constants.AVERAGE_POOLING, help='Pooling strategy')
+    parser.add_argument('--add-loss-penalty', action='store_true', help='Add loss penalty')
+    parser.add_argument('--target-option', type=str, default=constants.TARGET_1_AND_0, help='Target option')
+    parser.add_argument('--duplicate-flip-option', type=str, default=constants.DUPLICATE_AND_FLIP_ALL, help='Duplicate and flip option')
+    parser.add_argument('--randomize-data-per-epoch', action='store_true', help='Randomize data per epoch')
+    parser.add_argument('--penalty-range', type=float, default=5.0, help='Penalty range')
+
+    # more paramter for elm ranking model
+    parser.add_argument('--num-random-layers', type=int, default=1, help='Number of random layers')
+    parser.add_argument('--elm-sparsity', type=float, default=0.5, help='ELM sparsity')
+
+    
+
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+
+    # Get all rank model infor
+    rank_model_list = http_get_rank_model_list()
+
+    for rank_model in rank_model_list:
+        print("{} Ranking....".format(rank_model["rank_model_string"]))
+        train_ranking(
+                rank_model_info=rank_model,
+                minio_ip_addr=args.minio_ip_addr,
+                minio_access_key=args.minio_access_key,
+                minio_secret_key=args.minio_secret_key,
+                input_type=args.input_type,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+                train_percent=args.train_percent,
+                training_batch_size=args.training_batch_size,
+                weight_decay=args.weight_decay,
+                load_data_to_ram=args.load_data_to_ram,
+                debug_asserts=args.debug_asserts,
+                normalize_vectors=args.normalize_vectors,
+                pooling_strategy=args.pooling_strategy,
+                num_random_layers=args.num_random_layers,
+                add_loss_penalty=args.add_loss_penalty,
+                target_option=args.target_option,
+                duplicate_flip_option=args.duplicate_flip_option,
+                randomize_data_per_epoch=args.randomize_data_per_epoch,
+                elm_sparsity=args.elm_sparsity,
+                penalty_range=args.penalty_range,
+        )
+    
+if __name__ == '__main__':
+
+    main()
