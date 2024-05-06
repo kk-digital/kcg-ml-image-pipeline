@@ -16,18 +16,9 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-# import utils
-from test.test_intrinsic_dimension import measure_running_time
-
-# import library type
-from test.test_intrinsic_dimension.library_type import Library
-
 # load data loader for feature data
 from test.test_intrinsic_dimension.dataloader import KandinskyDatasetLoader
 from test.test_intrinsic_dimension.utils import get_minio_client
-
-# import convert seconds into formatted time string
-from test.test_intrinsic_dimension.utils import format_duration
 
 # import http request
 from utility.http import request
@@ -115,7 +106,7 @@ def get_pca(minio_client, dataset, library, count_list, data_type_list):
                 std_scaler = StandardScaler()
                 scaled_df = std_scaler.fit_transform(data)
 
-                for num in range(count):
+                for num in tqdm(range(count)):
                     pca = PCA(n_components=num)
                     pca.fit(scaled_df)
                     result.append({
