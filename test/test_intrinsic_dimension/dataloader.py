@@ -11,8 +11,8 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-from utils import get_object
-from utils import separate_bucket_and_file_path
+from test.test_intrinsic_dimension.utils import get_object
+from test.test_intrinsic_dimension.utils import separate_bucket_and_file_path
 
 API_URL="http://192.168.3.1:8111"
 

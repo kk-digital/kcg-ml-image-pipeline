@@ -10,7 +10,6 @@ from datetime import datetime
 # library for PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
