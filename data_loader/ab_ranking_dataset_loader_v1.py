@@ -170,11 +170,12 @@ class ABRankingDatasetLoader:
             input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
-            dataset_name = Path(file_path_img_1).parent.name
+
+            dataset_name = Path(file_path_img_1).parent.parent.name
             file_path_img_1 = file_path_img_1.replace(dataset_name,
                                                       os.path.join(dataset_name, "embeddings/text-embedding"))
             
-            dataset_name = Path(file_path_img_1).parent.name
+            dataset_name = Path(file_path_img_1).parent.parent.name
             file_path_img_2 = file_path_img_2.replace(dataset_name,
                                                       os.path.join(dataset_name, "embeddings/text-embedding"))
 
