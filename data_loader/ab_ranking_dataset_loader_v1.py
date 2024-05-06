@@ -107,7 +107,7 @@ class ABRankingDatasetLoader:
         self.total_selection_datapoints = len_dataset
 
         # test
-        dataset = dataset[:5]
+        # dataset = dataset[:5]
 
         # calculate num validations
         num_validations = round((len_dataset * (1.0 - self.train_percent)))
