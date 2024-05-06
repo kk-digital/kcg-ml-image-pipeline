@@ -46,6 +46,7 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
     training_dataset_path = os.path.join(bucket_name, "ranks/{}/data/ranking/aggregate".format(rank_model_info["rank_model_id"]))
     network_type = "elm-v1"
     output_type = "score"
+    print("model id", rank_model_info["rank_model_id"])
     output_path = "ranks/{}/models/ranking".format(rank_model_info["rank_model_id"])
 
     # check input type
