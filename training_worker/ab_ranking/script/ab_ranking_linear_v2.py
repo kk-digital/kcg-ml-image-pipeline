@@ -22,7 +22,7 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                   minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
-                  input_type="embedding",
+                  input_type="clip",
                   epochs=10000,
                   learning_rate=0.05,
                   train_percent=0.9,
