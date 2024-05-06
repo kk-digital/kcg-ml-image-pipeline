@@ -272,7 +272,7 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                     train_sum_correct=train_sum_correct,
                                     validation_sum_correct=validation_sum_correct,
                                     loss_func=ab_model.loss_func_name,
-                                    dataset_name=rank_model_info["rank_model_string"],
+                                    rank=rank_model_info["rank_model_string"],
                                     pooling_strategy=pooling_strategy,
                                     normalize_vectors=normalize_vectors,
                                     num_random_layers=-1,
