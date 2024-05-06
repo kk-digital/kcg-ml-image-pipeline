@@ -367,10 +367,6 @@ class ABRankingELMModel:
 
         # get total number of training features
         num_features = dataset_loader.get_len_training_ab_data()
-        print("num_features", num_features)
-        if not num_features:
-            print("There is no data to train")
-            return
 
         if debug_asserts:
             torch.autograd.set_detect_anomaly(True)
