@@ -79,7 +79,7 @@ def get_pca(minio_client, dataset, count_list, data_type_list):
         None
     """
 
-    # max count of clip vectors for testing intrinsic dimension
+    # max count of clip vectors for testing PCA
     max_count = max(count_list) * 2
 
     result = []
@@ -95,7 +95,7 @@ def get_pca(minio_client, dataset, count_list, data_type_list):
         for count in count_list:
             print('Data type: {}, Sample data size'.format(data_type, count))
             try:
-                # get specific count of data for gettting intrinsic dimension
+                # get specific count of data for gettting PCA
                 data = np.array(feature_data[:count])
 
                 # wrangle the latent vector [1, 4, 64, 64]
@@ -137,7 +137,7 @@ def main():
         dataset_names = request.http_get_dataset_names()
 
         for dataset in dataset_names:
-            print("Getting intrinsic dimension for dataset: {}".format(dataset))
+            print("Getting PCA for dataset: {}".format(dataset))
             results = get_pca(minio_client=minio_client, 
                               dataset=dataset,
                               count_list=args.count_list, 
