@@ -68,8 +68,12 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                             normalize_vectors=normalize_vectors,
                                             target_option=target_option,
                                             duplicate_flip_option=duplicate_flip_option)
-    dataset_loader.load_dataset()
+    loaded = dataset_loader.load_dataset()
 
+    # if dataset is not loaded, ranking will be cancelled
+    if not loaded:
+        return
+    
     # get final filename
     sequence = 0
     # if exist, increment sequence

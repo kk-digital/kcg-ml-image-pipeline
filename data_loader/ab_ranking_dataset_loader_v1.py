@@ -101,7 +101,8 @@ class ABRankingDatasetLoader:
         len_dataset = len(dataset)
         print("# of dataset retrieved=", len_dataset)
         if len(dataset) == 0:
-            raise Exception("No selection datapoints json found.")
+            print("No selection datapoints json found.")
+            return False
 
         self.total_selection_datapoints = len_dataset
 
@@ -138,6 +139,8 @@ class ABRankingDatasetLoader:
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
+
+        return True
 
     def get_len_training_ab_data(self):
         return self.training_data_total
