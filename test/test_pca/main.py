@@ -116,7 +116,7 @@ def get_pca(minio_client, dataset, count_list, data_type_list):
                             "Sample size": count,
                             "Dimension of vector": data.shape[1],
                             "n_components": num,
-                            "Variace ratio": np.sum(pca.explained_variance_ratio_)
+                            "Variance Ratio": np.sum(pca.explained_variance_ratio_)
                     })
             except Exception as e:
                 print("Error in PCA", e)
@@ -131,7 +131,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    df = pd.DataFrame(columns=["Sample size", "N components", "Variance Ratio"])
+    df = pd.DataFrame(columns=["Dataset", "Data type", "Sample size", "Dimension of vector", "n_components", "Variance Ratio"])
 
     if args.dataset == 'all':
         dataset_names = request.http_get_dataset_names()
