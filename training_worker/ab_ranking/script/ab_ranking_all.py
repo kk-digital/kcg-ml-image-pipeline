@@ -1,8 +1,8 @@
 import argparse
 
-import os
+import sys
 base_dir = './'
-os.path.insert(0, base_dir)
+sys.path.insert(0, base_dir)
 
 from training_worker.ab_ranking.script.ab_ranking_elm_v2 import train_ranking as train_ranking_elm
 from training_worker.ab_ranking.script.ab_ranking_linear_v2 import train_ranking as train_ranking_linear
