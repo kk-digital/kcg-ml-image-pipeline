@@ -65,7 +65,7 @@ def get_file_name(*args, seperator='_'):
                         "{}_pca_result_{}.csv".format(
                             datetime.now(), seperator.join(map(str, args))))
 
-def get_pca(minio_client, dataset, library, count_list, data_type_list):
+def get_pca(minio_client, dataset, count_list, data_type_list):
     """
     PCA dataset using different feature data types.
 
@@ -137,8 +137,7 @@ def main():
         for dataset in dataset_names:
             print("Getting intrinsic dimension for dataset: {}".format(dataset))
             results = get_pca(minio_client=minio_client, 
-                              dataset=dataset, 
-                              library=args.library, 
+                              dataset=dataset,
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
             for result in results:
@@ -148,8 +147,7 @@ def main():
     
     else:
         results = get_pca(minio_client=minio_client, 
-                              dataset=args.dataset, 
-                              library=args.library, 
+                              dataset=args.dataset,
                               count_list=args.count_list, 
                               data_type_list=args.data_type_list)
         for result in results:
