@@ -454,6 +454,8 @@ class ABRankingDatasetLoader:
 
     # ------------------------------- For AB Ranking Linear -------------------------------
     def get_next_training_feature_vectors_and_target_linear(self, num_data, device=None):
+
+        print("num_data", num_data)
         image_x_feature_vectors = []
         image_y_feature_vectors = []
         target_probabilities = []
