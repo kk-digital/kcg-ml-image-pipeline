@@ -107,7 +107,7 @@ def get_pca(minio_client, dataset, count_list, data_type_list):
 
                 step = round(min(count, data.shape[1]) // 20)
 
-                for num in tqdm(range(0, count, step)):
+                for num in tqdm(range(0, min(count, data.shape[1]), step)):
                     pca = PCA(n_components=num)
                     pca.fit(scaled_df)
                     result.append({
