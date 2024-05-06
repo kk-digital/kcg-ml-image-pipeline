@@ -368,7 +368,7 @@ class ABRankingELMModel:
         # get total number of training features
         num_features = dataset_loader.get_len_training_ab_data()
 
-        if num_features == 0:
+        if not num_features:
             print("There is no data to train")
             return
 
