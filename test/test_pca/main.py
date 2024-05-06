@@ -105,7 +105,9 @@ def get_pca(minio_client, dataset, count_list, data_type_list):
                 std_scaler = StandardScaler()
                 scaled_df = std_scaler.fit_transform(data)
 
-                for num in tqdm(range(count)):
+                step = count // 10
+
+                for num in tqdm(range(0, count, step)):
                     pca = PCA(n_components=num)
                     pca.fit(scaled_df)
                     result.append({
