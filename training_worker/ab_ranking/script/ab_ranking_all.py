@@ -45,8 +45,6 @@ def parse_args():
     parser.add_argument('--num-random-layers', type=int, default=1, help='Number of random layers')
     parser.add_argument('--elm-sparsity', type=float, default=0.5, help='ELM sparsity')
 
-    parser.add_argument('--model-type', type=str, default='linear', help='Rank model type - linear or elm')
-
     
 
     return parser.parse_args()
