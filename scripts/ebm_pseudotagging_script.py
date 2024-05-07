@@ -977,7 +977,7 @@ def tag_images_v3(dataset_name, number_of_samples, number_of_images_to_tag,model
 
 
 
-    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_v2(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_v3(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
     rank = 1
     #((images_paths[i], embedding, score.item(),image,hashes[i])) 
 
