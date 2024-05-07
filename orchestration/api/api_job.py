@@ -1450,6 +1450,17 @@ async def get_list_pending_jobs(request: Request):
 
     for job in jobs:
         job.pop('_id', None)
+        job['task_creation_time'] = job['task_creation_time'].isoformat()
+        job['task_start_time'] = (
+            job['task_start_time'].isoformat() 
+            if isinstance(job['task_start_time'], datetime) 
+            else None
+        )
+        job['task_completion_time'] = (
+            job['task_completion_time'].isoformat() 
+            if isinstance(job['task_completion_time'], datetime) 
+            else None
+        )
 
     return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
 
