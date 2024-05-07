@@ -2594,7 +2594,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 # Load the last occult trained model
  # "defect-color-over-saturated" #"defect-color-mildly-over-saturated" # "defect-color-over-saturated"  #"topic-forest" #"concept-occult" #"concept-cybernetic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
 #  "topic-desert"  "topic-medieval"  "concept-cybernetic"
-tag_name_x =  "topic-forest"
+tag_name_x =  "concept-nature"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
