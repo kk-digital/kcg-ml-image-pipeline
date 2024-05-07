@@ -728,6 +728,43 @@ def process_and_sort_dataset_with_hashes_uui_v2(images_paths, hashes,uuid, model
     return sorted_structure
 
 
+
+# using a dictionary
+def process_and_sort_dataset_with_hashes_uui_v3(images_paths, hashes,uuid, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for i in range(len(images_paths)):
+        # Extract embedding and image tensor from the image path
+        #print(images_paths[i])
+        image, embedding = get_clip_and_image_from_path(images_paths[i])
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        #score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        score = model.classify(embedding)
+        image_dict = {
+            'path': images_paths[i],
+            'embedding': embedding,
+            'score': score,
+            'image_tensor': image,
+            'hash': hashes[i],
+            'uuid': uuid[i]
+        }
+
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append(image_dict)  # Assuming score is a tensor, use .item() to get the value
+
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x['score'], reverse=True)
+
+    return sorted_structure
+
+
+
+
+
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
     clip_embedding =  image_embedder.get_image_features(image)
@@ -894,6 +931,73 @@ def tag_images_v2(dataset_name, number_of_samples, number_of_images_to_tag,model
             "creation_time": date_now
             }
         print(image_data)
+        tag_image_v3(image_data)
+
+
+
+def tag_images_v3(dataset_name, number_of_samples, number_of_images_to_tag,model_name,model_id):
+
+    tag_name_input = model_name
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
+
+
+
+    loaded_model=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                                minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                                dataset= dataset_name,
+                                class_name= "topic-aquatic" ,
+                                model = None,
+                                save_name = "name",
+                                class_id =  1,
+                                training_batch_size=16,
+                                num_samples= 32000,
+                                epochs= 16,
+                                learning_rate= 0.001)
+
+    #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    # Load the last occult trained model
+
+    
+    #loaded_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_input, model_type = "energy-based-model")
+
+
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', tag_name_input)
+    # Create a temporary file and write the downloaded content into it
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        for data in model_file_data.stream(amt=8192):
+            temp_file.write(data)
+
+    # Load the model from the downloaded bytes
+    #model.load_state_dict(torch.load(temp_file.name))
+    loaded_model.model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    load_model(loaded_model.model, temp_file.name)
+    # Remove the temporary file
+    os.remove(temp_file.name)
+
+
+
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_v2(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+    rank = 1
+    #((images_paths[i], embedding, score.item(),image,hashes[i])) 
+
+
+    # Tag the images
+
+    images_to_tag = sorted_images_and_hashes[:number_of_images_to_tag] 
+    for image in images_to_tag:
+        #
+        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"], " Hash : ",image["hash"], " uuid : ",image["uuid"])
+        rank +=1
+        #tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
+        date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+        image_data= {
+            "uuid": image["uuid"],
+            "classifier_id": model_id,
+            "score": image["score"],
+            "creation_time": date_now
+            }
+        print(image_data)
         #tag_image_v3(image_data)
 
 
@@ -973,7 +1077,7 @@ if filtered_dict:
         tag_id = filtered_dict["tag_id"][i]
         model_path = filtered_dict["model_path"][i]
         print(f"Now tagging using Classifier : Classifier ID: {classifier_id}, Tag ID: {tag_id}, Model Path: {model_path}")
-        tag_images_v2(dataset_name = "environmental", number_of_samples = 300, number_of_images_to_tag = 10 ,model_name = model_path,model_id =classifier_id )
+        tag_images_v3(dataset_name = "environmental", number_of_samples = 300, number_of_images_to_tag = 10 ,model_name = model_path,model_id =classifier_id )
         #tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 3 ,tag_name ="topic-aquatic",model_id = 88)
 else:
     print("No filtered data found.")
