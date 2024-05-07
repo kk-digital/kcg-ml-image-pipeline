@@ -994,7 +994,7 @@ def tag_images_v3(dataset_name, number_of_samples, number_of_images_to_tag,model
         image_data= {
             "uuid": image["uuid"],
             "classifier_id": model_id,
-            "score": image["score"],
+            "score": (image["score"]).item(),
             "creation_time": date_now
             }
         print(image_data)
