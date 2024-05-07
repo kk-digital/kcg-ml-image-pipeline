@@ -973,7 +973,7 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
     config_result = request.app.dataset_config_collection.delete_one({"dataset_name": dataset})
 
     # Check if either the dataset or its configuration was present and deleted
-    was_present = dataset_result.deleted_count > 0 and config_result.deleted_count > 0
+    was_present = dataset_result.deleted_count > 0
 
     # Using the check to determine which response to send
     if was_present:

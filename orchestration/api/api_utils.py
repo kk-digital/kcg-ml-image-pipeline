@@ -15,6 +15,7 @@ from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
+from typing import List, Union
 from urllib.parse import urlparse
 
 class DoneResponse(BaseModel):
@@ -61,14 +62,14 @@ class ListFilePathResponse(BaseModel):
     file_paths: List[FilePathResponse]
 
 class DatasetConfig(BaseModel):
-    dataset_name: Optional[str]
-    dataset_rate: str
-    relevance_model: str
-    ranking_model: str
-    hourly_limit: int
-    top_k: int
-    generation_policy: str
-    relevance_threshold: int
+    dataset_name: str
+    dataset_rate: Union[str, None] = None
+    relevance_model: Union[str, None] = None
+    ranking_model: Union[str, None] = None
+    hourly_limit: Union[int, None] = None
+    top_k: Union[int, None] = None
+    generation_policy: Union[str, None] = None
+    relevance_threshold: Union[int, None] = None
 
 class ResponseDatasetConfig(BaseModel):
     dataset_name: Optional[str]

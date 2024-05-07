@@ -1559,9 +1559,6 @@ async def get_list_completed_jobs_by_date(
             }
         }
 
-        # Conditionally add dataset to the query if provided
-        if dataset:
-            query["task_input_dict.dataset"] = dataset
 
         # Add condition to filter by min_clip_sigma_score if provided
         if min_clip_sigma_score is not None:
