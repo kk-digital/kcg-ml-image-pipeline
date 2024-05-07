@@ -987,7 +987,7 @@ def tag_images_v3(dataset_name, number_of_samples, number_of_images_to_tag,model
     images_to_tag = sorted_images_and_hashes[:number_of_images_to_tag] 
     for image in images_to_tag:
         #
-        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"], " Hash : ",image["hash"], " uuid : ",image["uuid"])
+        #print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"], " Hash : ",image["hash"], " uuid : ",image["uuid"])
         rank +=1
         #tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
         date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
