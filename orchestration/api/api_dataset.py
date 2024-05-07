@@ -941,7 +941,7 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 http_status_code=200
             )    
     
-@router.get("/datasets/list-datasets",
+@router.get("/datasets/list-datasets-v1",
             description="list datasets from mongodb",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1[ListDataset],  
