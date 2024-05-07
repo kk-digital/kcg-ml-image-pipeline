@@ -591,7 +591,7 @@ class EBM_Single_Class:
         # minimize dataset
 
         target_paths = random.sample(target_paths,   min(len(target_paths),800))
-        
+        adv_paths = random.sample(adv_paths,   min(len(adv_paths),800))
         # minimize dataset
 
 
@@ -2614,7 +2614,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 # plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
 
 #plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+#plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 
 
 # next elm
@@ -2736,25 +2736,25 @@ plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", 
 ############################ Train ########################
 
 
-# tag_name_x_2 = "perspective-2d-side-view" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
-# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#                             dataset= "environmental",
-#                             class_name= tag_name_x_2,
-#                             model = None,
-#                             save_name = "bla",
-#                             class_id =  get_tag_id_by_name(tag_name_x_2),
-#                             training_batch_size=64,
-#                             num_samples= 32000,
-#                             epochs= 20,
-#                             learning_rate= 0.001)
+tag_name_x_2 = "concept-vehicle" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                            dataset= "environmental",
+                            class_name= tag_name_x_2,
+                            model = None,
+                            save_name = "bla",
+                            class_id =  get_tag_id_by_name(tag_name_x_2),
+                            training_batch_size=64,
+                            num_samples= 32000,
+                            epochs= 20,
+                            learning_rate= 0.001)
 
 
-# defect_test.train_v3()
+defect_test.train_v3()
 
 
-# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
-# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x_2)
+defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x_2)
 
 
 
