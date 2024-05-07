@@ -89,6 +89,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
             error_string=f"Active learning policy with ID {rank_active_learning_policy_id} not found",
             http_status_code=404
         )
+    
+    policy_string = policy.get("rank_active_learning_policy", "")
 
     combined_job_details = {
         "rank_model_id": rank_model_id,
@@ -108,8 +110,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     # Define the path for the JSON file
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
-    json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"environmental/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
+    json_file_name = f"{policy_string}_{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
+    full_path = f"rank/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
 
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
