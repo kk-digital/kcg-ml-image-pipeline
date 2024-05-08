@@ -301,14 +301,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         policy = request.app.rank_active_learning_policies_collection.find_one(
         {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
     )
-        
-
-        if not policy:
-            return api_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Active learning policy with ID {selection.rank_active_learning_policy_id} not found",
-                http_status_code=404
-            )
 
 
         current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
@@ -398,22 +390,24 @@ async def sort_ranking_data_by_date_v2(
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Convert start_date and end_date strings to datetime objects, if provided
-        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+        print("Received API call with parameters:", request.query_params)
+        
+
 
         # Build the query filter based on dataset and optional dates
         query_filter = {"rank_model_id": rank_model_id}
-        if start_date_obj or end_date_obj:
+        if start_date or end_date:
             date_filter = {}
-            if start_date_obj:
-                date_filter["$gte"] = start_date_obj
-            if end_date_obj:
-                date_filter["$lte"] = end_date_obj
+            if start_date:
+                date_filter["$gte"] = start_date
+            if end_date:
+                date_filter["$lte"] = end_date
             query_filter["datetime"] = date_filter 
+        print("MongoDB query filter:", query_filter)
 
         # Determine the sort order
         sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+        print("Sort order:", "DESCENDING" if order == "desc" else "ASCENDING")
 
         # Fetch and sort data from MongoDB with pagination
         cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
@@ -422,19 +416,19 @@ async def sort_ranking_data_by_date_v2(
 
         # Convert cursor to list of dictionaries
         ranking_data = [doc for doc in cursor]
-        for doc in ranking_data:
-            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
-        
+        print("Number of documents fetched:", len(ranking_data))
+
         return response_handler.create_success_response_v1(
             response_data={"datapoints": ranking_data}, 
             http_status_code=200
         )
     except Exception as e:
+        print("Error during API execution:", str(e))
         return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
+            error_code="OTHER_ERROR",
             error_string=f"Internal Server Error: {str(e)}",
             http_status_code=500
-        )      
+        )    
     
 
 @router.get("/rank-training/count-ranking-data-points", 
