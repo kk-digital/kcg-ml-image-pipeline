@@ -2736,7 +2736,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 ############################ Train ########################
 
 # forest occult fantasy medieval
-tag_name_x_2 = "concept-occult" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+tag_name_x_2 = "topic-fantasy" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
 defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                             dataset= "environmental",
