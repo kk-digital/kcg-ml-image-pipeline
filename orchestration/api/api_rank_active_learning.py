@@ -237,11 +237,10 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         # Define the aggregation pipeline
         pipeline = []
 
-        # Filters based on dataset and rank_active_learning_policy
         match_filter = {}
-        if rank_model_id:
+        if rank_model_id is not None:
             match_filter["rank_model_id"] = rank_model_id
-        if rank_active_learning_policy_id:
+        if rank_active_learning_policy_id is not None:
             match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
 
         if match_filter:
@@ -382,7 +381,7 @@ def list_ranking_datapoints(request: Request):
 async def sort_ranking_data_by_date_v2(
     request: Request,
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
-    rank_model_id: int = Query(None, description="Rank model ID to filter by"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
     end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
     skip: int = Query(0, alias="offset"),
     limit: int = Query(10, alias="limit"),
@@ -390,33 +389,30 @@ async def sort_ranking_data_by_date_v2(
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        print("Received API call with parameters:", request.query_params)
-        
+        query_filter = {}
+        date_filter = {}
+
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
 
 
-        # Build the query filter based on dataset and optional dates
-        query_filter = {"rank_model_id": rank_model_id}
-        if start_date or end_date:
-            date_filter = {}
-            if start_date:
-                date_filter["$gte"] = start_date
-            if end_date:
-                date_filter["$lte"] = end_date
-            query_filter["datetime"] = date_filter 
-        print("MongoDB query filter:", query_filter)
-
-        # Determine the sort order
         sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
-        print("Sort order:", "DESCENDING" if order == "desc" else "ASCENDING")
-
-        # Fetch and sort data from MongoDB with pagination
         cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
             "datetime", sort_order  
         ).skip(skip).limit(limit)
 
-        # Convert cursor to list of dictionaries
-        ranking_data = [doc for doc in cursor]
-        print("Number of documents fetched:", len(ranking_data))
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            ranking_data.append(doc)
 
         return response_handler.create_success_response_v1(
             response_data={"datapoints": ranking_data}, 
@@ -425,10 +421,11 @@ async def sort_ranking_data_by_date_v2(
     except Exception as e:
         print("Error during API execution:", str(e))
         return response_handler.create_error_response_v1(
-            error_code="OTHER_ERROR",
+            error_code=ErrorCode.OTHER_ERROR,
             error_string=f"Internal Server Error: {str(e)}",
             http_status_code=500
-        )    
+        )  
+  
     
 
 @router.get("/rank-training/count-ranking-data-points", 
