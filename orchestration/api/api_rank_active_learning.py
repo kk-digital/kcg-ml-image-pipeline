@@ -28,16 +28,24 @@ router = APIRouter()
 def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: str = Query(...), rank_active_learning_policy_id: int = Query(...), rank_model_id: int = Query(...), metadata: str = Query(None), generation_string: str = Query(None) ):
     api_response_handler = ApiResponseHandlerV1(request)
 
+    # Check if an entry with the same parameters already exists
+    existing_pair = request.app.rank_active_learning_pairs_collection.find_one({
+        "rank_model_id": rank_model_id,
+        "rank_active_learning_policy_id": rank_active_learning_policy_id,
+        "images_data.job_uuid_1": job_uuid_1,
+        "images_data.job_uuid_2": job_uuid_2
+    })
+
+    if existing_pair:
+        existing_pair.pop('_id', None)  # Remove MongoDB ObjectId from the response
+        return api_response_handler.create_success_response_v1(
+            response_data={"existing_pair": existing_pair, "note": "No new entry added as duplicate exists"},
+            http_status_code=200
+        )
+
     def extract_job_details(job_uuid, suffix):
 
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
-        if not job:
-            return api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Job {job_uuid} not found",
-                http_status_code=404
-            )
-
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -56,16 +64,26 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
             f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
             f"job_creation_time_{suffix}": task_creation_time,
         }
-
-    job_details_1 = extract_job_details(job_uuid_1, "1")
-    job_details_2 = extract_job_details(job_uuid_2, "2")
-
-    if not job_details_1 or not job_details_2:
+    
+    job_1 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_1})
+    if not job_1:
         return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="Job details not found",
-            http_status_code=404
-        )
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_1} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_1 = extract_job_details(job_uuid_1, "1")
+
+    job_2 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_2})
+    if not job_2:
+        return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_2} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_2 = extract_job_details(job_uuid_2, "2")
 
 
     rank = request.app.rank_model_models_collection.find_one(
