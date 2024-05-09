@@ -77,7 +77,7 @@ class IntrinsicDimensionaltiyAnalysis:
         elif data_type == "vae":
             featurs_data = dataloader.load_latents(limit=self.max_count)
         else:
-            print("No support data type {}".format(self.data_type))
+            print("No support data type {}".format(data_type))
             return featurs_data
         
         return featurs_data
@@ -120,7 +120,7 @@ class IntrinsicDimensionaltiyAnalysis:
                     data = torch.tensor(feature_data[:count])
 
                     # wrangle the latent vector [1, 4, 64, 64]
-                    if self.data_type == "vae":
+                    if data_type == "vae":
                         data = data.reshape((data.size(0), -1))
                     
                     if self.library == Library.INTRINSIC_DIMENSION.value:
