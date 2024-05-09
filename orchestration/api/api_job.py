@@ -24,6 +24,7 @@ from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import datetime
 
 router = APIRouter()
 
@@ -335,10 +336,14 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
     return jobs
 
 @router.get("/queue/image-generation/list-completed-by-dataset-and-task-type", response_class=PrettyJSONResponse)
-def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str):
+def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str, time_period: int=None):
     # Use the limit parameter in the find query to limit the results
-    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
-
+    if time_period is not None:
+      start_date = datetime.datetime.now() - datetime.timedelta(days=time_period)
+      jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type,"task_completion_time": {"$gte": start_date}}))
+    else:
+      jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
+        
     job_data=[]
     for job in jobs:
         job_uuid = job.get("uuid")
