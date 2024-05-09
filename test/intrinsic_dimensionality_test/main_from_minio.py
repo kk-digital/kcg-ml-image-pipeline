@@ -232,7 +232,7 @@ class IntrinsicDimensionaltiyAnalysis:
                 df.loc[len(df)] = result
 
         df = df.sort_values(['Dataset type', 'Number of vector'])
-        df = df.assign()
+        df = df.assign(Transform='none')
         df = df.assign(Time_period='last {} days'.format(self.time_period) if self.time_period is not None else 'all')
 
         data_type_list = df['Dataset type'].unique().tolist()
