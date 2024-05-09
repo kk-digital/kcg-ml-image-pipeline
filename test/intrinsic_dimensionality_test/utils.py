@@ -10,6 +10,7 @@ def measure_running_time(func, *args, **kwargs):
     start_time = time.time()
     try:
         result = func(*args, **kwargs)
+        error = None
     except Exception as e:
         print("Error in getting ID", e)
         result = None
