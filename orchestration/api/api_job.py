@@ -340,6 +340,7 @@ def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: 
     # Use the limit parameter in the find query to limit the results
     if time_period is not None:
       start_date = datetime.datetime.now() - datetime.timedelta(days=time_period)
+      print(start_date)
       jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type,"task_completion_time": {"$gte": start_date}}))
     else:
       jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
