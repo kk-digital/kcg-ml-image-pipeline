@@ -60,7 +60,7 @@ class IntrinsicDimensionaltiyAnalysis:
         # max count of clip vectors for testing intrinsic dimension
         self.max_count = max(count_list) * 2
 
-    def load_featurs_data(self):
+    def load_featurs_data(self, data_type):
         featurs_data = []
 
         try:
@@ -72,9 +72,9 @@ class IntrinsicDimensionaltiyAnalysis:
             return
 
         # get features data depends on data type
-        if self.data_type == "clip":
+        if data_type == "clip":
             featurs_data = dataloader.load_clip_vector_data(limit=self.max_count)
-        elif self.data_type == "vae":
+        elif data_type == "vae":
             featurs_data = dataloader.load_latents(limit=self.max_count)
         else:
             print("No support data type {}".format(self.data_type))
@@ -109,7 +109,7 @@ class IntrinsicDimensionaltiyAnalysis:
         for data_type in self.data_type_list:
 
             # load feature data from environment dataset
-            feature_data = self.load_featurs_data()
+            feature_data = self.load_featurs_data(data_type=data_type)
             if len(feature_data) == 0:
                 print("Error loading feature data from {} dataset".format(self.dataset))
                 return result
