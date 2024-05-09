@@ -235,6 +235,14 @@ class IntrinsicDimensionaltiyAnalysis:
         df = df.assign(Transform='none')
         df = df.assign(Time_period='last {} days'.format(self.time_period) if self.time_period is not None else 'all')
 
+        df.loc[:,["Dataset", 
+                "Dataset type", 
+                "Number of vector", 
+                "Dimension of vector", 
+                "Metrics Field", 
+                "Intrinsic dimension",
+                "Elapsed time", "Transform", "Time_period", "Error"]]
+
         data_type_list = df['Dataset type'].unique().tolist()
         
         for data_type in data_type_list:
