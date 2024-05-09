@@ -115,47 +115,80 @@ def get_intrinsic_dimenstions(minio_client, dataset, library, count_list, data_t
                 
                 if library == Library.INTRINSIC_DIMENSION.value:
                     print("Dimension", data.size())
-                    dimension_by_mle, mle_elapsed_time = \
+                    dimension_by_mle, mle_elapsed_time, mle_error = \
                         measure_running_time(mle_id, data, k=2)
-
-                    dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
+                    
+                    dimension_by_twonn_numpy, twonn_numpy_elapsed_time, twonn_numpy_error = \
                         measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
 
-                    dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
+                    dimension_by_twonn_torch, twonn_pytorch_elapsed_time, twonn_torch_error = \
                         measure_running_time(twonn_pytorch, data, return_xy=False)
+                    
                     result.append({
-                            "Dataset": dataset,
-                            "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                            "Number of vector": data.size(0),
-                            "Dimension of vector": data.size(1),
-                            "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
-                            "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                            "Twonn_numpy intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
-                            "Twonn_numpy elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
-                            "twonn_pytorch intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
-                            "twonn_pytorch elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time))
+                        "Dataset": dataset,
+                        "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
+                        "Number of vector": data.size(0),
+                        "Dimension of vector": data.size(1),
+                        "Metrics Field": "mle-intrinsic-dimension",
+                        "Intrinsic dimension": "{:.2f}".format(dimension_by_mle) if dimension_by_mle else "None",
+                        "Elapsed time": "{}".format(format_duration(mle_elapsed_time)),
+                        "Error": mle_error if mle_error else ''
+                    })
+
+                    result.append({
+                        "Dataset": dataset,
+                        "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
+                        "Number of vector": data.size(0),
+                        "Dimension of vector": data.size(1),
+                        "Metrics Field": "twonn_numpy_intrinsic_dimension",
+                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy) if dimension_by_twonn_numpy else "None",
+                        "Elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
+                        "Error": twonn_numpy_error if twonn_numpy_error else ''
+                    })
+
+                    result.append({
+                        "Dataset": dataset,
+                        "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
+                        "Number of vector": data.size(0),
+                        "Dimension of vector": data.size(1),
+                        "Metrics Field": "twonn_torch_intrinsic_dimension",
+                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch) if dimension_by_twonn_torch else "None",
+                        "Elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time)),
+                        "Error": twonn_torch_error if twonn_torch_error else ''
                     })
 
                 elif library == Library.SCIKIT_DIMENSION.value:
                     data = data.cpu().numpy()
-                    dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
-                    dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
+                    dimension_by_mle, mle_elapsed_time, mle_error = measure_running_time(skdim.id.MLE().fit, data)
+                    dimension_by_twonn_numpy, twonn_elapsed_time, twonn_error = measure_running_time(skdim.id.TwoNN().fit, data)
 
-                    if dimension_by_mle != 'Nan':
+                    if dimension_by_mle is not None:
                         dimension_by_mle = round(dimension_by_mle.dimension_, 2)
-                    if dimension_by_twonn_numpy != 'Nan':
+                    if dimension_by_twonn_numpy is not None:
                         dimension_by_twonn_numpy = round(dimension_by_twonn_numpy.dimension_, 2)
 
                     result.append({
                             "Dataset": dataset,
-                            "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                            "Dataset type": "clip-h-1280" if data_type == "clip" else "VAE",
                             "Number of vector": data.shape[0],
                             "Dimension of vector": data.shape[1],
-                            "MLE intrinsic dimension": "{}".format(dimension_by_mle),
-                            "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                            "Twonn Intrinsic dimension": "{}".format(dimension_by_twonn_numpy),
-                            "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
+                            "Metrics Field": 'scipy-mle-intrinsic',
+                            "Intrinsic dimension": "{}".format(dimension_by_mle),
+                            "Elapsed time": "{}".format(format_duration(mle_elapsed_time)),
+                            "Error": mle_error if mle_error else ''
                     })
+
+                    result.append({
+                            "Dataset": dataset,
+                            "Dataset type": "clip-h-1280" if data_type == "clip" else "VAE",
+                            "Number of vector": data.shape[0],
+                            "Dimension of vector": data.shape[1],
+                            "Metrics Field": 'scipy-twonn-intrinsic',
+                            "Intrinsic dimension": "{}".format(dimension_by_twonn_numpy),
+                            "Elapsed time": "{}".format(format_duration(twonn_elapsed_time)),
+                            "Error": twonn_error if twonn_error else ''
+                    })
+
             except Exception as e:
                 print("Error in getting intrinsic dimension", e)
 
@@ -169,14 +202,8 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    if args.library == Library.INTRINSIC_DIMENSION.value:
-        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
-    
-    elif args.library == Library.SCIKIT_DIMENSION.value:
-        df = pd.DataFrame(columns=["Dataset", "Data type", "Number of vector", "Dimension of vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
-    else:
-        print("Not support such library")
-        return
+
+    df = pd.DataFrame(columns=["Dataset", "Dataset type", "Number of vector", "Dimension of vector", "Metrics Field", "Intrinsic dimension", "Elapsed time", "Error"])
 
     if args.dataset == 'all':
         dataset_names = request.http_get_dataset_names()
@@ -202,9 +229,14 @@ def main():
         for result in results:
             df.loc[len(df)] = result
 
-    df = df.sort_values(['Data type', 'Number of vector'])
+    df = df.sort_values(['Dataset type', 'Number of vector'])
 
-    df.to_csv(get_file_name(), index=False)
+    data_type_list = df['Dataset type'].unique().tolist()
+    
+    df[df.assign('Transform')] = 'none'
+
+    for data_type in data_type_list:
+        df.to_csv(get_file_name(data_type), index=False)
         
 if __name__ == "__main__":
     main()

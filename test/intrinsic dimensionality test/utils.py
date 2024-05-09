@@ -12,10 +12,11 @@ def measure_running_time(func, *args, **kwargs):
         result = func(*args, **kwargs)
     except Exception as e:
         print("Error in getting ID", e)
-        result = 'Error'
+        result = None
+        error = str(e)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    return result, elapsed_time
+    return result, elapsed_time, error
 
 def get_object(client, file_path):
     try:
