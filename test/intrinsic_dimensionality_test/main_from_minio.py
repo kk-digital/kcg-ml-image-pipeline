@@ -233,7 +233,7 @@ def main():
 
     data_type_list = df['Dataset type'].unique().tolist()
     
-    df[df.assign('Transform')] = 'none'
+    df.assign(Transform=None)
 
     for data_type in data_type_list:
         df.to_csv(get_file_name(data_type), index=False)
