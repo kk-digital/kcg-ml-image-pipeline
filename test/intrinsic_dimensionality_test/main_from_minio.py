@@ -235,7 +235,8 @@ class IntrinsicDimensionaltiyAnalysis:
 
         data_type_list = df['Dataset type'].unique().tolist()
         
-        df = df.assign(Transform=None)
+        df = df.assign(Time_period='last {} days'.format(self.time_period) if self.time_period is not None else 'all')
+    
 
         for data_type in data_type_list:
             df[df['Dataset type'] == data_type].to_csv(self.get_file_name(data_type), index=False)
