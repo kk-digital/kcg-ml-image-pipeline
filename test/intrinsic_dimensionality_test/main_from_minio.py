@@ -211,7 +211,7 @@ class IntrinsicDimensionaltiyAnalysis:
                                    "Number of vector", 
                                    "Dimension of vector", 
                                    "Metrics Field", 
-                                   "Intrinsic dimension", 
+                                   "Intrinsic dimension",
                                    "Elapsed time", "Error"])
 
         if self.dataset == 'all':
@@ -235,7 +235,7 @@ class IntrinsicDimensionaltiyAnalysis:
 
         data_type_list = df['Dataset type'].unique().tolist()
         
-        df.assign(Transform=None)
+        df = df.assign(Transform=None)
 
         for data_type in data_type_list:
             df[df['Dataset type'] == data_type].to_csv(self.get_file_name(data_type), index=False)
