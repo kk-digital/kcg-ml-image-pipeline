@@ -28,16 +28,24 @@ router = APIRouter()
 def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: str = Query(...), rank_active_learning_policy_id: int = Query(...), rank_model_id: int = Query(...), metadata: str = Query(None), generation_string: str = Query(None) ):
     api_response_handler = ApiResponseHandlerV1(request)
 
+    # Check if an entry with the same parameters already exists
+    existing_pair = request.app.rank_active_learning_pairs_collection.find_one({
+        "rank_model_id": rank_model_id,
+        "rank_active_learning_policy_id": rank_active_learning_policy_id,
+        "images_data.job_uuid_1": job_uuid_1,
+        "images_data.job_uuid_2": job_uuid_2
+    })
+
+    if existing_pair:
+        existing_pair.pop('_id', None)  # Remove MongoDB ObjectId from the response
+        return api_response_handler.create_success_response_v1(
+            response_data={"existing_pair": existing_pair, "note": "No new entry added as duplicate exists"},
+            http_status_code=200
+        )
+
     def extract_job_details(job_uuid, suffix):
 
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
-        if not job:
-            return api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Job {job_uuid} not found",
-                http_status_code=404
-            )
-
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -56,16 +64,26 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
             f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
             f"job_creation_time_{suffix}": task_creation_time,
         }
-
-    job_details_1 = extract_job_details(job_uuid_1, "1")
-    job_details_2 = extract_job_details(job_uuid_2, "2")
-
-    if not job_details_1 or not job_details_2:
+    
+    job_1 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_1})
+    if not job_1:
         return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="Job details not found",
-            http_status_code=404
-        )
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_1} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_1 = extract_job_details(job_uuid_1, "1")
+
+    job_2 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_2})
+    if not job_2:
+        return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_2} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_2 = extract_job_details(job_uuid_2, "2")
 
 
     rank = request.app.rank_model_models_collection.find_one(
@@ -89,6 +107,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
             error_string=f"Active learning policy with ID {rank_active_learning_policy_id} not found",
             http_status_code=404
         )
+    
+    policy_string = policy.get("rank_active_learning_policy", "")
 
     combined_job_details = {
         "rank_model_id": rank_model_id,
@@ -108,8 +128,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     # Define the path for the JSON file
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
-    json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"environmental/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
+    json_file_name = f"{policy_string}_{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
+    full_path = f"rank/rank-active-learning-queue/{combined_job_details['rank_model_id']}/{json_file_name}"
 
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
@@ -235,11 +255,10 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         # Define the aggregation pipeline
         pipeline = []
 
-        # Filters based on dataset and rank_active_learning_policy
         match_filter = {}
-        if rank_model_id:
+        if rank_model_id is not None:
             match_filter["rank_model_id"] = rank_model_id
-        if rank_active_learning_policy_id:
+        if rank_active_learning_policy_id is not None:
             match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
 
         if match_filter:
@@ -299,14 +318,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         policy = request.app.rank_active_learning_policies_collection.find_one(
         {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
     )
-        
-
-        if not policy:
-            return api_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Active learning policy with ID {selection.rank_active_learning_policy_id} not found",
-                http_status_code=404
-            )
 
 
         current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
@@ -388,7 +399,7 @@ def list_ranking_datapoints(request: Request):
 async def sort_ranking_data_by_date_v2(
     request: Request,
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
-    rank_model_id: int = Query(None, description="Rank model ID to filter by"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
     end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
     skip: int = Query(0, alias="offset"),
     limit: int = Query(10, alias="limit"),
@@ -396,43 +407,43 @@ async def sort_ranking_data_by_date_v2(
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Convert start_date and end_date strings to datetime objects, if provided
-        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+        query_filter = {}
+        date_filter = {}
 
-        # Build the query filter based on dataset and optional dates
-        query_filter = {"rank_model_id": rank_model_id}
-        if start_date_obj or end_date_obj:
-            date_filter = {}
-            if start_date_obj:
-                date_filter["$gte"] = start_date_obj
-            if end_date_obj:
-                date_filter["$lte"] = end_date_obj
-            query_filter["datetime"] = date_filter 
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
 
-        # Determine the sort order
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
+
+
         sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
-
-        # Fetch and sort data from MongoDB with pagination
         cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
             "datetime", sort_order  
         ).skip(skip).limit(limit)
 
-        # Convert cursor to list of dictionaries
-        ranking_data = [doc for doc in cursor]
-        for doc in ranking_data:
-            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
-        
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            ranking_data.append(doc)
+
         return response_handler.create_success_response_v1(
             response_data={"datapoints": ranking_data}, 
             http_status_code=200
         )
     except Exception as e:
+        print("Error during API execution:", str(e))
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f"Internal Server Error: {str(e)}",
             http_status_code=500
-        )      
+        )  
+  
     
 
 @router.get("/rank-training/count-ranking-data-points", 

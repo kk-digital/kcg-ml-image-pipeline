@@ -1450,6 +1450,17 @@ async def get_list_pending_jobs(request: Request):
 
     for job in jobs:
         job.pop('_id', None)
+        job['task_creation_time'] = job['task_creation_time'].isoformat()
+        job['task_start_time'] = (
+            job['task_start_time'].isoformat() 
+            if isinstance(job['task_start_time'], datetime) 
+            else None
+        )
+        job['task_completion_time'] = (
+            job['task_completion_time'].isoformat() 
+            if isinstance(job['task_completion_time'], datetime) 
+            else None
+        )
 
     return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
 
@@ -1464,6 +1475,17 @@ async def get_list_in_progress_jobs(request: Request):
 
     for job in jobs:
         job.pop('_id', None)
+        job['task_creation_time'] = job['task_creation_time'].isoformat()
+        job['task_start_time'] = (
+            job['task_start_time'].isoformat() 
+            if isinstance(job['task_start_time'], datetime) 
+            else None
+        )
+        job['task_completion_time'] = (
+            job['task_completion_time'].isoformat() 
+            if isinstance(job['task_completion_time'], datetime) 
+            else None
+        )
 
     return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
 
@@ -1547,7 +1569,7 @@ async def get_list_completed_jobs_by_date(
 
         jobs = list(request.app.completed_jobs_collection.find(query))
 
-        datasets = {}
+        datasets = []
         for job in jobs:
             dataset_name = job.get("task_input_dict", {}).get("dataset")
             job_uuid = job.get("uuid")
@@ -1996,7 +2018,7 @@ async def count_non_empty_task_attributes(request: Request, task_type: str = "im
 
 @router.post("/update-jobs",
              description="Adds the 'ranking_count', 'safe_to_delete' and 'tag_count' properties to the completed jobs that still don't have them",
-             tags= "utility",
+             tags= ["utility"],
              response_model=StandardSuccessResponseV1[CountResponse],
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def update_completed_jobs(request: Request):
@@ -2052,7 +2074,7 @@ async def update_completed_jobs(request: Request):
 
 @router.get("/count-updated-jobs",
             response_model=StandardSuccessResponseV1[CountResponse],
-            tags="utility",
+            tags= ["utility"],
             description="count updated jobs",
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def get_completed_job_count(request: Request):

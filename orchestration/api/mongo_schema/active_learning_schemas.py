@@ -49,7 +49,23 @@ class ActiveLearningQueuePair(BaseModel):
             "generator_string":self.generator_string,
             "creation_time": self.creation_time
         }
+
+class ImageData1(BaseModel):
+    job_uuid_1: str = Field(..., alias='job_uuid_1')
+    file_name_1: str = Field(..., alias='file_name_1')
+    image_path_1: str = Field(..., alias='image_path_1')
+    image_hash_1: str = Field(..., alias='image_hash_1')
+    job_creation_time_1: datetime = Field(..., alias='job_creation_time_1')
+
+class ImageData2(BaseModel):
+    job_uuid_2: str = Field(..., alias='job_uuid_2')
+    file_name_2: str = Field(..., alias='file_name_2')
+    image_path_2: str = Field(..., alias='image_path_2')
+    image_hash_2: str = Field(..., alias='image_hash_2')
+    job_creation_time_2: datetime = Field(..., alias='job_creation_time_2')
     
+
+
 class RankActiveLearningPair(BaseModel):
     file_name: str
     rank_model_id: int
@@ -59,7 +75,7 @@ class RankActiveLearningPair(BaseModel):
     metadata: str
     generation_string: str
     creation_date: str
-    images_data: List[str]
+    images_data: List[Union[ImageData1, ImageData2]]
 
     def to_dict(self):
         return {
@@ -71,7 +87,7 @@ class RankActiveLearningPair(BaseModel):
             "metadata": self.metadata,
             "generation_string": self.generation_string,
             "creation_date": self.creation_date,
-            "images_data": self.images_data
+            "images_data": [img.dict() for img in self.images_data]
         }
     
 
