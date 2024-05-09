@@ -235,7 +235,7 @@ class IntrinsicDimensionaltiyAnalysis:
         df = df.assign(Transform='none')
         df = df.assign(Time_period='last {} days'.format(self.time_period) if self.time_period is not None else 'all')
 
-        df.loc[:,["Dataset", 
+        df = df.loc[:,["Dataset", 
                 "Dataset type", 
                 "Number of vector", 
                 "Dimension of vector", 
