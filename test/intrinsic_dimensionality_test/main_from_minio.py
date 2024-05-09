@@ -218,6 +218,7 @@ class IntrinsicDimensionaltiyAnalysis:
             dataset_names = request.http_get_dataset_names()
 
             for dataset in dataset_names:
+                self.dataset = dataset
                 print("Getting intrinsic dimension for dataset: {}".format(dataset))
                 results = self.get_intrinsic_dimenstions()
 
