@@ -7,6 +7,7 @@ from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
 from bson import ObjectId
+import numpy as np
 
 
 
@@ -880,5 +881,54 @@ async def remove_all_model_paths(request: Request):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f"Failed to remove model_path from all documents: {str(e)}",
+            http_status_code=500
+        )
+    
+@router.get('/ab-rank/get-ab-rank-image-pair',
+            response_model=StandardSuccessResponseV1[list],
+            status_code=200,
+            tags=["ab-rank"],
+            description="Get image pair for ab rank with parameters",
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_ab_rank_image_pair(request: Request, min_score, max_diff, sample_size=1000):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        selected_completed_jobs_by_randomly = list(request.app.completed_jobs_collection.aggregate({
+            '$sample': {'size': sample_size}
+        }))
+
+        filtered_jobs_by_min_score = []
+        filtered_job_scores_by_min_score = []
+        for job in selected_completed_jobs_by_randomly:
+            
+            # get score
+            scores = job['task_attributes_dict'].values()
+            if len(scores) > 0 and scores[0] > min_score:
+                filtered_jobs_by_min_score.append(job)
+                filtered_job_scores_by_min_score.append(scores[0])
+        
+        len_filtered_jobs = len(filtered_jobs_by_min_score)
+        sorted_args = np.sort(filtered_job_scores_by_min_score)
+        
+        image_pair_list = []
+        for i in range(len_filtered_jobs):
+            for j in range(len_filtered_jobs - 1, i, -1):
+                if np.abs(filtered_job_scores_by_min_score[i] - filtered_job_scores_by_min_score[j]) > max_diff:
+                    image_pair_list.append((filtered_jobs_by_min_score[sorted_args[i]], filtered_jobs_by_min_score[sorted_args[j]]))
+
+        image_pair = image_pair_list[np.random.randint(0, len_filtered_jobs)]
+
+        print("image_pair", image_pair)
+
+        return response_handler.create_success_response_v1(
+            response_data={"image_pair": image_pair},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to get image pair for ab rank: {str(e)}',
             http_status_code=500
         )
