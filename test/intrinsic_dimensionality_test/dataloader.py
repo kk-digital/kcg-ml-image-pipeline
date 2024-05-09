@@ -28,11 +28,13 @@ def parse_args():
 class KandinskyDatasetLoader:
     def __init__(self,
                  minio_client, 
-                 dataset= "environmental"):
+                 dataset= "environmental",
+                 time_period=None):
         
         # get minio client
         self.minio_client = minio_client
         self.dataset= dataset
+        self.time_period = time_period
 
         # get device
         if torch.cuda.is_available():
@@ -43,7 +45,11 @@ class KandinskyDatasetLoader:
 
     def load_kandinsky_jobs(self):
         print(f"Fetching kandinsky jobs for the {self.dataset} dataset")
-        response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={self.dataset}&task_type=img2img_generation_kandinsky')
+        if self.time_period is None:
+          response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={self.dataset}&task_type=img2img_generation_kandinsky')
+        else:
+          response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={self.dataset}&task_type=img2img_generation_kandinsky&time_period={self.time_period}')
+            
         jobs = json.loads(response.content)
         return jobs
     
