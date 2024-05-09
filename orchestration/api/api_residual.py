@@ -18,7 +18,7 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
 
     return True
 
-@router.post("/image-scores/residuals/image-rank-residual",
+@router.post("/image-scores/residuals/set-image-rank-residual",
              tags = ["residual"],
              status_code=201,
              description="Sets the rank residual of an image. The score can only be set one time per image/model combination",

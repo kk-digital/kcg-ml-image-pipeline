@@ -199,11 +199,19 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
             False,
             http_status_code=200
         )
+    
 
 
+@router.delete("/image-scores/scores/delete-image-rank-score", 
+               description="Delete image rank score by specific hash.",
+               status_code=200,
+               tags=["score"], 
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([422]))
 @router.delete("/score/image-rank-score-by-hash", 
                description="Delete image rank score by specific hash.",
                status_code=200,
+               tags=["score"], 
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 def delete_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):

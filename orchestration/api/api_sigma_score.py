@@ -66,95 +66,98 @@ def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
 
 # Standardized APIs
 
-@router.post("/image-scores/sigma-scores/image-rank-sigma-score",
+@router.post("/image-scores/sigma-scores/set-image-rank-sigma-score",
              status_code=201,  
              description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
              tags=["sigma score"],
-             response_model=StandardSuccessResponse[RankingSigmaScore],
-             responses=ApiResponseHandler.listErrors([400, 422]))
+             response_model=StandardSuccessResponseV1[RankingSigmaScore],
+             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.post("/sigma-score/image-rank-sigma-score",
              status_code=201,  
              description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
              tags=["sigma score"],
-             response_model=StandardSuccessResponse[RankingSigmaScore],
-             responses=ApiResponseHandler.listErrors([400, 422]))
+             response_model=StandardSuccessResponseV1[RankingSigmaScore],
+             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSigmaScore):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
     query = {"image_hash": ranking_sigma_score.image_hash, "model_id": ranking_sigma_score.model_id}
     count = request.app.image_sigma_scores_collection.count_documents(query)
 
     if count > 0:
         # If a sigma score already exists for the given image_hash and model_id, return an error response
-        return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Score for specific model_id and image_hash already exists.", 400)
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS, 
+            error_string="Score for specific model_id and image_hash already exists.", 
+            http_status_code=400)
 
     # If the sigma score does not exist, insert the new score
     request.app.image_sigma_scores_collection.insert_one(ranking_sigma_score.dict())
 
     # Return a success response with the inserted sigma score data
-    return response_handler.create_success_response(ranking_sigma_score.dict(), 201)
+    return response_handler.create_success_response_v1(response_data=ranking_sigma_score.dict(), http_status_code=201)
 
 
 @router.get("/image-scores/sigma-scores/get-image-rank-sigma-score", 
             status_code=200,
             description="Get image rank sigma_score by hash",
             tags=["sigma score"],
-            response_model=StandardSuccessResponse[RankingSigmaScore],  
-            responses=ApiResponseHandler.listErrors([422, 500]))
+            response_model=StandardSuccessResponseV1[RankingSigmaScore],  
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-score-by-hash", 
             status_code=200,
             description="Get image rank sigma_score by hash",
             tags=["sigma score"],
-            response_model=StandardSuccessResponse[RankingSigmaScore],  
-            responses=ApiResponseHandler.listErrors([422, 500]))
+            response_model=StandardSuccessResponseV1[RankingSigmaScore],  
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_id: int):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
     query = {"image_hash": image_hash, "model_id": model_id}
 
     item = request.app.image_sigma_scores_collection.find_one(query)
     if not item:
         # If no sigma score found for the given image_hash and model_id, return an error response
-        return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Image rank sigma_score data not found", 404)
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Image rank sigma_score data not found",
+            http_status_code=404)
 
     # Remove the auto-generated '_id' field from the MongoDB document before returning
     item.pop('_id', None)
 
     # Return a success response with the found sigma score data
-    return response_handler.create_success_response(item, 200)
+    return response_handler.create_success_response_v1(response_data=item, http_status_code=200)
 
 @router.get("/image-scores/sigma-scores/list-image-rank-sigma-scores-by-model-id",
-            response_model=StandardSuccessResponse[ResponseRankingSigmaScore],
+            response_model=StandardSuccessResponseV1[ResponseRankingSigmaScore],
             tags=["sigma score"],
             description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
-            responses=ApiResponseHandler.listErrors([422, 500]))
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-scores-by-model-id",
-            response_model=StandardSuccessResponse[ResponseRankingSigmaScore],
+            response_model=StandardSuccessResponseV1[ResponseRankingSigmaScore],
             tags=["sigma score"],
             description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
-            responses=ApiResponseHandler.listErrors([422, 500]))
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
     try:
         query = {"model_id": model_id}
         items_cursor = request.app.image_sigma_scores_collection.find(query).sort("sigma_score", -1)
         items = list(items_cursor)
 
-        if not items:
-            return response_handler.create_success_response({"response": []}, 200)
-
         # Prepare the documents, ensuring removal of '_id'
         for item in items:
             item.pop('_id', None)
         
-        return response_handler.create_success_response({'scores': items}, 200)
+        return response_handler.create_success_response_v1(response_data={'scores': items}, http_status_code=200)
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string=str(e), http_status_code=500)
 
 
-@router.delete("/image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id/{model_id}",
+@router.delete("/image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id",
                tags=["sigma score"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]))
-@router.delete("/sigma-score/image-rank-sigma-scores-by-model-id/{model_id}",
+@router.delete("/sigma-score/image-rank-sigma-scores-by-model-id",
                tags=["sigma score"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]))
