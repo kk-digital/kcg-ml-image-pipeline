@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException
-from orchestration.api.mongo_schemas import RankingPercentile
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse
+from orchestration.api.mongo_schemas import RankingPercentile, ResponseRankingPercentile
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 from typing import List
 
 router = APIRouter()
@@ -66,9 +66,15 @@ def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
 
 # Standardized APIs
 
+@router.post("/image-scores/percentiles/image-rank-percentile",
+             status_code=201,
+             description="Sets the rank percentile of an image. The score can only be set one time per image/model combination",
+             response_model=StandardSuccessResponse[RankingPercentile],
+             tags=["Percentile Score"],
+             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 @router.post("/percentile/image-rank-percentile",
-             status_code=200,
-             description="Set image rank percentile",
+             status_code=201,
+             description="Sets the rank percentile of an image. The score can only be set one time per image/model combination",
              response_model=StandardSuccessResponse[RankingPercentile],
              tags=["Percentile Score"],
              responses=ApiResponseHandler.listErrors([400, 422, 500]))
@@ -92,7 +98,12 @@ def set_image_rank_percentile(request: Request, ranking_percentile: RankingPerce
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal Server Error", 500)
 
 
-
+@router.get("/image-scores/percentiles/get-image-rank-percentile",
+             status_code=200,
+             description="Get image rank percentile by hash",
+             response_model=StandardSuccessResponse[RankingPercentile],
+             tags=["Percentile Score"],
+             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 @router.get("/percentile/image-rank-percentile-by-hash",
              status_code=200,
              description="Get image rank percentile by hash",
@@ -120,12 +131,16 @@ def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_i
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal Server Error", 500)
     
 
-
-@router.get("/percentile/image-rank-percentiles-by-model-id",
-            response_model=StandardSuccessResponse[List[RankingPercentile]],
+@router.get("/image-scores/percentiles/list-image-rank-percentiles-by-model-id",
+            response_model=StandardSuccessResponse[ResponseRankingPercentile],
             tags=["Percentile Score"],
             description="Get image rank percentiles by model id. Returns as descending order of percentiles",
-            responses=ApiResponseHandler.listErrors([404, 422, 500]))
+            responses=ApiResponseHandler.listErrors([422, 500]))
+@router.get("/percentile/image-rank-percentiles-by-model-id",
+            response_model=StandardSuccessResponse[ResponseRankingPercentile],
+            tags=["Percentile Score"],
+            description="Get image rank percentiles by model id. Returns as descending order of percentiles",
+            responses=ApiResponseHandler.listErrors([422, 500]))
 def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     api_response_handler = ApiResponseHandler(request)
     try:
@@ -140,18 +155,23 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
         for item in items:
             item.pop('_id', None)
         
-        return api_response_handler.create_success_response(items, 200)
+        return api_response_handler.create_success_response({'percentiles': items}, 200)
     except Exception as e:
         return api_response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal Server Error", 500)
 
 
+@router.delete("/image-scores/percentiles/delete-all-image-rank-percentiles-by-model-id/{model_id}",
+               tags=["percentile score"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([404, 422]),
+               description="Delete all image rank percentiles by model id.")
 @router.delete("/percentile/image-rank-percentiles-by-model-id/{model_id}",
                tags=["percentile score"],
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               responses=ApiResponseHandler.listErrors([404, 422]),
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([404, 422]),
                description="Delete all image rank percentiles by model id.")
 async def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
     query = {"model_id": model_id}
     
     # Perform the deletion operation
@@ -161,8 +181,12 @@ async def delete_image_rank_percentiles_by_model_id(request: Request, model_id: 
     was_present = res.deleted_count > 0
     
     if was_present:
-        # If documents were deleted, return success with wasPresent: true
-        return response_handler.create_success_response({"wasPresent": was_present}, 200)
+        return response_handler.create_success_delete_response_v1(
+            True,
+            http_status_code=200
+        )
     else:
-        # If no documents were deleted, it might indicate the model_id didn't match any documents
-        return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "No percentiles found for the given model_id to delete", 404)
+        return response_handler.create_success_delete_response_v1(
+            False,
+            http_status_code=200
+        )

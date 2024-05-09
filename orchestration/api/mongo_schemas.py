@@ -250,6 +250,8 @@ class RankingScore(BaseModel):
             "score": self.score,
         }
     
+class ResponseRankingScore(BaseModel):
+    scores: List[RankingScore]  
 
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]
@@ -370,6 +372,8 @@ class RankingSigmaScore(BaseModel):
             "sigma_score": self.sigma_score,
         }
 
+class ResponseRankingSigmaScore(BaseModel):
+    scores: List[RankingSigmaScore]
 
 class RankingResidual(BaseModel):
     model_id: int
@@ -383,6 +387,8 @@ class RankingResidual(BaseModel):
             "residual": self.residual,
         }
 
+class ResponseRankingResidual(BaseModel):
+    residuals: List[RankingResidual]
 
 class RankingPercentile(BaseModel):
     model_id: int
@@ -396,6 +402,9 @@ class RankingPercentile(BaseModel):
             "percentile": self.percentile,
         }
 
+class ResponseRankingPercentile(BaseModel):
+    percentile: List[RankingPercentile]
+    
 class RankingResidualPercentile(BaseModel):
     model_id: int
     image_hash: str

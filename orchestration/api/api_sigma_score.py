@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException
-from orchestration.api.mongo_schemas import RankingSigmaScore
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse
+from orchestration.api.mongo_schemas import RankingSigmaScore, ResponseRankingSigmaScore
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 from typing import List
 
 router = APIRouter()
@@ -66,9 +66,15 @@ def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
 
 # Standardized APIs
 
+@router.post("/image-scores/sigma-scores/image-rank-sigma-score",
+             status_code=201,  
+             description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
+             tags=["sigma score"],
+             response_model=StandardSuccessResponse[RankingSigmaScore],
+             responses=ApiResponseHandler.listErrors([400, 422]))
 @router.post("/sigma-score/image-rank-sigma-score",
-             status_code=201,  # Use 201 for resource creation
-             description="Set image rank sigma_score",
+             status_code=201,  
+             description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
              tags=["sigma score"],
              response_model=StandardSuccessResponse[RankingSigmaScore],
              responses=ApiResponseHandler.listErrors([400, 422]))
@@ -88,6 +94,12 @@ def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSig
     return response_handler.create_success_response(ranking_sigma_score.dict(), 201)
 
 
+@router.get("/image-scores/sigma-scores/get-image-rank-sigma-score", 
+            status_code=200,
+            description="Get image rank sigma_score by hash",
+            tags=["sigma score"],
+            response_model=StandardSuccessResponse[RankingSigmaScore],  
+            responses=ApiResponseHandler.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-score-by-hash", 
             status_code=200,
             description="Get image rank sigma_score by hash",
@@ -109,9 +121,13 @@ def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_
     # Return a success response with the found sigma score data
     return response_handler.create_success_response(item, 200)
 
-
+@router.get("/image-scores/sigma-scores/list-image-rank-sigma-scores-by-model-id",
+            response_model=StandardSuccessResponse[ResponseRankingSigmaScore],
+            tags=["sigma score"],
+            description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
+            responses=ApiResponseHandler.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-scores-by-model-id",
-            response_model=StandardSuccessResponse[List[RankingSigmaScore]],
+            response_model=StandardSuccessResponse[ResponseRankingSigmaScore],
             tags=["sigma score"],
             description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
             responses=ApiResponseHandler.listErrors([422, 500]))
@@ -129,18 +145,21 @@ def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
         for item in items:
             item.pop('_id', None)
         
-        return response_handler.create_success_response(items, 200)
+        return response_handler.create_success_response({'scores': items}, 200)
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
 
 
-
+@router.delete("/image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id/{model_id}",
+               tags=["sigma score"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([404, 422]))
 @router.delete("/sigma-score/image-rank-sigma-scores-by-model-id/{model_id}",
                tags=["sigma score"],
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               responses=ApiResponseHandler.listErrors([404, 422]))
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([404, 422]))
 def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
     query = {"model_id": model_id}
     
     # Perform the deletion operation
@@ -150,7 +169,12 @@ def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     was_present = res.deleted_count > 0
     
     if was_present:
-        return response_handler.create_success_response({"wasPresent": was_present}, 200)
+        return response_handler.create_success_delete_response_v1(
+            True,
+            http_status_code=200
+        )
     else:
-        # If no documents were deleted, it might indicate the model_id didn't match any documents
-        return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "No sigma_scores found for the given model_id to delete", 404)
+        return response_handler.create_success_delete_response_v1(
+            False,
+            http_status_code=200
+        )

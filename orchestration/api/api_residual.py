@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, HTTPException
-from orchestration.api.mongo_schemas import RankingResidual
+from orchestration.api.mongo_schemas import RankingResidual, ResponseRankingResidual
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 
 router = APIRouter()
@@ -18,11 +18,17 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
 
     return True
 
+@router.post("/image-scores/residuals/image-rank-residual",
+             tags = ["residual"],
+             status_code=201,
+             description="Sets the rank residual of an image. The score can only be set one time per image/model combination",
+             response_model=StandardSuccessResponseV1[ResponseRankingResidual],
+             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.post("/residual/image-rank-residual",
              tags = ["residual"],
-             status_code=200,
-             description="Set image rank residual",
-             response_model=StandardSuccessResponseV1[RankingResidual],
+             status_code=201,
+             description="Sets the rank residual of an image. The score can only be set one time per image/model combination",
+             response_model=StandardSuccessResponseV1[ResponseRankingResidual],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -38,8 +44,8 @@ async def set_image_rank_residual(request: Request, ranking_residual: RankingRes
 
     request.app.image_residuals_collection.insert_one(ranking_residual.dict())
     return api_response_handler.create_success_response_v1(
-        response_data=ranking_residual.dict(),
-        http_status_code=200
+        response_data={'residuals':ranking_residual.dict()},
+        http_status_code=201
     )
 
 @router.get("/residual/get-image-rank-residual-by-hash", description="Get image rank residual by hash")
@@ -57,7 +63,12 @@ def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id:
 
     return item
 
-
+@router.get("/image-scores/residuals/get-image-rank-residual", 
+            description="Get image rank residual by hash",
+            tags = ["residual"],
+            status_code=200,
+            response_model=StandardSuccessResponseV1[RankingResidual],
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.get("/residual/image-rank-residual-by-hash", 
             description="Get image rank residual by hash",
             tags = ["residual"],
@@ -99,23 +110,24 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
 
     return residual_data
 
+
+@router.get("/image-scores/residuals/list-image-rank-residuals-by-model-id",
+            description="Get image rank residuals by model id. Returns as descending order of residual",
+            tags = ["residual"],
+            status_code=200,
+            response_model=StandardSuccessResponseV1[RankingResidual],
+            responses=ApiResponseHandlerV1.listErrors([422]))
 @router.get("/residual/image-rank-residuals-by-model-id",
             description="Get image rank residuals by model id. Returns as descending order of residual",
             tags = ["residual"],
             status_code=200,
             response_model=StandardSuccessResponseV1[RankingResidual],
-            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+            responses=ApiResponseHandlerV1.listErrors([422]))
 def get_image_rank_residuals_by_model_id(request: Request, model_id: str):
     api_response_handler = ApiResponseHandlerV1(request)
     query = {"model_id": model_id}
     items = list(request.app.image_residuals_collection.find(query).sort("residual", -1))
     
-    if not items:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="No residuals found for specified model_id.",
-            http_status_code=404
-        )
 
     for item in items:
         item.pop('_id', None)
@@ -135,6 +147,12 @@ def delete_image_rank_residuals_by_model_id(request: Request, model_id: int):
     return None
 
 
+@router.delete("/image-scores/residuals/delete-all-image-rank-residuals-by-model-id", 
+               description="Delete all image rank residuals by model id.",
+               tags = ["residual"],
+               status_code=200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([422]))
 @router.delete("/residual/image-rank-residuals-by-model-id", 
                description="Delete all image rank residuals by model id.",
                tags = ["residual"],
@@ -147,7 +165,13 @@ def delete_image_rank_residuals_by_model_id(request: Request, model_id: str):
     res = request.app.image_residuals_collection.delete_many(query)
     
     was_present = res.deleted_count > 0
-    return api_response_handler.create_success_response_v1(
-        response_data={"wasPresent": was_present},
-        http_status_code=200
-    )
+    if was_present:
+        return api_response_handler.create_success_delete_response_v1(
+            True,
+            http_status_code=200
+        )
+    else:
+        return api_response_handler.create_success_delete_response_v1(
+            False,
+            http_status_code=200
+        )
