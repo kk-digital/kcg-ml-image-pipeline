@@ -910,7 +910,7 @@ async def get_ab_rank_image_pair(request: Request, min_score:int, max_diff:float
                 if job.get('task_attributes_dict'):
                     print('task_attributes_dict', job['task_attributes_dict'])
                     if job['task_attributes_dict'].get('elm-v1') is not None \
-                          and job['task_attributes_dict']['elm-v1']['image_clip_h_score'] < min_score:
+                          and job['task_attributes_dict']['elm-v1']['image_clip_h_score'] > min_score:
                         filtered_jobs_by_min_score.append(job)
                         filtered_job_scores_by_min_score.append(job['task_attributes_dict']['elm-v1']['image_clip_h_score'])
             except Exception as e:
@@ -921,8 +921,8 @@ async def get_ab_rank_image_pair(request: Request, min_score:int, max_diff:float
         print(len_filtered_jobs)
         image_pair_list = []
         for i in range(len_filtered_jobs):
-            for j in range(len_filtered_jobs - 1, i, -1):
-                    if np.abs(filtered_job_scores_by_min_score[i] - filtered_job_scores_by_min_score[j]) > max_diff:
+            for j in range(i, len_filtered_jobs):
+                    if np.abs(filtered_job_scores_by_min_score[i] - filtered_job_scores_by_min_score[j]) < max_diff:
                         image_pair_list.append([filtered_jobs_by_min_score[sorted_args[i]], filtered_jobs_by_min_score[sorted_args[j]]])
         
         image_pair = image_pair_list[np.random.randint(0, len_filtered_jobs)]
