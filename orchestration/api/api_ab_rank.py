@@ -915,7 +915,6 @@ async def get_ab_rank_image_pair(request: Request, min_score:int, max_diff:float
                         filtered_job_scores_by_min_score.append(job['task_attributes_dict']['elm-v1']['image_clip_h_score'])
             except Exception as e:
                 print(e)
-        print(4)
         
         len_filtered_jobs = len(filtered_jobs_by_min_score)
         sorted_args = np.argsort(filtered_job_scores_by_min_score)
@@ -925,10 +924,8 @@ async def get_ab_rank_image_pair(request: Request, min_score:int, max_diff:float
             for j in range(len_filtered_jobs - 1, i, -1):
                     if np.abs(filtered_job_scores_by_min_score[i] - filtered_job_scores_by_min_score[j]) > max_diff:
                         image_pair_list.append([filtered_jobs_by_min_score[sorted_args[i]], filtered_jobs_by_min_score[sorted_args[j]]])
-        print(5)
+        
         image_pair = image_pair_list[np.random.randint(0, len_filtered_jobs)]
-
-        print("image_pair", image_pair)
 
         return response_handler.create_success_response_v1(
             response_data={"image_pair": image_pair},
