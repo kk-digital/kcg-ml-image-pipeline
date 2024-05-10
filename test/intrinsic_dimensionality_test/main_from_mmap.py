@@ -48,12 +48,15 @@ def main():
 
     with open(get_file_name(), mode='w', newline='') as file:
 
-        if args.library == Library.INTRINSIC_DIMENSION.value:
-            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vector", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
+        writer = csv.DictWriter(file, fieldnames=["Dataset", 
+                "Dataset type", 
+                "Number of vector", 
+                "Dimension of vector", 
+                "Metrics Field", 
+                "Intrinsic dimension",
+                "Elapsed time", "Transform", "Time_period",
+                "Error"])
         
-        elif args.library == Library.SCIKIT_DIMENSION.value:
-            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vectors", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
-            
         writer.writeheader()
 
         dataloader = ClipVectorLoader(min_sigma_score=args.min_sigma_score)
@@ -67,41 +70,74 @@ def main():
 
             if args.library == Library.INTRINSIC_DIMENSION.value:
 
-                dimension_by_mle, mle_elapsed_time = \
+                dimension_by_mle, mle_elapsed_time, mle_error = \
                     measure_running_time(mle_id, data, k=2)
 
-                dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
+                dimension_by_twonn_numpy, twonn_numpy_elapsed_time, twonn_numpy_error = \
                     measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
 
-                dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
+                dimension_by_twonn_torch, twonn_pytorch_elapsed_time, twonn_torch_error = \
                     measure_running_time(twonn_pytorch, data, return_xy=False)
 
                 writer.writerow({
-                    "Data type": "Clip vector",
-                    "Number of clip vector": data.size(0),
-                    "Dimension of clip vector": data.size(1),
-                    "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
-                    "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                    "Twonn_numpy intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
-                    "Twonn_numpy elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
-                    "twonn_pytorch intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
-                    "twonn_pytorch elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time))
+                    "Dataset": "Memory mapping",
+                    "Dataset type": "clip-vector-1280",
+                    "Number of vector": data.size(0),
+                    "Dimension of vector": data.size(1),
+                    "Metrics Field": "mle-intrinsic-dimension",
+                    "Intrinsic dimension": "{:.2f}".format(dimension_by_mle) if dimension_by_mle is not None else "None",
+                    "Elapsed time": "{}".format(format_duration(mle_elapsed_time)),
+                    "Error": mle_error if mle_error else ''
+                })
+
+                writer.writerow({
+                    "Dataset": "Memory mapping",
+                    "Dataset type": "clip-vector-1280",
+                    "Number of vector": data.size(0),
+                    "Dimension of vector": data.size(1),
+                    "Metrics Field": "twonn_numpy_intrinsic_dimension",
+                    "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy) if dimension_by_twonn_numpy is not None else "None",
+                    "Elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
+                    "Error": twonn_numpy_error if twonn_numpy_error else ''
+                })
+
+                writer.writerow({
+                    "Dataset": "Memory mapping",
+                    "Dataset type": "clip-vector-1280",
+                    "Number of vector": data.size(0),
+                    "Dimension of vector": data.size(1),
+                    "Metrics Field": "twonn_torch_intrinsic_dimension",
+                    "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch) if dimension_by_twonn_torch is not None else "None",
+                    "Elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time)),
+                    "Error": twonn_torch_error if twonn_torch_error else ''
                 })
 
             elif args.library == Library.SCIKIT_DIMENSION.value:
                 data = data.cpu().numpy()
 
-                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
-                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
+                dimension_by_mle, mle_elapsed_time, mle_error = measure_running_time(skdim.id.MLE().fit, data)
+                dimension_by_twonn_numpy, twonn_elapsed_time, twonn_error = measure_running_time(skdim.id.TwoNN().fit, data)
 
                 writer.writerow({
-                    "Data type": "Clip vector",
-                    "Number of vae vectors": data.shape[0],
-                    "Dimension of vae vector": data.shape[1],
-                    "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
-                    "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
-                    "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
-                    "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
+                    "Dataset": "Memory mapping",
+                    "Dataset type": "clip-h-1280",
+                    "Number of vector": data.shape[0],
+                    "Dimension of vector": data.shape[1],
+                    "Metrics Field": 'scipy-mle-intrinsic',
+                    "Intrinsic dimension": "{}".format(dimension_by_mle),
+                    "Elapsed time": "{}".format(format_duration(mle_elapsed_time)),
+                    "Error": mle_error if mle_error else ''
+                })
+
+                writer.writerow({
+                    "Dataset": "Memory mapping",
+                    "Dataset type": "clip-h-1280",
+                    "Number of vector": data.shape[0],
+                    "Dimension of vector": data.shape[1],
+                    "Metrics Field": 'scipy-twonn-intrinsic',
+                    "Intrinsic dimension": "{}".format(dimension_by_twonn_numpy),
+                    "Elapsed time": "{}".format(format_duration(twonn_elapsed_time)),
+                    "Error": twonn_error if twonn_error else ''
                 })
             
         file.flush()

@@ -32,7 +32,7 @@ from utils import get_minio_client
 from utils import format_duration
 
 # import http request
-from utility.http import request
+from test.intrinsic_dimensionality_test.utils import http_get_dataset_names
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -140,7 +140,7 @@ class IntrinsicDimensionaltiyAnalysis:
                             "Number of vector": data.size(0),
                             "Dimension of vector": data.size(1),
                             "Metrics Field": "mle-intrinsic-dimension",
-                            "Intrinsic dimension": "{:.2f}".format(dimension_by_mle) if dimension_by_mle else "None",
+                            "Intrinsic dimension": "{:.2f}".format(dimension_by_mle) if dimension_by_mle is not None else "None",
                             "Elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                             "Error": mle_error if mle_error else ''
                         })
@@ -150,8 +150,8 @@ class IntrinsicDimensionaltiyAnalysis:
                             "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
                             "Number of vector": data.size(0),
                             "Dimension of vector": data.size(1),
-                            "Metrics Field": "twonn_numpy_intrinsic_dimension",
-                            "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy) if dimension_by_twonn_numpy else "None",
+                            "Metrics Field": "twonn-numpy-intrinsic-dimension",
+                            "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy) if dimension_by_twonn_numpy is not None else "None",
                             "Elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
                             "Error": twonn_numpy_error if twonn_numpy_error else ''
                         })
@@ -161,8 +161,8 @@ class IntrinsicDimensionaltiyAnalysis:
                             "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
                             "Number of vector": data.size(0),
                             "Dimension of vector": data.size(1),
-                            "Metrics Field": "twonn_torch_intrinsic_dimension",
-                            "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch) if dimension_by_twonn_torch else "None",
+                            "Metrics Field": "twonn-torch-intrinsic-dimension",
+                            "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch) if dimension_by_twonn_torch is not None else "None",
                             "Elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time)),
                             "Error": twonn_torch_error if twonn_torch_error else ''
                         })
@@ -215,7 +215,7 @@ class IntrinsicDimensionaltiyAnalysis:
                                    "Elapsed time", "Error"])
 
         if self.dataset == 'all':
-            dataset_names = request.http_get_dataset_names()
+            dataset_names = http_get_dataset_names()
 
             for dataset in dataset_names:
                 self.dataset = dataset

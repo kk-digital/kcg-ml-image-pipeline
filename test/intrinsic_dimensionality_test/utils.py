@@ -4,6 +4,7 @@ from minio import Minio
 import requests
 
 MINIO_ADDRESS = "192.168.3.5:9000"
+SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 # define the measure the running time
 def measure_running_time(func, *args, **kwargs):
@@ -87,3 +88,24 @@ def format_duration(seconds):
     formatted_time += f"{round(minutes)}m " if minutes > 0 else ""
     formatted_time += f"{round(seconds, 3)}s " if seconds > 0 else "0s"
     return formatted_time
+
+# Get list of all dataset names
+def http_get_dataset_names():
+    url = SERVER_ADDRESS + "/dataset/list"
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
