@@ -306,7 +306,7 @@ async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTag
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  # Adjust according to your actual response model
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, classifier_id: int):
     response_handler = ApiResponseHandlerV1(request) 
@@ -333,7 +333,7 @@ def get_pseudo_tag_list_for_image(request: Request, classifier_id: int):
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  # Adjust according to your actual response model
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request) 
@@ -550,9 +550,38 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={'images':images_data}, 
         http_status_code=200
     )    
+
+@router.get("/pseudotag/list-pseudotag-scores-for-image",
+            description="Get all pseudotag scores for a specific image hash",
+            tags=["pseudo_tags"],   
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],
+            responses=ApiResponseHandlerV1.listErrors([404,422]))
+async def get_scores_by_image_hash(
+    request: Request,
+    image_hash: str = Query(..., description="The hash of the image to retrieve scores for")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query to fetch scores by image_hash
+    query = {"image_hash": image_hash}
+
+    # Fetch data from the database
+    cursor = request.app.pseudo_tag_images_collection.find(query)
+
+    scores_data = list(cursor)
+
+    # Remove '_id' from the response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare and return the data for the response
+    return response_handler.create_success_response_v1(
+        response_data={"images": scores_data},
+        http_status_code=200
+    )
 
 @router.get("/pseudotag/list-images-by-scores-v1", 
             description="List image scores based on tag id",
@@ -620,7 +649,7 @@ async def list_image_scores_v3(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={'images':images_data}, 
         http_status_code=200
     )  
 
