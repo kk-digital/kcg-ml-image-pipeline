@@ -336,6 +336,7 @@ class ExternalImageData(BaseModel):
 
     def to_dict(self):
         return {
+            "dataset": self.dataset,
             "upload_date": self.upload_date,
             "image_hash": self.image_hash,
             "image_resolution": self.image_resolution.to_dict(),
