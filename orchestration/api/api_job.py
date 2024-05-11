@@ -1537,8 +1537,8 @@ async def get_list_failed_jobs(request: Request):
 @router.get("/queue/image-generation/list-completed-jobs-ordered-by-dataset", 
             response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
             tags=["jobs-standardized"],
-            status_code = 200,
-            description="list completed jobs by date",
+            status_code=200,
+            description="List completed jobs by date. If no dataset is specified, jobs from all datasets are included.",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_list_completed_jobs_by_date(
     request: Request,
@@ -1551,8 +1551,8 @@ async def get_list_completed_jobs_by_date(
     try:
         print(f"Start Date: {start_date}, End Date: {end_date}")
 
+        # Build the initial query
         query = {
-            "task_input_dict.dataset": dataset,
             "task_creation_time": {
                 "$gte": start_date,
                 "$lt": end_date
@@ -1567,9 +1567,14 @@ async def get_list_completed_jobs_by_date(
         if min_clip_sigma_score is not None:
             query["task_attributes_dict.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
 
+        # Print query to debug
+        print(f"Query: {query}")
+
+        # Execute query
         jobs = list(request.app.completed_jobs_collection.find(query))
 
-        datasets = []
+        # Process jobs to organize by dataset
+        datasets = {}
         for job in jobs:
             dataset_name = job.get("task_input_dict", {}).get("dataset")
             job_uuid = job.get("uuid")
@@ -1592,13 +1597,18 @@ async def get_list_completed_jobs_by_date(
 
             datasets[dataset_name].append(job_info)
 
-        return response_handler.create_success_response_v1(response_data={"job_info": datasets}, http_status_code=200)
+        # Convert datasets to a list of dictionaries for the response
+        datasets_list = [{"dataset_name": name, "jobs": jobs} for name, jobs in datasets.items()]
+
+        return response_handler.create_success_response_v1(response_data={"job_info": datasets_list}, http_status_code=200)
     except Exception as e:
+        print(f"Error during API execution: {str(e)}")
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=f"Failed to list jobs by date: {str(e)}",
             http_status_code=500
         )
+
 
 
 @router.get("/queue/image-generation/get-completed-jobs-using-random-sampling", 

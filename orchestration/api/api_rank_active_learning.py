@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.post("/rank-active-learning-queue/add-image-pair",
-             description="Adds a new image pair to the rank active ranking queue",
+             description="Adds a new image pair to the rank active ranking queue. If there is already a pair with the same images, rank and policy, no new entry is added to the queue.",
              status_code=200,
              response_model=StandardSuccessResponseV1[RankActiveLearningPair],
              tags=["Rank Active Learning"],  
@@ -39,7 +39,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     if existing_pair:
         existing_pair.pop('_id', None)  # Remove MongoDB ObjectId from the response
         return api_response_handler.create_success_response_v1(
-            response_data={"existing_pair": existing_pair, "note": "No new entry added as duplicate exists"},
+            response_data=existing_pair,
             http_status_code=200
         )
 
