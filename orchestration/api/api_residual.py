@@ -22,7 +22,7 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
              tags = ["residual"],
              status_code=201,
              description="Sets the rank residual of an image. The score can only be set one time per image/model combination",
-             response_model=StandardSuccessResponseV1[ResponseRankingResidual],
+             response_model=StandardSuccessResponseV1[RankingResidual],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.post("/residual/image-rank-residual",
              tags = ["residual"],
@@ -44,7 +44,7 @@ async def set_image_rank_residual(request: Request, ranking_residual: RankingRes
 
     request.app.image_residuals_collection.insert_one(ranking_residual.dict())
     return api_response_handler.create_success_response_v1(
-        response_data={'residuals':ranking_residual.dict()},
+        response_data=ranking_residual.dict(),
         http_status_code=201
     )
 
@@ -115,7 +115,7 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
             description="Get image rank residuals by model id. Returns as descending order of residual",
             tags = ["residual"],
             status_code=200,
-            response_model=StandardSuccessResponseV1[RankingResidual],
+            response_model=StandardSuccessResponseV1[ResponseRankingResidual],
             responses=ApiResponseHandlerV1.listErrors([422]))
 @router.get("/residual/image-rank-residuals-by-model-id",
             description="Get image rank residuals by model id. Returns as descending order of residual",
@@ -132,7 +132,7 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: str):
     for item in items:
         item.pop('_id', None)
     return api_response_handler.create_success_response_v1(
-        response_data=items,
+        response_data={'residuals': items},
         http_status_code=200
     )
 

@@ -92,7 +92,7 @@ def set_image_rank_percentile(request: Request, ranking_percentile: RankingPerce
         request.app.image_percentiles_collection.insert_one(ranking_percentile.dict())
         
         # Return a success response with the inserted percentile data
-        return response_handler.create_success_response_v1(response_data=ranking_percentile.dict(), http_status_code=200)
+        return response_handler.create_success_response_v1(response_data=ranking_percentile.dict(), http_status_code=201)
     except Exception as e:
         # In case of an exception, return an internal server error response
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500)

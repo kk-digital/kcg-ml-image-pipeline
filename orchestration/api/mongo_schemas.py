@@ -404,7 +404,7 @@ class RankingPercentile(BaseModel):
         }
 
 class ResponseRankingPercentile(BaseModel):
-    percentile: List[RankingPercentile]
+    percentiles: List[RankingPercentile]
     
 class RankingResidualPercentile(BaseModel):
     model_id: int
