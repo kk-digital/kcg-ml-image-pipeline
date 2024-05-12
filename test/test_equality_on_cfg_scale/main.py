@@ -42,7 +42,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key)
 
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
-
+    print(mean_vector.tolist())
     response= generate_img2img_generation_jobs_with_kandinsky(
         image_embedding=mean_vector,
         negative_image_embedding=None,
