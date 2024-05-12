@@ -44,7 +44,7 @@ def main():
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
 
     response= generate_img2img_generation_jobs_with_kandinsky(
-        image_embedding=mean_vector.unsqueeze(0),
+        image_embedding=mean_vector,
         negative_image_embedding=None,
         dataset_name="test-generations",
         prompt_generation_policy='test-equality-on-different-cfg-scales',
