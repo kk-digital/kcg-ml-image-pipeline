@@ -4,7 +4,7 @@ import torch
 import argparse
 
 base_dir = './'
-sys.path.insert(base_dir)
+sys.path.insert(0, base_dir)
 
 from data_loader.utils import get_object
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
