@@ -343,8 +343,8 @@ async def add_datapoints(request: Request, selection: RankSelection):
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        path = f"data/rank/{selection.rank_model_id}"
-        full_path = os.path.join("environmental", path, file_name)
+        path = f"ranks/{selection.rank_model_id}/data/ranking/aggregate"
+        full_path = os.path.join(path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
 
