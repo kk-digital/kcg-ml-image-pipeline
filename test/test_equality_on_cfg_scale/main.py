@@ -49,8 +49,8 @@ def main():
         negative_image_embedding=None,
         dataset_name="test-generations",
         prompt_generation_policy='test-equality-on-different-cfg-scales',
-        decoder_guidance_scale=1,
-        prior_guidance_scale=1,
+        decoder_guidance_scale=args.decoder_cfg_scale,
+        prior_guidance_scale=args.prior_cfg_scale,
         self_training=True
     )
 
