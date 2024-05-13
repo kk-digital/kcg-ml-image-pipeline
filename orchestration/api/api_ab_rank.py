@@ -916,19 +916,22 @@ async def get_ab_rank_image_pair(request: Request, min_score:int, max_diff:float
             except Exception as e:
                 print(e)
         
-        len_filtered_jobs = len(filtered_jobs_by_min_score)
+        num_images_above_min_score = len(filtered_jobs_by_min_score)
         sorted_args = np.argsort(filtered_job_scores_by_min_score)
-        print(len_filtered_jobs)
+        print(num_images_above_min_score)
         image_pair_list = []
-        for i in range(len_filtered_jobs):
-            for j in range(i, len_filtered_jobs):
+        for i in range(num_images_above_min_score):
+            for j in range(i, num_images_above_min_score):
                     if np.abs(filtered_job_scores_by_min_score[i] - filtered_job_scores_by_min_score[j]) < max_diff:
                         image_pair_list.append([filtered_jobs_by_min_score[sorted_args[i]], filtered_jobs_by_min_score[sorted_args[j]]])
-        
-        image_pair = image_pair_list[np.random.randint(0, len_filtered_jobs)]
+
+        num_image_pair_within_max_diff = len(image_pair_list)
+        image_pair = image_pair_list[np.random.randint(0, num_images_above_min_score)]
 
         return response_handler.create_success_response_v1(
-            response_data={"image_pair": image_pair},
+            response_data={'image_pair': image_pair, 
+                           'num_images_above_min_score': num_images_above_min_score, 
+                           'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
         )
 
