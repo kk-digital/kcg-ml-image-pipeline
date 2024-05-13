@@ -70,13 +70,13 @@ def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
              status_code=201,
              description="Sets the rank percentile of an image. The score can only be set one time per image/model combination",
              response_model=StandardSuccessResponseV1[RankingPercentile],
-             tags=["Percentile Score"],
+             tags=["image scores"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 @router.post("/percentile/image-rank-percentile",
              status_code=201,
-             description="Sets the rank percentile of an image. The score can only be set one time per image/model combination",
+             description="deprecated: use /image-scores/percentiles/set-image-rank-percentile ",
              response_model=StandardSuccessResponseV1[RankingPercentile],
-             tags=["Percentile Score"],
+             tags=["deprecated2"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def set_image_rank_percentile(request: Request, ranking_percentile: RankingPercentile):
     response_handler = ApiResponseHandlerV1(request)
@@ -92,23 +92,23 @@ def set_image_rank_percentile(request: Request, ranking_percentile: RankingPerce
         request.app.image_percentiles_collection.insert_one(ranking_percentile.dict())
         
         # Return a success response with the inserted percentile data
-        return response_handler.create_success_response_v1(response_data=ranking_percentile.dict(), http_status_code=200)
+        return response_handler.create_success_response_v1(response_data=ranking_percentile.dict(), http_status_code=201)
     except Exception as e:
         # In case of an exception, return an internal server error response
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500)
 
 
-@router.get("/image-scores/percentiles/get-image-rank-percentile",
+@router.get("/image-scores/percentiles/get-image-rank-percentile", 
              status_code=200,
              description="Get image rank percentile by hash",
              response_model=StandardSuccessResponseV1[RankingPercentile],
-             tags=["Percentile Score"],
+             tags=["image scores"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 @router.get("/percentile/image-rank-percentile-by-hash",
              status_code=200,
-             description="Get image rank percentile by hash",
+             description="deprecated: use /image-scores/percentiles/get-image-rank-percentile ",
              response_model=StandardSuccessResponseV1[RankingPercentile],
-             tags=["Percentile Score"],
+             tags=["deprecated2"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_id: int):
     response_handler = ApiResponseHandlerV1(request)
@@ -130,13 +130,13 @@ def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_i
 
 @router.get("/image-scores/percentiles/list-image-rank-percentiles-by-model-id",
             response_model=StandardSuccessResponseV1[ResponseRankingPercentile],
-            tags=["Percentile Score"],
+            tags=["image scores"],
             description="Get image rank percentiles by model id. Returns as descending order of percentiles",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 @router.get("/percentile/image-rank-percentiles-by-model-id",
             response_model=StandardSuccessResponseV1[ResponseRankingPercentile],
-            tags=["Percentile Score"],
-            description="Get image rank percentiles by model id. Returns as descending order of percentiles",
+            tags=["deprecated2"],
+            description="deprecated: use /image-scores/percentiles/list-image-rank-percentiles-by-model-id ",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -155,15 +155,15 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
 
 
 @router.delete("/image-scores/percentiles/delete-all-image-rank-percentiles-by-model-id",
-               tags=["Percentile Score"],
+               tags=["image scores"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]),
                description="Delete all image rank percentiles by model id.")
 @router.delete("/percentile/image-rank-percentiles-by-model-id",
-               tags=["Percentile Score"],
+               tags=["deprecated2"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]),
-               description="Delete all image rank percentiles by model id.")
+               description="deprecated: use /image-scores/percentiles/delete-all-image-rank-percentiles-by-model-id")
 async def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     response_handler = ApiResponseHandlerV1(request)
     query = {"model_id": model_id}

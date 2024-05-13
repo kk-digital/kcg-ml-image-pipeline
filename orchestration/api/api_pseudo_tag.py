@@ -7,6 +7,7 @@ from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHand
 import traceback
 from bson import ObjectId
 import logging
+import time
 from typing import Optional
 
 
@@ -224,11 +225,88 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
             error_string=f"Internal server error: {str(e)}", 
             http_status_code=500)
 
+@router.post("/pseudotag/set-image-pseudotag-score", 
+             status_code=200,
+             response_model=StandardSuccessResponseV1[ImagePseudoTagRequest],
+             description="Set image pseudotag score",
+             tags=["pseudo_tags"], 
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
+             )
+async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTagRequest):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+
+        # Fetch image_hash from completed_jobs_collection
+        job_data = request.app.completed_jobs_collection.find_one({"uuid": pseudo_tag.uuid},  {"task_output_file_dict.output_file_hash": 1, "task_type": 1})
+        if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided UUID does not have an associated image hash.",
+                http_status_code=404
+            )
+        image_hash = job_data['task_output_file_dict']['output_file_hash']
+        task_type = job_data['task_type']
+
+        # Fetch tag_id from classifier_models_collection
+        classifier_data = request.app.classifier_models_collection.find_one({"classifier_id": pseudo_tag.classifier_id}, {"tag_id": 1})
+        if not classifier_data:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided classifier ID does not exist.",
+                http_status_code=404
+            )
+        tag_id = classifier_data['tag_id']
+
+        
+        query = {
+            "classifier_id": pseudo_tag.classifier_id,
+            "uuid": pseudo_tag.uuid,
+            "tag_id": tag_id
+        }
+
+        # Get current UTC time in ISO format
+        current_utc_time = datetime.utcnow().isoformat()
+
+        # Initialize new_score_data outside of the if/else block
+        new_score_data = {
+            "uuid": pseudo_tag.uuid,
+            "task_type": task_type,
+            "classifier_id": pseudo_tag.classifier_id,
+            "image_hash": image_hash,
+            "tag_id": tag_id,
+            "score": pseudo_tag.score,
+            "creation_time": current_utc_time
+        }
+
+        # Check for existing score and update or insert accordingly
+        existing_score = request.app.pseudo_tag_images_collection.find_one(query)
+        if existing_score:
+            # Update existing score
+            request.app.pseudo_tag_images_collection.update_one(query, {"$set": {"score": pseudo_tag.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+        else:
+            # Insert new score
+            insert_result = request.app.pseudo_tag_images_collection.insert_one(new_score_data)
+            new_score_data['_id'] = str(insert_result.inserted_id)
+
+        return api_response_handler.create_success_response_v1(
+            response_data=new_score_data,
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 @router.get("/pseudotag/get-pseudo-tag-list-for-image-with-classifier-id", 
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  # Adjust according to your actual response model
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, classifier_id: int):
     response_handler = ApiResponseHandlerV1(request) 
@@ -255,7 +333,7 @@ def get_pseudo_tag_list_for_image(request: Request, classifier_id: int):
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  # Adjust according to your actual response model
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request) 
@@ -349,10 +427,77 @@ def batch_update_classifier_scores_with_task_type(request: Request):
         logger.error(f"Batch update failed: {str(e)}")
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string=f"Failed to batch update classifier scores: {str(e)}",
+            error_string=f"Failed to batch update pseudotag scores: {str(e)}",
             http_status_code=500
         )
 
+
+@router.get("/pseudotag/get-image-pseudotag-score-by-hash-and-tag-id", 
+            description="Get image pseudotag score by tag_id and image_hash",
+            tags=["pseudo_tags"], 
+            response_model=StandardSuccessResponseV1[ImagePseudoTag],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+def get_image_pseudotag_score_by_hash(request: Request, image_hash: str, tag_id: int):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # check if exists
+    query = {"image_hash": image_hash, "tag_id": tag_id}
+
+    item = request.app.pseudo_tag_images_collection.find_one(query)
+
+    if item is None:
+        # Return a standardized error response if not found
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Score for specified tag_id and image_hash does not exist.",
+            http_status_code=404
+        )
+
+    # Remove the auto generated '_id' field before returning
+    item.pop('_id', None)
+
+    # Return a standardized success response
+    return api_response_handler.create_success_response_v1(
+        response_data=item,
+        http_status_code=200
+    )
+
+
+@router.get("/pseudotag/get-image-pseudotag-score-by-uuid-and-tag-id", 
+            description="Get image classifier score by uuid and tag_id",
+            status_code=200,
+            tags=["pseudo_tags"],   
+            response_model=StandardSuccessResponseV1[ImagePseudoTag],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+def get_image_pseudotag_score_by_uuid_and_tag_id(request: Request, 
+                                                         job_uuid: str = Query(..., description="The UUID of the job"), 
+                                                         tag_id: int = Query(..., description="The tag ID")):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # Adjust query to include tag_id
+    query = {
+        "uuid": job_uuid,
+        "tag_id": tag_id
+    }
+
+    item = request.app.pseudo_tag_images_collection.find_one(query)
+
+    if item is None:
+        # Return a standardized error response if not found
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Score for specified uuid and tag_id does not exist.",
+            http_status_code=404
+        )
+
+    # Remove the auto generated '_id' field before returning
+    item.pop('_id', None)
+
+    # Return a standardized success response
+    return api_response_handler.create_success_response_v1(
+        response_data=item,
+        http_status_code=200
+    )    
 
 @router.get("/pseudotag/list-images-by-scores", 
             description="List image scores based on classifier",
@@ -405,10 +550,108 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={'images':images_data}, 
         http_status_code=200
     )    
 
+@router.get("/pseudotag/list-pseudotag-scores-for-image",
+            description="Get all pseudotag scores for a specific image hash",
+            tags=["pseudo_tags"],   
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],
+            responses=ApiResponseHandlerV1.listErrors([404,422]))
+async def get_scores_by_image_hash(
+    request: Request,
+    image_hash: str = Query(..., description="The hash of the image to retrieve scores for")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query to fetch scores by image_hash
+    query = {"image_hash": image_hash}
+
+    # Fetch data from the database
+    cursor = request.app.pseudo_tag_images_collection.find(query)
+
+    scores_data = list(cursor)
+
+    # Remove '_id' from the response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare and return the data for the response
+    return response_handler.create_success_response_v1(
+        response_data={"images": scores_data},
+        http_status_code=200
+    )
+
+@router.get("/pseudotag/list-images-by-scores-v1", 
+            description="List image scores based on tag id",
+            tags=["pseudo_tags"],  
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores_v3(
+    request: Request,
+    tag_id: Optional[int] = Query(None, description="Filter by tag ID"),
+    task_type: Optional[str] = Query(None, description="Filter by task_type"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    start_time = time.time()  # Start time tracking
+
+    print("Building query...")
+    # Build the query based on provided filters
+    query = {}
+    if tag_id is not None:
+        query["tag_id"] = tag_id
+    if task_type is not None:
+        query["task_type"] = task_type
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    print("Query built. Time taken:", time.time() - start_time)
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Apply some filtering before sampling
+        query_filter = {"$match": query}  
+        sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
+        
+        # Build the optimized pipeline
+        pipeline = [query_filter, sampling_stage]
+
+        cursor = request.app.pseudo_tag_images_collection.aggregate(pipeline)
+
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.pseudo_tag_images_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
+    print("Data fetched. Time taken:", time.time() - start_time)
+
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListImagePseudoTag(images=[ImagePseudoTag(**doc).to_dict() for doc in scores_data]).dict()
+
+    print("Returning response. Total time:", time.time() - start_time)
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data={'images':images_data}, 
+        http_status_code=200
+    )  
 
 @router.get("/pseudo-tag/count", 
             response_model=StandardSuccessResponseV1[int],

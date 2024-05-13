@@ -26,8 +26,8 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 @router.post("/score/set-rank-score", 
              status_code=201,
-             description="Sets the rank score of an image. The score can only be set one time per image/model combination",
-             tags=["score"],  
+             description="deprecated: use /image-scores/scores/set-rank-score ",
+             tags=["deprecated2"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 async def set_image_rank_score(request: Request, ranking_score: RankingScore):
@@ -75,13 +75,13 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: in
 @router.get("/image-scores/scores/get-image-rank-score", 
             description="Get image rank score by hash",
             status_code=200,
-            tags=["score"],  
+            tags=["image scores"],  
             response_model=StandardSuccessResponseV1[RankingScore],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 @router.get("/score/image-rank-score-by-hash", 
-            description="Get image rank score by hash",
+            description="deprectaed: use /image-scores/scores/get-image-rank-score ",
             status_code=200,
-            tags=["score"],  
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[RankingScore],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):
@@ -129,13 +129,13 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: int):
 @router.get("/image-scores/scores/list-image-rank-scores-by-model-id",
             description="Get image rank scores by model id. Returns as descending order of scores",
             status_code=200,
-            tags=["score"],  
+            tags=["image scores"],  
             response_model=StandardSuccessResponseV1[ResponseRankingScore],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 @router.get("/score/image-rank-scores-by-model-id",
-            description="Get image rank scores by model id. Returns as descending order of scores",
+            description="deprecated: use /image-scores/scores/list-image-rank-scores-by-model-id",
             status_code=200,
-            tags=["score"],  
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ResponseRankingScore],  
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
 def get_image_rank_scores_by_model_id(request: Request, model_id: str):
@@ -172,13 +172,13 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
 @router.delete("/image-scores/scores/delete-all-image-rank-scores-by-model-id", 
                description="Delete all image rank scores by model id.",
                status_code=200,
-               tags=["score"],  
+               tags=["image scores"],  
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 @router.delete("/score/image-rank-scores-by-model-id", 
-               description="Delete all image rank scores by model id.",
+               description="deprecated: use /image-scores/scores/list-image-rank-scores-by-model-id",
                status_code=200,
-               tags=["score"],  
+               tags=["deprecated2"],  
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
@@ -205,13 +205,13 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
 @router.delete("/image-scores/scores/delete-image-rank-score", 
                description="Delete image rank score by specific hash.",
                status_code=200,
-               tags=["score"], 
+               tags=["image scores"], 
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 @router.delete("/score/image-rank-score-by-hash", 
-               description="Delete image rank score by specific hash.",
+               description="deprecated: use /image-scores/scores/delete-image-rank-score",
                status_code=200,
-               tags=["score"], 
+               tags=["deprecated2"], 
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 def delete_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):
@@ -223,8 +223,13 @@ def delete_image_rank_score_by_hash(request: Request, image_hash: str, model_id:
     
     was_present = res.deleted_count > 0
     
-    # Use ApiResponseHandler to return the standardized response
-    return api_response_handler.create_success_response_v1(
-        response_data={"wasPresent": was_present},
-        http_status_code=200
-    )
+    if was_present:
+        return api_response_handler.create_success_delete_response_v1(
+            True,
+            http_status_code=200
+        )
+    else:
+        return api_response_handler.create_success_delete_response_v1(
+            False,
+            http_status_code=200
+        )

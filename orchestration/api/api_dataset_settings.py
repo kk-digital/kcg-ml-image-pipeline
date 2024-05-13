@@ -181,9 +181,9 @@ async def set_dataset_config(request: Request, config: DatasetConfig):
     try:
         # Verify if the dataset exists in MinIO
         dataset_exists = cmd.get_list_of_objects(request.app.minio_client, "datasets")
-        dataset_path = f"{config.dataset_name}/"
+        dataset_path = f"{config.dataset_name}"
 
-        if not any(obj.object_name.startswith(dataset_path) for obj in dataset_exists):
+        if dataset_path not in dataset_exists:
             # Return 422 error if the dataset does not exist in MinIO
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -232,9 +232,10 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
     try:
         # Check if the dataset exists in MinIO
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
-        dataset_path = f"{dataset}/"
+        print(objects)
+        dataset_path = f'{dataset}'
         
-        if not any(obj.object_name.startswith(dataset_path) for obj in objects):
+        if dataset_path not in objects:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string=f"Dataset '{dataset}' does not exist.",

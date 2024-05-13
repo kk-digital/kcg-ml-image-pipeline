@@ -786,9 +786,9 @@ async def get_sequential_id_1(request: Request, dataset: str = Query(..., descri
     try:
         # Check if dataset exists in the collection or object list
         dataset_exists = cmd.get_list_of_objects(request.app.minio_client, "datasets")
-        dataset_path = f"{dataset}/"
+        dataset_path = f"{dataset}"
 
-        if not any(obj.object_name.startswith(dataset_path) for obj in dataset_exists):
+        if dataset_path not in dataset_exists:
             # Return 422 error if dataset does not exist
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -881,10 +881,9 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
         dataset_path = f"{dataset}/data/latent-generator/self_training/"
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
 
-        # Validate dataset existence
-        dataset_exists = any(obj.object_name.startswith(dataset_path) for obj in objects)
-
-        if not dataset_exists:
+        dataset_path = f'{dataset}'
+        
+        if dataset_path not in objects:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string=f"Dataset '{dataset}' does not exist.",

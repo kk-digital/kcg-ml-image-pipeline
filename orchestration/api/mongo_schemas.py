@@ -404,7 +404,7 @@ class RankingPercentile(BaseModel):
         }
 
 class ResponseRankingPercentile(BaseModel):
-    percentile: List[RankingPercentile]
+    percentiles: List[RankingPercentile]
     
 class RankingResidualPercentile(BaseModel):
     model_id: int
@@ -512,7 +512,6 @@ class ListWorker(BaseModel):
 
 
 class SigmaScoreResponse(BaseModel):
-    dataset: str
     job_uuid: str
     file_hash: str
     file_path: str
@@ -527,7 +526,9 @@ class SigmaScoreResponse(BaseModel):
         }
 
 class ListSigmaScoreResponse(BaseModel):
-    job_info: List[SigmaScoreResponse]
+    dataset_name: str
+    jobs: List[SigmaScoreResponse]
+
 
 class RankActiveLearningPolicy(BaseModel):
     rank_active_learning_policy_id: Union[int, None] = None 

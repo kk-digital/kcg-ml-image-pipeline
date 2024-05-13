@@ -120,6 +120,7 @@ class RankSelection(BaseModel):
         }
     
 class ResponseRankSelection(BaseModel):
+    file_name: str
     rank_model_id: int
     task: str
     username: str
