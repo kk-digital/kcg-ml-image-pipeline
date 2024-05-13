@@ -3,18 +3,19 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair
+from .mongo_schemas import FlaggedDataUpdate
 import os
-from fastapi.responses import JSONResponse
-from pymongo.collection import Collection
 from datetime import datetime, timezone
 from typing import List
 from io import BytesIO
 from bson import ObjectId
 from typing import Optional
+from pymongo import ReturnDocument
 import json
 from collections import OrderedDict
+import io
 
 router = APIRouter()
 
@@ -317,7 +318,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 
 @router.post("/rank-training/add-ranking-data-point", 
              status_code=201,
-             tags=['Rank Active Learning'],
+             tags=['rank-training'],
              response_model=StandardSuccessResponseV1[ResponseRankSelection],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def add_datapoints(request: Request, selection: RankSelection):
@@ -367,7 +368,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         minio_data.pop("_id")
         minio_data.pop("file_name")
         path = f"ranks/{selection.rank_model_id}/data/ranking/aggregate"
-        full_path = os.path.join("environmental", path, file_name)
+        full_path = os.path.join(path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
 
@@ -402,7 +403,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             description="Lists all the ranking datapoints",
             response_model=StandardSuccessResponseV1[ListResponseRankSelection],
             status_code=200,
-            tags=["Rank Active Learning"],  
+            tags=["rank-training"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def list_ranking_datapoints(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -424,7 +425,7 @@ def list_ranking_datapoints(request: Request):
 
 @router.get("/rank-training/sort-ranking-data-by-date", 
             description="Sort rank data by date",
-            tags=["Rank Active Learning"],
+            tags=["rank-training"],
             response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
@@ -479,7 +480,7 @@ async def sort_ranking_data_by_date_v2(
 
 @router.get("/rank-training/count-ranking-data-points", 
             description="Count ranking data points based on specific rank models or policies",
-            tags=["Rank Active Learning"],
+            tags=["rank-training"],
             response_model=StandardSuccessResponseV1[CountResponse],  
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_ranking_data(request: Request, 
@@ -509,3 +510,117 @@ async def count_ranking_data(request: Request,
             error_string=str(e),
             http_status_code=500,
         )
+
+@router.put("/rank-training/update-ranking-datapoint", 
+            tags=['rank-training'], 
+            response_model=StandardSuccessResponseV1[ResponseRankSelection],
+            responses=ApiResponseHandlerV1.listErrors([404, 422]))
+async def update_ranking_datapoint(request: Request, rank_model_id: int, filename: str, update_data: FlaggedDataUpdate):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Construct the object name based on the dataset
+    object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+
+    # Fetch the content of the specified JSON file from MinIO
+    try:
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Error fetching file {filename}: {str(e)}",
+            http_status_code=404,
+        )
+
+    if data is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"File {filename} not found.",
+            http_status_code=404,
+        )
+
+    file_content = ""
+    for chunk in data.stream(32 * 1024):
+        file_content += chunk.decode('utf-8')
+
+    try:
+        # Load the existing content and update it
+        content_dict = json.loads(file_content)
+        content_dict["flagged"] = update_data.flagged
+        content_dict["flagged_by_user"] = update_data.flagged_by_user
+        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+
+        # Save the modified file back to MinIO
+        updated_content = json.dumps(content_dict, indent=2)
+        updated_data = io.BytesIO(updated_content.encode('utf-8'))
+        request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Failed to update file {filename}: {str(e)}",
+            http_status_code=500,
+        )
+
+    # Update the document in MongoDB
+    query = {"file_name": filename}
+    update = {"$set": {
+        "flagged": update_data.flagged,
+        "flagged_by_user": update_data.flagged_by_user,
+        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+    }}
+    updated_document = request.app.ranking_datapoints_collection.find_one_and_update(
+        query, update, return_document=ReturnDocument.AFTER
+    )
+
+    if updated_document is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Document with filename {filename} not found in MongoDB.",
+            http_status_code=404,
+        )
+    
+    if '_id' in updated_document:
+        updated_document['_id'] = str(updated_document['_id'])
+
+    return response_handler.create_success_response_v1(
+        response_data=updated_document,
+        http_status_code=200,
+    )        
+
+
+@router.get("/rank-training/read-ranking-datapoint", 
+            tags=['rank-training'], 
+            description = "read ranking datapoints",
+            response_model=StandardSuccessResponseV1[JsonContentResponse], 
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def read_ranking_datapoints(request: Request, rank_model_id: int, filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Construct the object name for ranking
+        object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+
+        # Fetch the content of the specified JSON file
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=404,
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        # Successfully return the content of the JSON file
+        return response_handler.create_success_response_v1(
+            response_data={"json_content":json.loads(file_content)},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )    
