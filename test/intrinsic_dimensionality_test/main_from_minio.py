@@ -118,9 +118,10 @@ class IntrinsicDimensionaltiyAnalysis:
             filtered_feature_data = torch.empty((0, feature_data.size(1)))
             # Add validation for nan and inf values
             for feature in feature_data:
+                feature = feature.reshape(1, -1)
                 if not (torch.isnan(feature).any() or torch.isinf(feature).any()):
                     filtered_feature_data = torch.concat((filtered_feature_data,
-                                                         feature.unsqueeze(0)), dim=0)
+                                                         feature), dim=0)
             
             # Assign the filtered_feature_data into feature_data
             feature_data = filtered_feature_data
