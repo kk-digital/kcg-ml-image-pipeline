@@ -144,7 +144,9 @@ class IntrinsicDimensionaltiyAnalysis:
 
                         dimension_by_twonn_torch, twonn_pytorch_elapsed_time, twonn_torch_error = \
                             measure_running_time(twonn_pytorch, data, return_xy=False)
-                        
+                        print('dimension_by_mle', dimension_by_mle)
+                        print('dimension_by_twonn_numpy', dimension_by_twonn_numpy)
+
                         result.append({
                             "Dataset": self.dataset,
                             "Dataset type": "clip-vector-1280" if data_type == "clip" else "VAE",
