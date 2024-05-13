@@ -123,7 +123,7 @@ class IntrinsicDimensionaltiyAnalysis:
             for feature in feature_data:
                 if not (torch.isnan(feature).any() or torch.isinf(feature).any()):
                     filtered_feature_data = torch.concat((filtered_feature_data,
-                                                         feature), dim=0)
+                                                         feature.unsqueeze(0)), dim=0)
             
             # Assign the filtered_feature_data into feature_data
             feature_data = filtered_feature_data
