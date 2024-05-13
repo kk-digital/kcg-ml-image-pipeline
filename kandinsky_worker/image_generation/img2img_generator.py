@@ -42,8 +42,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "image_width": 512,
         "image_height": 512,
         "decoder_steps": 100,
-        "prior_guidance_scale": prior_guidance_scale,
-        "decoder_guidance_scale": decoder_guidance_scale,
+        # "prior_guidance_scale": prior_guidance_scale,
+        # "decoder_guidance_scale": decoder_guidance_scale,
         "self_training": self_training
     }
 
