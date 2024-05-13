@@ -4,7 +4,7 @@ import torch
 import argparse
 
 base_dir = './'
-sys.path.insert(0, base_dir)
+sys.path.insert(base_dir)
 
 from data_loader.utils import get_object
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
@@ -42,9 +42,9 @@ def main():
                                         minio_secret_key=args.minio_secret_key)
 
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
-    print(mean_vector.tolist())
+
     response= generate_img2img_generation_jobs_with_kandinsky(
-        image_embedding=mean_vector,
+        image_embedding=mean_vector.unsqueeze(0),
         negative_image_embedding=None,
         dataset_name="test-generations",
         prompt_generation_policy='test-equality-on-different-cfg-scales',
