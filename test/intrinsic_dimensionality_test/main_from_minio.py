@@ -115,10 +115,12 @@ class IntrinsicDimensionaltiyAnalysis:
                 return result
             
             feature_data = torch.tensor(feature_data, dtype=torch.float32).squeeze()
+
+            feature_data = feature.shape(feature_data.size(0), -1)
+
             filtered_feature_data = torch.empty((0, feature_data.size(1)))
             # Add validation for nan and inf values
             for feature in feature_data:
-                feature = feature.reshape(1, -1)
                 if not (torch.isnan(feature).any() or torch.isinf(feature).any()):
                     filtered_feature_data = torch.concat((filtered_feature_data,
                                                          feature), dim=0)
@@ -130,10 +132,6 @@ class IntrinsicDimensionaltiyAnalysis:
                 try:
                     # get specific count of data for gettting intrinsic dimension
                     data = feature_data[:count]
-
-                    # wrangle the latent vector [1, 4, 64, 64]
-                    if data_type == "vae":
-                        data = data.reshape((data.size(0), -1))
                     
                     if self.library == Library.INTRINSIC_DIMENSION.value:
                         print("Dimension", data.size())
