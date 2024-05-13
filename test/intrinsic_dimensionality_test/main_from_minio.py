@@ -116,7 +116,7 @@ class IntrinsicDimensionaltiyAnalysis:
             
             feature_data = torch.tensor(feature_data, dtype=torch.float32).squeeze()
 
-            feature_data = feature.shape(feature_data.size(0), -1)
+            feature_data = feature_data.shape(feature_data.size(0), -1)
 
             filtered_feature_data = torch.empty((0, feature_data.size(1)))
             # Add validation for nan and inf values
