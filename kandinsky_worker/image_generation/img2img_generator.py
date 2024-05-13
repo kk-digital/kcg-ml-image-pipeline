@@ -19,7 +19,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                                     prompt_generation_policy,
                                                     self_training= False,
                                                     init_img_path="./test/test_inpainting/white_512x512.jpg",
-                                                    decoder_guidance_scale=12):
+                                                    decoder_guidance_scale=12,
+                                                    prior_guidance_scale=12):
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
@@ -41,6 +42,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "image_width": 512,
         "image_height": 512,
         "decoder_steps": 100,
+        "prior_guidance_scale": prior_guidance_scale,
         "decoder_guidance_scale": decoder_guidance_scale,
         "self_training": self_training
     }

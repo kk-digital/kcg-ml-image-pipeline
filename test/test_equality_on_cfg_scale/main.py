@@ -17,7 +17,8 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, default='environmental')
-    parser.add_argument('--cfg-scale', type=int, default=0)
+    parser.add_argument('--prior-cfg-scale', type=int, default=1)
+    parser.add_argument('--decoder-cfg-scale', type=int, default=1)
 
     return parser.parse_args()
 
@@ -48,7 +49,8 @@ def main():
         negative_image_embedding=None,
         dataset_name="test-generations",
         prompt_generation_policy='test-equality-on-different-cfg-scales',
-        decoder_guidance_scale=0,
+        decoder_guidance_scale=1,
+        prior_guidance_scale=1,
         self_training=True
     )
 
