@@ -114,7 +114,7 @@ class IntrinsicDimensionaltiyAnalysis:
                 print("Error loading feature data from {} dataset".format(self.dataset))
                 return result
             
-            feature_data = torch.tensor(feature_data).squeeze()
+            feature_data = torch.tensor(feature_data, dtype=torch.float32).squeeze()
             filtered_feature_data = torch.empty((0, feature_data.size(1)))
             # Add validation for nan and inf values
             for feature in feature_data:
