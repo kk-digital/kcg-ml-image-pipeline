@@ -141,10 +141,14 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     seed = random.randint(0, 2 ** 24 - 1)
 
     generation_task.task_input_dict["seed"] = seed
+    if generation_task.task_input_dict.get("vae_latent_policy") is not None:
+        init_image = \
+            get_init_image(worker_state.minio_client, 
+                           generation_task.task_input_dict["vae_latent_policy"] , 
+                           generation_task.task_input_dict["init_img"])
+    else:
+        init_image = Image.open(generation_task.task_input_dict["init_img"])
 
-    init_image = \
-        get_init_image(worker_state.minio_client, generation_task.task_input_dict["vae_latent_policy"] ,generation_task.task_input_dict["init_img"])
-    
     if init_image is None:
         return
 
@@ -210,9 +214,14 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
 
     generation_task.task_input_dict["seed"] = seed
 
-    init_image = \
-        get_init_image(worker_state.minio_client, generation_task.task_input_dict["vae_latent_policy"] ,generation_task.task_input_dict["init_img"])
-    
+    if generation_task.task_input_dict.get("vae_latent_policy") is not None:
+        init_image = \
+            get_init_image(worker_state.minio_client, 
+                           generation_task.task_input_dict["vae_latent_policy"] , 
+                           generation_task.task_input_dict["init_img"])
+    else:
+        init_image = Image.open(generation_task.task_input_dict["init_img"])
+
     if init_image is None:
         return
 
