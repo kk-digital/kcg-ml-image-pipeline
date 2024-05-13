@@ -19,15 +19,15 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
     return True
 
 @router.post("/image-scores/residuals/set-image-rank-residual",
-             tags = ["residual"],
+             tags = ["image scores"],
              status_code=201,
              description="Sets the rank residual of an image. The score can only be set one time per image/model combination",
              response_model=StandardSuccessResponseV1[RankingResidual],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.post("/residual/image-rank-residual",
-             tags = ["residual"],
+             tags = ["deprecated2"],
              status_code=201,
-             description="Sets the rank residual of an image. The score can only be set one time per image/model combination",
+             description="depreacted: use /image-scores/residuals/set-image-rank-residual ",
              response_model=StandardSuccessResponseV1[ResponseRankingResidual],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
@@ -65,13 +65,13 @@ def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id:
 
 @router.get("/image-scores/residuals/get-image-rank-residual", 
             description="Get image rank residual by hash",
-            tags = ["residual"],
+            tags = ["image scores"],
             status_code=200,
             response_model=StandardSuccessResponseV1[RankingResidual],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.get("/residual/image-rank-residual-by-hash", 
-            description="Get image rank residual by hash",
-            tags = ["residual"],
+            description="deprecated: use /image-scores/residuals/get-image-rank-residual ",
+            tags = ["deprecated2"],
             status_code=200,
             response_model=StandardSuccessResponseV1[RankingResidual],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -113,13 +113,13 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
 
 @router.get("/image-scores/residuals/list-image-rank-residuals-by-model-id",
             description="Get image rank residuals by model id. Returns as descending order of residual",
-            tags = ["residual"],
+            tags = ["image scores"],
             status_code=200,
             response_model=StandardSuccessResponseV1[ResponseRankingResidual],
             responses=ApiResponseHandlerV1.listErrors([422]))
 @router.get("/residual/image-rank-residuals-by-model-id",
-            description="Get image rank residuals by model id. Returns as descending order of residual",
-            tags = ["residual"],
+            description="deprecated: use /image-scores/residuals/list-image-rank-residuals-by-model-id ",
+            tags = ["deprecated2"],
             status_code=200,
             response_model=StandardSuccessResponseV1[RankingResidual],
             responses=ApiResponseHandlerV1.listErrors([422]))
@@ -149,13 +149,13 @@ def delete_image_rank_residuals_by_model_id(request: Request, model_id: int):
 
 @router.delete("/image-scores/residuals/delete-all-image-rank-residuals-by-model-id", 
                description="Delete all image rank residuals by model id.",
-               tags = ["residual"],
+               tags = ["image scores"],
                status_code=200,
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 @router.delete("/residual/image-rank-residuals-by-model-id", 
-               description="Delete all image rank residuals by model id.",
-               tags = ["residual"],
+               description="deprecated: use /image-scores/residuals/delete-all-image-rank-residuals-by-model-id",
+               tags = ["deprecated2"],
                status_code=200,
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))

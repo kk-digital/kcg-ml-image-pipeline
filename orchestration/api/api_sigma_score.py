@@ -69,13 +69,13 @@ def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
 @router.post("/image-scores/sigma-scores/set-image-rank-sigma-score",
              status_code=201,  
              description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
-             tags=["sigma score"],
+             tags=["image scores"],
              response_model=StandardSuccessResponseV1[RankingSigmaScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 @router.post("/sigma-score/image-rank-sigma-score",
              status_code=201,  
-             description="Sets the rank sigma_score of an image. The score can only be set one time per image/model combination",
-             tags=["sigma score"],
+             description="deprecated: use /image-scores/sigma-scores/set-image-rank-sigma-score",
+             tags=["deprecated2"],
              response_model=StandardSuccessResponseV1[RankingSigmaScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSigmaScore):
@@ -100,13 +100,13 @@ def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSig
 @router.get("/image-scores/sigma-scores/get-image-rank-sigma-score", 
             status_code=200,
             description="Get image rank sigma_score by hash",
-            tags=["sigma score"],
+            tags=["image scores"],
             response_model=StandardSuccessResponseV1[RankingSigmaScore],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-score-by-hash", 
             status_code=200,
-            description="Get image rank sigma_score by hash",
-            tags=["sigma score"],
+            description="deprecated: use /image-scores/sigma-scores/get-image-rank-sigma-score ",
+            tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[RankingSigmaScore],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_id: int):
@@ -129,13 +129,13 @@ def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_
 
 @router.get("/image-scores/sigma-scores/list-image-rank-sigma-scores-by-model-id",
             response_model=StandardSuccessResponseV1[ResponseRankingSigmaScore],
-            tags=["sigma score"],
+            tags=["image scores"],
             description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 @router.get("/sigma-score/image-rank-sigma-scores-by-model-id",
             response_model=StandardSuccessResponseV1[ResponseRankingSigmaScore],
-            tags=["sigma score"],
-            description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores",
+            tags=["deprecated2"],
+            description="deprecated: use /image-scores/sigma-scores/list-image-rank-sigma-scores-by-model-id ",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     response_handler = ApiResponseHandlerV1(request)
@@ -154,11 +154,13 @@ def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
 
 
 @router.delete("/image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id",
-               tags=["sigma score"],
+               tags=["image scores"],
+               description="remove all rank sigma scores by model id",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]))
 @router.delete("/sigma-score/image-rank-sigma-scores-by-model-id",
-               tags=["sigma score"],
+               tags=["deprecated2"],
+               description="deprecated: use /image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id ",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([404, 422]))
 def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
