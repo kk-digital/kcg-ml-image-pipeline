@@ -130,7 +130,7 @@ def add_image_pair(request: Request, job_uuid_1: str = Query(...), job_uuid_2: s
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{policy_string}_{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"ranks/{combined_job_details['rank_model_id']}/data/ranking/{json_file_name}"
+    full_path = f"ranks/{combined_job_details['rank_model_id']}/active_learning_queue/{json_file_name}"
 
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
@@ -192,7 +192,7 @@ async def delete_image_rank_data_point(request: Request, file_name: str = Query(
             )
         
         # Construct the full path of the file in MinIO
-        full_path = f"ranks/{document['rank_model_id']}/data/ranking/{file_name}"
+        full_path = f"ranks/{document['rank_model_id']}/active_learning_queue/{file_name}"
         
         # Delete the file from MinIO
         try:
