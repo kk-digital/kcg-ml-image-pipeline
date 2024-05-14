@@ -50,7 +50,7 @@ def main():
 
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
 
-    with open(get_fname, 'w', newline='') as f:
+    with open(get_fname(), 'w', newline='') as f:
         csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
         csv_writer.writeheader()
 
