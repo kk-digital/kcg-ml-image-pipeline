@@ -5,12 +5,14 @@ import argparse
 import csv
 from datetime import datetime
 from tqdm import tqdm
+from PIL import Image
 
 base_dir = './'
 sys.path.insert(0, base_dir)
 
 from data_loader.utils import get_object
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
+from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
 
 
@@ -22,6 +24,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='environmental')
     parser.add_argument('--prior-cfg-scale', type=int, default=1)
     parser.add_argument('--decoder-cfg-scale', type=int, default=1)
+    parser.add_argument('--image-path', type=int, default=None)
 
     return parser.parse_args()
 
@@ -39,6 +42,13 @@ def get_clip_distribution(minio_client, dataset):
 
     return mean_vector, std_vector, max_vector, min_vector
 
+def get_clip_vector_from_image(path):
+    image = Image.open(path)
+    image = image.resize((512, 512))
+    encoder = KandinskyCLIPImageEncoder(device= 'cuda' if torch.cuda.is_available() else 'cpu')
+    clip_vector = encoder.get_image_features(image)
+    return clip_vector
+
 def get_fname():
     return f"output/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}_result_on_diff_cfg_scale.csv"
 
@@ -47,9 +57,11 @@ def main():
     args = parse_args()
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key, 
                                         minio_secret_key=args.minio_secret_key)
-
-    mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
-
+    if args.image_path is None:
+        clip_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
+    else:
+        clip_vector = get_clip_vector_from_image(args.image_path)
+        
     with open(get_fname(), 'w', newline='') as f:
         csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
         csv_writer.writeheader()
@@ -57,7 +69,7 @@ def main():
         for task_cfg_scale in tqdm(range(20), total=20):
             try:
                 response= generate_img2img_generation_jobs_with_kandinsky(
-                    image_embedding=mean_vector.unsqueeze(0),
+                    image_embedding=clip_vector.unsqueeze(0),
                     negative_image_embedding=None,
                     dataset_name="test-generations",
                     prompt_generation_policy='test-equality-on-different-cfg-scales',
