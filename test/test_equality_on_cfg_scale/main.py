@@ -67,10 +67,13 @@ def main():
                 task_uuid = response['uuid']
                 task_creation_time = response['creation_time']
             except Exception as e:
-                print("An error occured at {} cfg scale".format(i))
+                print("An error occured at {} cfg scale".format(task_cfg_scale))
                 task_uuid = -1
                 task_creation_time = -1
-            csv_writer.writerow([task_uuid, task_cfg_scale, task_creation_time])
+
+            csv_writer.writerow({'task_uuid': task_uuid, 
+                                 'task_cfg_scale': task_cfg_scale, 
+                                 'task_creation_time': task_creation_time})
 
     print('Successfully generated jobs')
 
