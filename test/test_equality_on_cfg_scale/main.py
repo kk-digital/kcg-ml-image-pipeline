@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='environmental')
     parser.add_argument('--prior-cfg-scale', type=int, default=1)
     parser.add_argument('--decoder-cfg-scale', type=int, default=1)
-    parser.add_argument('--image-path', type=int, default=None)
+    parser.add_argument('--image-path', type=str, default=None)
 
     return parser.parse_args()
 
@@ -61,7 +61,7 @@ def main():
         clip_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
     else:
         clip_vector = get_clip_vector_from_image(args.image_path)
-        
+
     with open(get_fname(), 'w', newline='') as f:
         csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
         csv_writer.writeheader()
