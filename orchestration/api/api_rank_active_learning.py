@@ -624,3 +624,49 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
             error_string="Internal Server Error",
             http_status_code=500,
         )    
+
+
+@router.post("/rank-active-learning-queue/add-irrelevant-image",
+             description="Adds an image UUID to the irrelevant images collection if it exists in the rank active learning pairs collection.",
+             status_code=200,
+             response_model=StandardSuccessResponseV1,
+             tags=["Rank Active Learning"],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def add_irrelevant_image(request: Request, filename: str = Query(...), image_uuid: str = Query(...)):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    # Check if the image UUID exists in the rank_active_learning_pairs_collection
+    existing_image = request.app.rank_active_learning_pairs_collection.find_one({
+        "file_name": filename,
+        "images_data.job_uuid_1": image_uuid
+    }) or request.app.rank_active_learning_pairs_collection.find_one({
+        "file_name": filename,
+        "images_data.job_uuid_2": image_uuid
+    })
+
+    if not existing_image:
+        return api_response_handler.create_error_response_v1(
+            error_code=404,
+            error_string=f"Image UUID {image_uuid} not found in the rank active learning pairs collection",
+            http_status_code=404
+        )
+
+    # Extract relevant details from the existing image data
+    image_data = None
+    for job_data in existing_image['images_data']:
+        if job_data.get('job_uuid_1') == image_uuid or job_data.get('job_uuid_2') == image_uuid:
+            image_data = {
+                "uuid": image_uuid,
+                "hash": job_data.get('image_hash_1') if job_data.get('job_uuid_1') == image_uuid else job_data.get('image_hash_2'),
+                "path": job_data.get('image_path_1') if job_data.get('job_uuid_1') == image_uuid else job_data.get('image_path_2'),
+                "creation_time": job_data.get('job_creation_time_1') if job_data.get('job_uuid_1') == image_uuid else job_data.get('job_creation_time_2')
+            }
+            break
+
+    # Insert the UUID data into the irrelevant_images_collection
+    request.app.irrelevant_images_collection.insert_one(image_data)
+    
+    return api_response_handler.create_success_response_v1(
+        response_data=image_data,
+        http_status_code=200
+    )      
