@@ -162,6 +162,7 @@ cython_debug/
 # Ignore output
 /output
 /download
+/test/output
 
 # Ignore input/model
 # /input/model
