@@ -2,6 +2,8 @@ import sys
 import msgpack
 import torch
 import argparse
+import pandas as pd
+from datetime import datetime
 
 base_dir = './'
 sys.path.insert(0, base_dir)
@@ -36,6 +38,9 @@ def get_clip_distribution(minio_client, dataset):
 
     return mean_vector, std_vector, max_vector, min_vector
 
+def get_fname():
+    return f"output/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}_result_on_diff_cfg_scale.csv"
+
 def main():
 
     args = parse_args()
@@ -43,16 +48,29 @@ def main():
                                         minio_secret_key=args.minio_secret_key)
 
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
-    print(mean_vector.cpu().numpy().tolist())
-    response= generate_img2img_generation_jobs_with_kandinsky(
-        image_embedding=mean_vector.unsqueeze(0),
-        negative_image_embedding=None,
-        dataset_name="test-generations",
-        prompt_generation_policy='test-equality-on-different-cfg-scales',
-        decoder_guidance_scale=args.decoder_cfg_scale,
-        prior_guidance_scale=args.prior_cfg_scale,
-        self_training=True
-    )
+
+    task_uuid_df = pd.DataFrame(columns=['task_uuid', 'task_creation_time'])
+
+    for i in range(20):
+        try:
+            response= generate_img2img_generation_jobs_with_kandinsky(
+                image_embedding=mean_vector.unsqueeze(0),
+                negative_image_embedding=None,
+                dataset_name="test-generations",
+                prompt_generation_policy='test-equality-on-different-cfg-scales',
+                decoder_guidance_scale=i,
+                self_training=True
+            )
+            task_uuid = response['uuid']
+            task_creation_time = response['creation_time']
+        except Exception as e:
+            print("An error occured at {} cfg scale".format(i))
+            task_uuid = -1
+            task_creation_time = -1
+
+        task_uuid_df = task_uuid_df.append({'task_uuid': task_uuid, 'task_cfg_scale': i, 'task_creation_time': task_creation_time}, ignore_index=True)
+
+    task_uuid_df.to_dict(get_fname())
 
     print('Successfully generated jobs')
 
