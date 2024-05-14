@@ -45,6 +45,7 @@ def get_clip_distribution(minio_client, dataset):
 def get_clip_vector_from_image(path):
     image = Image.open(path)
     image = image.resize((512, 512))
+    image = image.convert("RGB")
     encoder = KandinskyCLIPImageEncoder(device= 'cuda' if torch.cuda.is_available() else 'cpu')
     clip_vector = encoder.get_image_features(image)
     return clip_vector
