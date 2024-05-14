@@ -2,7 +2,7 @@ import sys
 import msgpack
 import torch
 import argparse
-import pandas as pd
+import csv
 from datetime import datetime
 
 base_dir = './'
@@ -49,28 +49,27 @@ def main():
 
     mean_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
 
-    task_uuid_df = pd.DataFrame(columns=['task_uuid', 'task_creation_time'])
+    with open(get_fname, 'w', newline='') as f:
+        csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
+        csv_writer.writeheader()
 
-    for i in range(20):
-        try:
-            response= generate_img2img_generation_jobs_with_kandinsky(
-                image_embedding=mean_vector.unsqueeze(0),
-                negative_image_embedding=None,
-                dataset_name="test-generations",
-                prompt_generation_policy='test-equality-on-different-cfg-scales',
-                decoder_guidance_scale=i,
-                self_training=True
-            )
-            task_uuid = response['uuid']
-            task_creation_time = response['creation_time']
-        except Exception as e:
-            print("An error occured at {} cfg scale".format(i))
-            task_uuid = -1
-            task_creation_time = -1
-
-        task_uuid_df = task_uuid_df.append({'task_uuid': task_uuid, 'task_cfg_scale': i, 'task_creation_time': task_creation_time}, ignore_index=True)
-
-    task_uuid_df.to_dict(get_fname())
+        for task_cfg_scale in range(20):
+            try:
+                response= generate_img2img_generation_jobs_with_kandinsky(
+                    image_embedding=mean_vector.unsqueeze(0),
+                    negative_image_embedding=None,
+                    dataset_name="test-generations",
+                    prompt_generation_policy='test-equality-on-different-cfg-scales',
+                    decoder_guidance_scale=task_cfg_scale,
+                    self_training=True
+                )
+                task_uuid = response['uuid']
+                task_creation_time = response['creation_time']
+            except Exception as e:
+                print("An error occured at {} cfg scale".format(i))
+                task_uuid = -1
+                task_creation_time = -1
+            csv_writer.writerow([task_uuid, task_cfg_scale, task_creation_time])
 
     print('Successfully generated jobs')
 
