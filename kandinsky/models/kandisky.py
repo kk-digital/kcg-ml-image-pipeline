@@ -225,6 +225,9 @@ class KandinskyPipeline:
         if negative_image_embeds==None:
             negative_image_embeds= self.get_zero_embed()
         
+        image_embeds = image_embeds.type(self.decoder.dtype)
+        negative_image_embeds = negative_image_embeds.type(self.decoder.dtype)
+
         with torch.no_grad():
             if seed:
                 generator=torch.Generator(device=self.device).manual_seed(seed)
