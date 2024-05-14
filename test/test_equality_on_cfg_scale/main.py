@@ -4,6 +4,7 @@ import torch
 import argparse
 import csv
 from datetime import datetime
+from tqdm import tqdm
 
 base_dir = './'
 sys.path.insert(0, base_dir)
@@ -53,7 +54,7 @@ def main():
         csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
         csv_writer.writeheader()
 
-        for task_cfg_scale in range(20):
+        for task_cfg_scale in tqdm(range(20), total=20):
             try:
                 response= generate_img2img_generation_jobs_with_kandinsky(
                     image_embedding=mean_vector.unsqueeze(0),
