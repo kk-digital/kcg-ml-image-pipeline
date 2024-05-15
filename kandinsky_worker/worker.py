@@ -78,10 +78,12 @@ def get_init_image(minio_client, vae_latent_policy, init_image_path):
 def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
+    
+    if generation_task.generation_task["seed"] == "" or generation_task.generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
 
-    generation_task.task_input_dict["seed"] = seed
+    generation_task.generation_task["seed"] = seed
     positive_prompt = generation_task.task_input_dict["positive_prompt"]
     negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
     negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
@@ -136,11 +138,13 @@ def run_image_generation_task(worker_state, generation_task):
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
+    if generation_task.generation_task["seed"] == "" or generation_task.generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
 
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
-
-    generation_task.task_input_dict["seed"] = seed
     if generation_task.task_input_dict.get("vae_latent_policy") is not None:
         init_image = \
             get_init_image(worker_state.minio_client, 
@@ -209,10 +213,13 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
 def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
-
-    generation_task.task_input_dict["seed"] = seed
+    if generation_task.generation_task["seed"] == "" or generation_task.generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
+    
 
     if generation_task.task_input_dict.get("vae_latent_policy") is not None:
         init_image = \
