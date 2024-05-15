@@ -72,7 +72,7 @@ def main():
 
         for _ in range(20):
 
-            seed = random.seed(time.time())
+            random.seed(time.time())
             seed = random.randint(0, 2 ** 24 - 1)
 
             for task_cfg_scale in tqdm(range(20), total=20):
