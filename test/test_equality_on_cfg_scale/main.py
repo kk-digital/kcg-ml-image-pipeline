@@ -49,6 +49,7 @@ def get_clip_vector_from_image(path):
     image = image.resize((512, 512))
     image = image.convert("RGB")
     encoder = KandinskyCLIPImageEncoder(device= 'cuda' if torch.cuda.is_available() else 'cpu')
+    encoder.load_submodels()
     clip_vector = encoder.get_image_features(image)
     return clip_vector
 
