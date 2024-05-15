@@ -60,7 +60,7 @@ def warning(thread_state, message):
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    if generation_task.generation_task["seed"] == "" or generation_task.generation_task["seed"] is None:
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
         generation_task.task_input_dict["seed"] = seed
@@ -148,7 +148,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
 def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    if generation_task.generation_task["seed"] == "" or generation_task.generation_task["seed"] is None:
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
         generation_task.task_input_dict["seed"] = seed
