@@ -6,7 +6,6 @@ import pandas as pd
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--col', default=2, type=int)
     parser.add_argument('--path', default=None, type=str, help='Path of csv for downloaded image data')
 
     return parser.parse_args() 
@@ -18,26 +17,46 @@ def main():
         return
     
     try:
-        pd.read_csv(args.path)
+        downloaded_image_data = pd.read_csv(args.path)
     except Exception as e:
         print(e)
         return
 
-    col = args.col
+    cfg_scales = downloaded_image_data['task_cfg_scale'].unique()
+    seeds = downloaded_image_data['task_seed'].unique()
 
-    fig, ax = plt.subplots(len(image_paths) // col, col, figsize=(10,10))
+    len_cfg_scales = len(cfg_scales)
+    len_seeds = len(seeds)
 
-    for i in range(len(image_paths) // col * col):
-        ax[i // col, i % col].axis('off')
+    cfg_scale_to_index = {}
+    seed_to_index = {}
 
-    for index, image_path in enumerate(image_paths):
+    for index, cfg_scale in enumerate(cfg_scales):
+        cfg_scale_to_index[cfg_scale] = index
+    for index, seed in enumerate(seeds):
+        seed_to_index[seed] = index
+
+    fig, ax = plt.subplots(len_cfg_scales, len_seeds, figsize=(len_cfg_scales * len_seeds, len_cfg_scales * len_seeds))
+
+    for i in range(len_cfg_scales):
+        for j in range(len_seeds):
+            ax[i, j].axis('off')
+
+    for i in range(len(downloaded_image_data)):
+        image_path = downloaded_image_data.loc(i)['downloaded_image_path']
+
+        cfg_scale = downloaded_image_data.loc(i)['task_cfg_scale']
+        seed = downloaded_image_data.loc(i)['task_seed']
+        
+        col = cfg_scale_to_index[downloaded_image_data.loc(i)['task_cfg_scale']]
+        row = seed_to_index[downloaded_image_data.loc(i)['task_seed']]
         if image_path is not None:
             image = plt.imread(image_path, format='jpg')
-            ax[index // col, index % col].imshow(image)
+            ax[row, col].imshow(image)
         else:
-            ax[index // col, index % col].text(0.5, 0.5, 'Failed', ha='center', va='center', fontsize=20)
-        ax[index // col, index % col].axis('off')
-        ax[index // col, index % col].set_title(f'cfg scale: {cfg_scales[index]}')
+            ax[row, col].text(0.5, 0.5, 'Failed', ha='center', va='center', fontsize=20)
+        ax[row, col].axis('off')
+        ax[row, col].set_title(f'cfg_scale: {cfg_scale_to_index} seed: {seed}', fontSize=8)
 
     plt.savefig('test/output/cfg_scale/result_on_cfg_scale.png', format='png')
     plt.show()
