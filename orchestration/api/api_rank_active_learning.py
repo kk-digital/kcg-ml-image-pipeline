@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection
+from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair
 from .mongo_schemas import FlaggedDataUpdate
@@ -513,13 +513,15 @@ async def count_ranking_data(request: Request,
 
 @router.put("/rank-training/update-ranking-datapoint", 
             tags=['rank-training'], 
-            response_model=StandardSuccessResponseV1[ResponseRankSelection],
+            response_model=StandardSuccessResponseV1[FlaggedResponse],
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
 async def update_ranking_datapoint(request: Request, rank_model_id: int, filename: str, update_data: FlaggedDataUpdate):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Construct the object name based on the dataset
     object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+
+    flagged_time = datetime.now().isoformat()
 
     # Fetch the content of the specified JSON file from MinIO
     try:
@@ -547,7 +549,7 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
         content_dict = json.loads(file_content)
         content_dict["flagged"] = update_data.flagged
         content_dict["flagged_by_user"] = update_data.flagged_by_user
-        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        content_dict["flagged_time"] = flagged_time
 
         # Save the modified file back to MinIO
         updated_content = json.dumps(content_dict, indent=2)
@@ -565,7 +567,7 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
     update = {"$set": {
         "flagged": update_data.flagged,
         "flagged_by_user": update_data.flagged_by_user,
-        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        "flagged_time": datetime.now().isoformat()
     }}
     updated_document = request.app.ranking_datapoints_collection.find_one_and_update(
         query, update, return_document=ReturnDocument.AFTER

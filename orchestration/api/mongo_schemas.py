@@ -192,13 +192,11 @@ class TrainingTask(BaseModel):
 class FlaggedDataUpdate(BaseModel):
     flagged: bool = Field(..., description="Indicates whether the data is flagged or not")
     flagged_by_user: str = Field(..., description="User who is flagging the data")
-    flagged_time: Optional[str] = None
 
     def to_dict(self):
         return {
             "flagged": self.flagged,
             "flagged_by_user": self.flagged_by_user,
-            "flagged_time": self.flagged_time
         }
 
 
