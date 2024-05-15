@@ -114,7 +114,8 @@ class IntrinsicDimensionaltiyAnalysis:
                 print("Error loading feature data from {} dataset".format(self.dataset))
                 return result
             
-            feature_data = torch.tensor(feature_data, dtype=torch.float32).squeeze()
+            feature_data = torch.tensor(feature_data, dtype=torch.float32)
+            feature_data.squeeze()
 
             feature_data = feature_data.reshape(feature_data.size(0), -1)
 
