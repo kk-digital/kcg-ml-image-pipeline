@@ -67,7 +67,7 @@ def main():
         clip_vector = get_clip_vector_from_image(args.image_path)
 
     with open(get_fname(), 'w', newline='') as f:
-        csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_creation_time'])
+        csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_seed','task_creation_time'])
         csv_writer.writeheader()
 
         for _ in range(20):
