@@ -1,23 +1,27 @@
 
 import matplotlib.pyplot as plt
-import os
 import argparse
-import json
+import pandas as pd
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--col', default=2, type=int)
-    parser.add_argument('--path', default='test/output/cfg_scale/task_cfg_scales.json', type=str)
+    parser.add_argument('--path', default=None, type=str, help='Path of csv for downloaded image data')
 
     return parser.parse_args() 
 def main():
     args = parse_args()
 
-    with open(args.path, 'r') as f:
-        cfg_scale_to_image_path = json.load(f)
-    cfg_scales = list(cfg_scale_to_image_path.keys())
-    image_paths = list(cfg_scale_to_image_path.values())
+    if args.path is None:
+        print('No path specified')
+        return
+    
+    try:
+        pd.read_csv(args.path)
+    except Exception as e:
+        print(e)
+        return
 
     col = args.col
 
