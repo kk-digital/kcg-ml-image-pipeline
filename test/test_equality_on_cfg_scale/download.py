@@ -4,7 +4,7 @@ import requests
 import argparse
 import tempfile
 import time
-import json
+import pandas as pd
 
 def str_to_bool(v):
     if isinstance(v, bool):
@@ -27,7 +27,7 @@ def get_output_file_path(uuid):
         print(f"Failed to fetch job details for UUID {uuid}. Status code: {response.status_code}")
         return None
 
-def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale):
+def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed):
     start_time = time.time()
 
     output_file_path = get_output_file_path(uuid)
@@ -36,7 +36,7 @@ def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale):
 
     filename, extension = os.path.splitext(output_file_path)
 
-    new_filename = f"cfg_scale_{task_cfg_scale}{extension}"
+    new_filename = f"cfg_scale_{task_cfg_scale}_seed_{seed}{extension}"
 
     full_local_path = os.path.join(output_path, new_filename)
 
@@ -69,30 +69,25 @@ def download_images_from_csv(csv_file_path, output_path):
         with open(downloaded_uuids_path, 'r') as downloaded_file:
             already_downloaded = set(line.strip() for line in downloaded_file)
 
-    if os.path.exists(os.path.join(output_path, 'task_cfg_scales.json')):
-        with open(os.path.join(output_path, 'task_cfg_scales.json'), 'r') as config_file:
-            cfg_scale_to_image_path = json.load(config_file)
-    else:
-        cfg_scale_to_image_path = {}
-
     total_time = 0
     num_images_downloaded = 0
+    generated_images_data = pd.read_csv(csv_file_path)
 
-    with open(csv_file_path, mode='r', encoding='utf-8-sig') as file:
-        csv_reader = csv.DictReader(file)
-        for row in csv_reader:
-            uuid = row['task_uuid']
-            task_cfg_scale = row['task_cfg_scale']
-            if uuid not in already_downloaded:
-                time_taken, saved_image_path = download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale)
-                cfg_scale_to_image_path[task_cfg_scale] = saved_image_path
-                if time_taken:
-                    total_time += time_taken
-                    num_images_downloaded += 1
+    if 'downloaded_image_path' not in generated_images_data.columns:
+        generated_images_data['downloaded_image_path'] = None
+
+    for i in range(len(generated_images_data)):
+        uuid = generated_images_data.loc[i]['task_uuid']
+        task_cfg_scale = generated_images_data.loc[i]['task_cfg_scale']
+        seed = generated_images_data.loc[i]['task_seed']
+        
+        if uuid not in already_downloaded:
+            time_taken, saved_image_path = download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed)
+            generated_images_data.loc[i]['downloaded_image_path'] = saved_image_path
+            if time_taken:
+                total_time += time_taken
+                num_images_downloaded += 1
                     
-        with open(os.path.join(output_path, 'task_cfg_scales.json'), 'w+') as config_file:
-            json.dump(cfg_scale_to_image_path, config_file, indent=4)
-
     if num_images_downloaded > 0:
         avg_time_per_image = total_time / num_images_downloaded
         print(f"Total download time: {total_time:.2f} seconds")
