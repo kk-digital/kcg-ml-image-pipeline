@@ -657,3 +657,97 @@ def add_irrelevant_image(request: Request, image_uuid: str = Query(...)):
         response_data=image_data,
         http_status_code=200
     )    
+
+@router.get("/rank-training/list-ranking-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
+def list_selection_data_with_scores(
+    request: Request,
+    rank_model_id: int = Query(None),  # rank_model_id parameter for filtering
+    include_flagged: bool = Query(False),  # Parameter to include or exclude flagged documents
+    limit: int = Query(10, alias="limit"),
+    offset: int = Query(0, alias="offset"),  # Added for pagination
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    order: str = Query("asc")  # Parameter for sort order
+):
+    response_handler = ApiResponseHandlerV1(request)
+    
+    try:
+        # Connect to the MongoDB collections
+        ranking_collection = request.app.ranking_datapoints_collection
+        jobs_collection = request.app.completed_jobs_collection
+
+        # Build query filter based on dataset and ensure delta_score exists for the model_type
+        query_filter = {}
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if not include_flagged:
+            query_filter["flagged"] = {"$ne": True}
+
+
+        # Prepare sorting
+        sort_order = 1 if order == "asc" else -1
+        # Adjust sorting query for nested delta_score by model_type
+
+        # Fetch and sort data with pagination
+        cursor = ranking_collection.find(query_filter).skip(offset).limit(limit)
+
+
+        selection_data = []
+        doc_count = 0
+        for doc in cursor:
+            doc_count += 1
+            print(f"Processing document {doc['_id']}")
+            # Check if the document is flagged
+            is_flagged = doc.get("flagged", False)
+            selection_file_name = doc["file_name"]
+            selected_image_index = doc["selected_image_index"]
+            selected_image_hash = doc["selected_image_hash"]
+            selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
+            # Determine unselected image hash and path based on selected_image_index
+            if selected_image_index == 0:
+                unselected_image_hash = doc["image_2_metadata"]["file_hash"]
+                unselected_image_path = doc["image_2_metadata"]["file_path"]
+            else:
+                unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+                unselected_image_path = doc["image_1_metadata"]["file_path"]
+                
+            # Fetch scores from completed_jobs_collection for both images
+            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+
+            # Skip this job if task_attributes_dict is missing
+            if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
+                print(f"Skipping document {doc['_id']} due to missing job data or task_attributes_dict.")
+                continue
+
+            # Extract scores for both images
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+            
+            selection_data.append({
+                "selected_image": {
+                    "selected_image_path": selected_image_path,
+                    "selected_image_hash": selected_image_hash,
+                    "selected_image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "selected_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "unselected_image": {
+                    "unselected_image_path": unselected_image_path,
+                    "unselected_image_hash": unselected_image_hash,
+                    "unselected_image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "selection_datapoint_file_name": selection_file_name,
+                "delta_score": delta_score,
+                "flagged": is_flagged 
+            })
+            print(f"Finished processing document {doc['_id']}.")
+
+        print(f"Total documents processed: {doc_count}. Selection data count: {len(selection_data)}")    
+        return response_handler.create_success_response(
+            selection_data,
+            200
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))    
