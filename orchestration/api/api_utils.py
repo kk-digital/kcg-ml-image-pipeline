@@ -15,7 +15,11 @@ from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
+from typing import List, Union
 from urllib.parse import urlparse
+
+class DoneResponse(BaseModel):
+    Done: bool
 
 class DatasetResponse(BaseModel):
     datasets: List[str]
@@ -59,20 +63,31 @@ class ListFilePathResponse(BaseModel):
 
 class DatasetConfig(BaseModel):
     dataset_name: str
-    last_update: datetime
-    dataset_rate: str
-    relevance_model: str
-    ranking_model: str
-    hourly_limit: str
-    top_k: str
-    generation_policy: str
+    dataset_rate: Union[str, None] = None
+    relevance_model: Union[str, None] = None
+    ranking_model: Union[str, None] = None
+    hourly_limit: Union[int, None] = None
+    top_k: Union[int, None] = None
+    generation_policy: Union[str, None] = None
+    relevance_threshold: Union[int, None] = None
+
+class ResponseDatasetConfig(BaseModel):
+    dataset_name: Optional[str]
+    last_update: Optional[datetime]
+    dataset_rate: Optional[str]
+    relevance_model: Optional[str]
+    ranking_model: Optional[str]
+    hourly_limit: Optional[int]
+    top_k: Optional[int]
+    generation_policy: Optional[str]
+    relevance_threshold: Optional[int]    
 
 class RankinModelResponse(BaseModel):
     last_update: datetime
     ranking_model: str
 
 class ListDatasetConfig(BaseModel):
-    configs: List[DatasetConfig]
+    configs: List[ResponseDatasetConfig]
 
 class SingleModelResponse(BaseModel):
     model_name: str
@@ -117,6 +132,9 @@ class CountResponse(BaseModel):
 
 class RechableResponse(BaseModel):
     reachable: bool
+
+class ResponsePolicies(BaseModel):
+    generation_policies: List[str]
 
 class VectorIndexUpdateRequest(BaseModel):
     vector_index: int
@@ -446,4 +464,4 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
     
 
 class CountLastHour(BaseModel):
-    jobs_count_last_n_hour: dict
+    jobs_count: dict

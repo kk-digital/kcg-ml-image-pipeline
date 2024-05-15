@@ -3,6 +3,7 @@ from typing import List, Union, Optional, Dict
 import json
 import re
 from typing import Union, Tuple
+from datetime import datetime
 import bson
 
 class Task(BaseModel):
@@ -12,9 +13,9 @@ class Task(BaseModel):
     model_file_name: Union[str, None] = None
     model_file_path: Union[str, None] = None
     model_hash: Union[str, None] = None
-    task_creation_time: Union[str, None] = None
-    task_start_time: Union[str, None] = None
-    task_completion_time: Union[str, None] = None
+    task_creation_time: Union[datetime, None] = None
+    task_start_time: Union[datetime, None] = None
+    task_completion_time: Union[datetime, None] = None
     task_error_str: Union[str, None] = None
     task_input_dict: dict  # required
     task_input_file_dict: Union[dict, None] = None
@@ -22,6 +23,16 @@ class Task(BaseModel):
     task_attributes_dict: Union[dict, None] = {}
     prompt_generation_data: Union[dict, None] = {}
 
+    @validator('task_creation_time', 'task_start_time', 'task_completion_time', pre=True, always=True)
+    def default_datetime(cls, value):
+        return value or datetime.now()
+
+    @validator('task_creation_time', 'task_start_time', 'task_completion_time', pre=False)
+    def format_datetime(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+    
     def to_dict(self):
         return {
             "task_type": self.task_type,
@@ -239,6 +250,8 @@ class RankingScore(BaseModel):
             "score": self.score,
         }
     
+class ResponseRankingScore(BaseModel):
+    scores: List[RankingScore]  
 
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]
@@ -340,6 +353,9 @@ class ListClassifierScore(BaseModel):
 class ListClassifierScore1(BaseModel):
     images: List[ClassifierScoreV1]
 
+class ListClassifierScore2(BaseModel):
+    scores: List[ClassifierScoreV1]
+
 class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]
     classifier_id: int
@@ -357,6 +373,8 @@ class RankingSigmaScore(BaseModel):
             "sigma_score": self.sigma_score,
         }
 
+class ResponseRankingSigmaScore(BaseModel):
+    scores: List[RankingSigmaScore]
 
 class RankingResidual(BaseModel):
     model_id: int
@@ -370,6 +388,8 @@ class RankingResidual(BaseModel):
             "residual": self.residual,
         }
 
+class ResponseRankingResidual(BaseModel):
+    residuals: List[RankingResidual]
 
 class RankingPercentile(BaseModel):
     model_id: int
@@ -383,6 +403,9 @@ class RankingPercentile(BaseModel):
             "percentile": self.percentile,
         }
 
+class ResponseRankingPercentile(BaseModel):
+    percentiles: List[RankingPercentile]
+    
 class RankingResidualPercentile(BaseModel):
     model_id: int
     image_hash: str
@@ -503,4 +526,43 @@ class SigmaScoreResponse(BaseModel):
         }
 
 class ListSigmaScoreResponse(BaseModel):
-    job_info: List[SigmaScoreResponse]
+    dataset_name: str
+    jobs: List[SigmaScoreResponse]
+
+
+class RankActiveLearningPolicy(BaseModel):
+    rank_active_learning_policy_id: Union[int, None] = None 
+    rank_active_learning_policy: str
+    rank_active_learning_policy_description: str
+    creation_time: Union[str, None] = None 
+
+    def to_dict(self):
+        return{
+            "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
+            "rank_active_learning_policy": self.rank_active_learning_policy,
+            "rank_active_learning_policy_description": self.rank_active_learning_policy_description,
+            "creation_time": self.creation_time
+        }
+
+class ListRankActiveLearningPolicy(BaseModel):
+    policies: List[RankActiveLearningPolicy]
+
+class RequestRankActiveLearningPolicy(BaseModel):
+    rank_active_learning_policy: str
+    rank_active_learning_policy_description: str
+
+    def to_dict(self):
+        return{
+            "rank_active_learning_policy": self.rank_active_learning_policy,
+            "rank_active_learning_policy_description": self.rank_active_learning_policy_description,
+        }
+
+class Dataset(BaseModel):
+    dataset_name: str
+
+    def to_dict(self):
+        return{
+            "dataset_name": self.dataset_name
+        }    
+class ListDataset(BaseModel):
+    datasets: List[Dataset]   

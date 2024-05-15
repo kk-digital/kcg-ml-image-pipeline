@@ -581,3 +581,16 @@ def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None)
 
     except Exception as e:
         print('request exception ', e)
+
+
+def http_get_rank_model_list():
+    url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["ranks"]
+        
+    except Exception as e:
+        print('request exception', e)

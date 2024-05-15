@@ -2,42 +2,163 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListRankSelection
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse
+from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair
+from .mongo_schemas import FlaggedDataUpdate
 import os
-from fastapi.responses import JSONResponse
-from pymongo.collection import Collection
 from datetime import datetime, timezone
 from typing import List
 from io import BytesIO
 from bson import ObjectId
 from typing import Optional
+from pymongo import ReturnDocument
 import json
 from collections import OrderedDict
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection
+import io
 
 router = APIRouter()
 
 
-@router.get("/rank-active-learning-queue/list-rank-active-learning-pairs",
-            description="list active learning datapoints",
-            response_model=StandardSuccessResponseV1[ListRankSelection],
+@router.post("/rank-active-learning-queue/add-image-pair",
+             description="Adds a new image pair to the rank active ranking queue. If there is already a pair with the same images, rank and policy, no new entry is added to the queue.",
+             status_code=200,
+             response_model=StandardSuccessResponseV1[RankActiveLearningPair],
+             tags=["Rank Active Learning"],  
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def add_image_pair(request: Request, job_uuid_1: str = Query(...), job_uuid_2: str = Query(...), rank_active_learning_policy_id: int = Query(...), rank_model_id: int = Query(...), metadata: str = Query(None), generation_string: str = Query(None) ):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # Check if an entry with the same parameters already exists
+    existing_pair = request.app.rank_active_learning_pairs_collection.find_one({
+        "rank_model_id": rank_model_id,
+        "rank_active_learning_policy_id": rank_active_learning_policy_id,
+        "images_data.job_uuid_1": job_uuid_1,
+        "images_data.job_uuid_2": job_uuid_2
+    })
+
+    if existing_pair:
+        existing_pair.pop('_id', None)  # Remove MongoDB ObjectId from the response
+        return api_response_handler.create_success_response_v1(
+            response_data=existing_pair,
+            http_status_code=200
+        )
+
+    def extract_job_details(job_uuid, suffix):
+
+        job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+
+        output_file_path = job["task_output_file_dict"]["output_file_path"]
+        task_creation_time = job["task_creation_time"]
+        path_parts = output_file_path.split('/')
+        if len(path_parts) < 4:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Invalid output file path format",
+                http_status_code=422
+            )
+
+        return {
+            f"job_uuid_{suffix}": job_uuid,
+            f"file_name_{suffix}": path_parts[-1],
+            f"image_path_{suffix}": output_file_path,
+            f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
+            f"job_creation_time_{suffix}": task_creation_time,
+        }
+    
+    job_1 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_1})
+    if not job_1:
+        return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_1} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_1 = extract_job_details(job_uuid_1, "1")
+
+    job_2 = request.app.completed_jobs_collection.find_one({"uuid": job_uuid_2})
+    if not job_2:
+        return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job {job_uuid_2} not found",
+                http_status_code=404
+            )
+    else:
+        job_details_2 = extract_job_details(job_uuid_2, "2")
+
+
+    rank = request.app.rank_model_models_collection.find_one(
+        {"rank_model_id": rank_model_id}
+    )
+
+    if not rank:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Rank with ID {rank} not found",
+            http_status_code=404
+        )
+
+
+    policy = request.app.rank_active_learning_policies_collection.find_one(
+        {"rank_active_learning_policy_id": rank_active_learning_policy_id}
+    )
+    if not policy:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Active learning policy with ID {rank_active_learning_policy_id} not found",
+            http_status_code=404
+        )
+    
+    policy_string = policy.get("rank_active_learning_policy", "")
+
+    combined_job_details = {
+        "rank_model_id": rank_model_id,
+        "rank_active_learning_policy_id": rank_active_learning_policy_id,
+        "metadata": metadata,
+        "generation_string": generation_string,
+        "creation_date": datetime.utcnow().isoformat(),  # UTC time
+        "images_data": [job_details_1, job_details_2]
+    }
+
+    creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time_1"]).strftime("%Y-%m-%d")
+    creation_date_2 = datetime.fromisoformat(job_details_2["job_creation_time_2"]).strftime("%Y-%m-%d")
+
+    json_data = json.dumps([combined_job_details], indent=4).encode('utf-8')  # Note the list brackets around combined_job_details
+    data = BytesIO(json_data)
+
+    # Define the path for the JSON file
+    base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
+    base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
+    json_file_name = f"{policy_string}_{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
+    full_path = f"ranks/{combined_job_details['rank_model_id']}/active_learning_queue/{json_file_name}"
+
+    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+
+    mongo_combined_job_details = {"file_name": json_file_name, **combined_job_details}
+    request.app.rank_active_learning_pairs_collection.insert_one(mongo_combined_job_details)
+
+    mongo_combined_job_details.pop('_id', None)
+
+
+    return api_response_handler.create_success_response_v1(
+            response_data=mongo_combined_job_details,
+            http_status_code=200
+        )
+
+
+
+@router.get("/rank-active-learning-queue/list-image-pairs",
+            description="Lists all the rank active learning image pairs",
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-def get_image_rank_scores_by_model_id(request: Request):
+def list_image_pairs(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
     
     # check if exist
     items = list(request.app.rank_active_learning_pairs_collection.find({}))
-    
-    if not items:
-        # If no items found, use ApiResponseHandler to return a standardized error response
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="No scores found for specified model_id.",
-            http_status_code=400
-        )
     
     score_data = []
     for item in items:
@@ -47,12 +168,12 @@ def get_image_rank_scores_by_model_id(request: Request):
     
     # Return a standardized success response with the score data
     return api_response_handler.create_success_response_v1(
-        response_data=score_data,
+        response_data={"pairs": score_data},
         http_status_code=200
     )
 
-@router.delete("/rank-active-learning-queue/delete-rank-active-learning-datapoint",
-               description="Delete an image rank data point by file name",
+@router.delete("/rank-active-learning-queue/delete-image-pair",
+               description="Deletes an image pair from the rank active learning queue and removes the file from MinIO.",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                status_code=200,
                tags=["Rank Active Learning"],
@@ -61,51 +182,108 @@ async def delete_image_rank_data_point(request: Request, file_name: str = Query(
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
-        # Attempt to delete the document with the specified file_name
+        # Find the document to get the full path for deletion in MinIO
+        document = request.app.rank_active_learning_pairs_collection.find_one({"file_name": file_name})
+        
+        if not document:
+            return api_response_handler.create_success_response_v1(
+                response_data={"wasPresent": False}, 
+                http_status_code=200
+            )
+        
+        # Construct the full path of the file in MinIO
+        full_path = f"ranks/{document['rank_model_id']}/active_learning_queue/{file_name}"
+        
+        # Delete the file from MinIO
+        try:
+            request.app.minio_client.remove_object("datasets", full_path)
+            print(f"Deleted file from MinIO: {full_path}")
+        except Exception as minio_error:
+            print(f"Error deleting file from MinIO: {str(minio_error)}")
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=f"Failed to delete file from MinIO: {str(minio_error)}",
+                http_status_code=500
+            )
+
+        # Delete the document from MongoDB
         delete_result = request.app.rank_active_learning_pairs_collection.delete_one({"file_name": file_name})
         
         if delete_result.deleted_count == 0:
-            # If no documents were deleted, it means the file_name did not exist
             return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": False}, 
-            http_status_code=200
-        )
+                response_data={"wasPresent": False}, 
+                http_status_code=200
+            )
 
-        # If the document was deleted successfully, return a success message
         return api_response_handler.create_success_response_v1(
             response_data={"wasPresent": True}, 
             http_status_code=200
         )
     
     except Exception as e:
-        # Handle exceptions that may occur during database operation
+        print(f"Error during API execution: {str(e)}")
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
         )
 
-@router.get("/rank-active-learning-queue/get-random-queue-pair-from-mongo", 
-            description="list random rank active learning datapoints",
-            response_model=StandardSuccessResponseV1[ListRankSelection],
+    
+
+
+@router.get("/rank-active-learning-queue/count-image-pairs", 
+            response_model=StandardSuccessResponseV1[CountResponse],
+            status_code=200,
+            tags=["Rank Active Learning"],
+            description="Counts how many image pairs in the rank active learning queue for specified policy and model.",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_queue_pairs(request: Request, 
+                            policy_id: int = Query(None, description="Filter by the rank active learning policy ID"), 
+                            rank_model_id: int = Query(None, description="Filter by the rank model ID")):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Build the query based on the provided parameters
+        query = {}
+        if policy_id is not None:
+            query['rank_active_learning_policy_id'] = policy_id
+        if rank_model_id is not None:
+            query['rank_model_id'] = rank_model_id
+
+        # Count documents in the rank_active_learning_pairs_collection with the constructed query
+        count = request.app.rank_active_learning_pairs_collection.count_documents(query)
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"count": count},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        ) 
+
+
+
+@router.get("/rank-active-learning-queue/get-random-image-pair", 
+            description="Gets random image pairs from the rank active learning queue",
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, dataset: Optional[str] = None, active_learning_policy_id: Optional[int] = None):
+async def random_queue_pair(request: Request, rank_model_id : Optional[int] = None, size: int = 1, rank_active_learning_policy_id: Optional[int] = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         # Define the aggregation pipeline
         pipeline = []
 
-        # Filters based on dataset and active_learning_policy
         match_filter = {}
-        if rank_model_id:
+        if rank_model_id is not None:
             match_filter["rank_model_id"] = rank_model_id
-        if dataset:
-            match_filter["dataset"] = dataset
-        if active_learning_policy_id:
-            match_filter["active_learning_policy_id"] = active_learning_policy_id
+        if rank_active_learning_policy_id is not None:
+            match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
 
         if match_filter:
             pipeline.append({"$match": match_filter})
@@ -123,8 +301,8 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
             random_pairs.append(pair)
 
         return api_response_handler.create_success_response_v1(
-            response_data={"datapoints": random_pairs},
-            http_status_code=201
+            response_data={"pairs": random_pairs},
+            http_status_code=200
         )
 
     except Exception as e:
@@ -137,43 +315,40 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 
 
 
-@router.post("/rank-active-learning-queue/add-ranking-datapoint-to-queue", 
+
+@router.post("/rank-training/add-ranking-data-point", 
              status_code=201,
-             tags = ['Rank Active Learning'],
-             response_model=StandardSuccessResponseV1[RankSelection],
-             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-async def add_datapoint_to_queue(request: Request, selection: RankSelection):
+             tags=['rank-training'],
+             response_model=StandardSuccessResponseV1[ResponseRankSelection],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_datapoints(request: Request, selection: RankSelection):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
-
         rank = request.app.rank_model_models_collection.find_one(
-        {"rank_model_id": selection.rank_model_id}
+            {"rank_model_id": selection.rank_model_id}
         )
 
         if not rank:
             return api_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Rank with ID {rank} not found",
-                http_status_code=404
-            )
-        
-        policy = request.app.active_learning_policies_collection.find_one(
-        {"active_learning_policy_id": selection.active_learning_policy_id}
-    )
-        if not policy:
-            return api_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Active learning policy with ID {selection.active_learning_policy_id} not found",
+                error_string=f"Rank with ID {selection.rank_model_id} not found",
                 http_status_code=404
             )
 
+        policy = None
+        if selection.rank_active_learning_policy_id:
+            policy = request.app.rank_active_learning_policies_collection.find_one(
+                {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
+            )
+
+        # Extract policy details only if policy is not None
+        rank_active_learning_policy = policy.get("rank_active_learning_policy", None) if policy else None
 
         current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
         file_name = f"{current_time}-{selection.username}.json"
         dataset = selection.image_1_metadata.file_path.split('/')[1]
-        selection.datetime = current_time
-        rank_model_string = selection.rank_model_string
+        rank_model_string = rank.get("rank_model_string", None)
 
         dict_data = selection.to_dict()
 
@@ -181,38 +356,271 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
         mongo_data = OrderedDict([
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
-            ("dataset", dataset),
-            *dict_data.items()  # Unpack the rest of dict_data
+            *dict_data.items(),  # Unpack the rest of dict_data
+            ("datetime", current_time)
         ])
 
         # Insert the ordered data into MongoDB
-        request.app.rank_active_learning_pairs_collection.insert_one(mongo_data)
+        request.app.ranking_datapoints_collection.insert_one(mongo_data)
 
         # Prepare data for MinIO upload (excluding the '_id' field)
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        minio_data.pop("dataset")
-        path = f"data/rank/{rank_model_string}"
-        full_path = os.path.join(dataset, path, file_name)
+        path = f"ranks/{selection.rank_model_id}/data/ranking/aggregate"
+        full_path = os.path.join(path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
 
         # Upload data to MinIO
-        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+        try:
+            cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+            print(f"Uploaded successfully to MinIO: {full_path}")
+        except Exception as e:
+            print(f"Error uploading to MinIO: {str(e)}")
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=f"Failed to upload file to MinIO: {str(e)}",
+                http_status_code=500
+            )
 
- 
-
+        mongo_data.pop("_id")
         # Return a success response
         return api_handler.create_success_response_v1(
-            response_data=minio_data,
+            response_data=mongo_data,
             http_status_code=201
         )
 
     except Exception as e:
-
         return api_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
         )
+
+
+@router.get("/rank-training/list-ranking-datapoints",
+            description="Lists all the ranking datapoints",
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],
+            status_code=200,
+            tags=["rank-training"],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def list_ranking_datapoints(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    # check if exist
+    items = list(request.app.ranking_datapoints_collection.find({}))
+    
+    score_data = []
+    for item in items:
+        # remove the auto generated '_id' field
+        item.pop('_id', None)
+        score_data.append(item)
+    
+    # Return a standardized success response with the score data
+    return api_response_handler.create_success_response_v1(
+        response_data={"datapoints": score_data},
+        http_status_code=200
+    )
+
+@router.get("/rank-training/sort-ranking-data-by-date", 
+            description="Sort rank data by date",
+            tags=["rank-training"],
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v2(
+    request: Request,
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query_filter = {}
+        date_filter = {}
+
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
+
+
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+        cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            ranking_data.append(doc)
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": ranking_data}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        print("Error during API execution:", str(e))
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )  
+  
+    
+
+@router.get("/rank-training/count-ranking-data-points", 
+            description="Count ranking data points based on specific rank models or policies",
+            tags=["rank-training"],
+            response_model=StandardSuccessResponseV1[CountResponse],  
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_ranking_data(request: Request, 
+                             policy_id: int = Query(None, description="Filter by the rank active learning policy ID"), 
+                             rank_model_id: int = Query(None, description="Filter by the rank model ID")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Build the query based on the provided parameters
+        query = {}
+        if policy_id is not None:
+            query['rank_active_learning_policy_id'] = policy_id
+        if rank_model_id is not None:
+            query['rank_model_id'] = rank_model_id
+
+        # Get the count of documents in the ranking_datapoints_collection based on the constructed query
+        count = request.app.ranking_datapoints_collection.count_documents(query)
+
+        # Return the count with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"count": count}, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.put("/rank-training/update-ranking-datapoint", 
+            tags=['rank-training'], 
+            response_model=StandardSuccessResponseV1[ResponseRankSelection],
+            responses=ApiResponseHandlerV1.listErrors([404, 422]))
+async def update_ranking_datapoint(request: Request, rank_model_id: int, filename: str, update_data: FlaggedDataUpdate):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Construct the object name based on the dataset
+    object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+
+    # Fetch the content of the specified JSON file from MinIO
+    try:
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Error fetching file {filename}: {str(e)}",
+            http_status_code=404,
+        )
+
+    if data is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"File {filename} not found.",
+            http_status_code=404,
+        )
+
+    file_content = ""
+    for chunk in data.stream(32 * 1024):
+        file_content += chunk.decode('utf-8')
+
+    try:
+        # Load the existing content and update it
+        content_dict = json.loads(file_content)
+        content_dict["flagged"] = update_data.flagged
+        content_dict["flagged_by_user"] = update_data.flagged_by_user
+        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+
+        # Save the modified file back to MinIO
+        updated_content = json.dumps(content_dict, indent=2)
+        updated_data = io.BytesIO(updated_content.encode('utf-8'))
+        request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Failed to update file {filename}: {str(e)}",
+            http_status_code=500,
+        )
+
+    # Update the document in MongoDB
+    query = {"file_name": filename}
+    update = {"$set": {
+        "flagged": update_data.flagged,
+        "flagged_by_user": update_data.flagged_by_user,
+        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+    }}
+    updated_document = request.app.ranking_datapoints_collection.find_one_and_update(
+        query, update, return_document=ReturnDocument.AFTER
+    )
+
+    if updated_document is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Document with filename {filename} not found in MongoDB.",
+            http_status_code=404,
+        )
+    
+    if '_id' in updated_document:
+        updated_document['_id'] = str(updated_document['_id'])
+
+    return response_handler.create_success_response_v1(
+        response_data=updated_document,
+        http_status_code=200,
+    )        
+
+
+@router.get("/rank-training/read-ranking-datapoint", 
+            tags=['rank-training'], 
+            description = "read ranking datapoints",
+            response_model=StandardSuccessResponseV1[JsonContentResponse], 
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def read_ranking_datapoints(request: Request, rank_model_id: int, filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Construct the object name for ranking
+        object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+
+        # Fetch the content of the specified JSON file
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=404,
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        # Successfully return the content of the JSON file
+        return response_handler.create_success_response_v1(
+            response_data={"json_content":json.loads(file_content)},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )    

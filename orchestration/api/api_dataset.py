@@ -7,8 +7,8 @@ import json
 from datetime import datetime
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, StandardErrorResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse, SetRateResponse, ListFilePathResponse, RankinModelResponse, ListDatasetConfig, DatasetConfig, HourlyResponse, SetHourlyResponse, RateResponse, ResponseRelevanceModel
-from .mongo_schemas import FlaggedDataUpdate, RankingModel
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse
+from .mongo_schemas import FlaggedDataUpdate, RankingModel, Dataset, ListDataset
 from orchestration.api.mongo_schema.selection_schemas import ListRelevanceSelection, ListRankingSelection
 from pymongo import ReturnDocument
 router = APIRouter()
@@ -784,7 +784,21 @@ async def get_sequential_id_1(request: Request, dataset: str = Query(..., descri
     sequential_id_arr = []
 
     try:
+        # Check if dataset exists in the collection or object list
+        dataset_exists = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+        dataset_path = f"{dataset}"
+
+        if dataset_path not in dataset_exists:
+            # Return 422 error if dataset does not exist
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{dataset}' does not exist.",
+                http_status_code=422,
+            )
+
+
         sequential_id = request.app.dataset_sequential_id_collection.find_one({"dataset_name": dataset})
+        
 
         if sequential_id is None:
             # create one
@@ -859,11 +873,22 @@ async def clear_self_training_sequential_id_jobs(request: Request):
             description="Get or create self-training sequential ID for a dataset",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1[SeqIdDatasetResponse],  
-            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+            responses=ApiResponseHandlerV1.listErrors([400,422, 500]))
 async def get_self_training_sequential_id(request: Request, dataset: str = Query(..., description="Name of the dataset")):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
+
     try:
         dataset_path = f"{dataset}/data/latent-generator/self_training/"
+        objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+
+        dataset_path = f'{dataset}'
+        
+        if dataset_path not in objects:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{dataset}' does not exist.",
+                http_status_code=422,
+            )
         # Check and initialize if necessary
         existing_index = request.app.self_training_sequential_id_collection.find_one({"dataset": dataset})
         if existing_index is None:
@@ -893,324 +918,72 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
             http_status_code=500
         )        
     
-# -------------------- Dataset rate -------------------------
-        
-@router.put("/datasets/set-rate",
-            description="Set the rate for a dataset",
+@router.post("/datasets/add-new-dataset",
+            description="add new dataset in mongodb",
             tags=["dataset"],
-            response_model=StandardSuccessResponseV1[RateResponse],  
-            responses=ApiResponseHandlerV1.listErrors([422,500]))
-async def set_rate_v1(request: Request, dataset: str, rate: float = 0):
+            response_model=StandardSuccessResponseV1[Dataset],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+async def add_new_dataset(request: Request, dataset: Dataset):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        date_now = datetime.utcnow()  # Using UTC for consistency
-        query = {"dataset_name": dataset}
-        new_values = {
-            "dataset_name": dataset,
-            "last_update": date_now,
-            "dataset_rate": rate,
-        }
-        
-        # Check if the item exists
-        item = request.app.dataset_config_collection.find_one(query)
-        if item is None:
-            # If it doesn't exist, add it
-            request.app.dataset_config_collection.insert_one(new_values)
-        else:
-            # If it exists, update it
-            request.app.dataset_config_collection.update_one(query, {"$set": new_values})
-        
-        # Fetch the updated or newly added item
-        updated_item = request.app.dataset_config_collection.find_one(query)
-        if updated_item:
-            updated_item.pop('_id', None)  # Remove the auto-generated MongoDB ID before returning
-        
-        return response_handler.create_success_response_v1(
-            response_data={"dataset_rate": updated_item["dataset_rate"]}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
 
-        
-@router.get("/datasets/get-rate",
-            description="Get the rate of a dataset",
+    if request.app.datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='dataset already exist',
+            http_status_code=400
+        )    
+    
+    request.app.datasets_collection.insert_one(dataset.to_dict())
+
+    return response_handler.create_success_response_v1(
+                response_data={"dataset_name":dataset.dataset_name}, 
+                http_status_code=200
+            )    
+    
+@router.get("/datasets/list-datasets-v1",
+            description="list datasets from mongodb",
             tags=["dataset"],
-            response_model=StandardSuccessResponseV1[RateResponse],
-            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-async def get_rate(request: Request, dataset: str):
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        query = {"dataset_name": dataset}
-        item = request.app.dataset_config_collection.find_one(query)
-        if item is None:
-            # If not found, return a 404 error using the response handler
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Dataset {dataset} not found",
-                http_status_code=404
-            )
 
-        # Assuming item['dataset_rate'] exists and is valid
-        return response_handler.create_success_response_v1(
-            response_data={"dataset_rate": item["dataset_rate"]}, 
+    datasets = list(request.app.datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )       
+
+
+@router.delete("/datasets/remove-dataset",
+               description="Remove dataset and its configuration in MongoDB",
+               tags=["dataset"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422]))
+async def remove_dataset(request: Request, dataset: str = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Attempt to delete the dataset
+    dataset_result = request.app.datasets_collection.delete_one({"dataset_name": dataset})
+    # Attempt to delete the dataset configuration
+    config_result = request.app.dataset_config_collection.delete_one({"dataset_name": dataset})
+
+    # Check if either the dataset or its configuration was present and deleted
+    was_present = dataset_result.deleted_count > 0
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If either was deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            True, 
             http_status_code=200
         )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )        
-
-@router.put("/datasets/set-hourly-limit",
-            description="Set the hourly limit for a dataset",
-            response_model=StandardSuccessResponseV1[SetHourlyResponse], 
-            tags=["dataset"],
-            responses=ApiResponseHandlerV1.listErrors([422,500]))
-async def set_hourly_limit(request: Request, dataset: str, hourly_limit: int = 0):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        date_now = datetime.utcnow()  # Using UTC for consistency
-        query = {"dataset_name": dataset}
-        dataset_config = {
-            "dataset_name": dataset,
-            "last_update": date_now,
-            "hourly_limit": hourly_limit,
-            "relevance_model": "",
-            "ranking_model": "",
-        }
-
-        # If the dataset config doesn't exist, insert it; otherwise, update it
-        item = request.app.dataset_config_collection.find_one(query)
-        if item is None:
-            request.app.dataset_config_collection.insert_one(dataset_config)
-        else:
-            request.app.dataset_config_collection.update_one(query, {"$set": dataset_config})
-
-        # Fetch and return the updated or newly added item, excluding the MongoDB ID field
-        updated_config = request.app.dataset_config_collection.find_one(query)
-        updated_config.pop('_id', None)
-
-        return response_handler.create_success_response_v1(
-            response_data=updated_config,
+    else:
+        # If neither was deleted, return False
+        return response_handler.create_success_delete_response_v1(
+            False, 
             http_status_code=200
         )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-@router.get("/datasets/get-hourly-limit",
-            description="Get the hourly limit of a dataset",
-            response_model=StandardSuccessResponseV1[HourlyResponse],
-            tags=["dataset"],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_hourly_limit(request: Request, dataset: str):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        query = {"dataset_name": dataset}
-        item = request.app.dataset_config_collection.find_one(query)
-        if item is None:
-            # If not found, use the response handler to return a 404 error
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Dataset {dataset} not found",
-                http_status_code=404
-            )
-
-        # Assuming item['hourly_limit'] exists and is valid
-        return response_handler.create_success_response_v1(
-            response_data={"hourly_limit": item["hourly_limit"]}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-
-@router.get("/datasets/get-dataset-config",
-            description="Get the configuration of a datase",
-            tags=["dataset"],
-            response_model=StandardSuccessResponseV1[DatasetConfig],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_dataset_config(request: Request, dataset: str = Query(...)):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
-        if item is None:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="Dataset not found",
-                http_status_code=404
-            )
-
-        item.pop('_id', None)
-        item['last_update'] = item['last_update'].isoformat() if 'last_update' in item else None
-        return response_handler.create_success_response_v1(
-            response_data=item, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-
-@router.get("/datasets/get-all-dataset-config",
-            description="Get configurations for all datasets",
-            response_model=StandardSuccessResponseV1[ListDatasetConfig],
-            tags=["dataset"],
-            responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def get_all_dataset_config(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        dataset_configs = []
-        items = list(request.app.dataset_config_collection.find({}))
-
-        for item in items:
-            item.pop('_id', None)
-            item['last_update'] = item['last_update'].isoformat() if 'last_update' in item else None
-            dataset_configs.append(item)
-
-        return response_handler.create_success_response_v1(
-            response_data={"configs": dataset_configs}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
-
-@router.put("/datasets/set-relevance-model",
-            description="Set the relevance model for a specific dataset",
-            response_model=StandardSuccessResponseV1[ResponseRelevanceModel],
-            tags=["dataset"],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def set_relevance_model(request: Request, dataset: str, relevance_model: str):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        date_now = datetime.utcnow()  # Consider using UTC
-        query = {"dataset_name": dataset}
-        item = request.app.dataset_config_collection.find_one(query)
-    
-        if item is None:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="Dataset not found",
-                http_status_code=404 
-            )
-    
-        # Update the relevance model
-        new_values = {"$set": {"last_update": date_now, "relevance_model": relevance_model}}
-        request.app.dataset_config_collection.update_one(query, new_values)
-
-        return response_handler.create_success_response_v1(
-            response_data=new_values,  
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
-@router.put("/datasets/set-ranking-model",
-            description="Set the ranking model for a specific dataset",
-            tags=["dataset"],
-            response_model=StandardSuccessResponseV1[RankinModelResponse],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def set_ranking_model(request: Request, dataset: str, ranking_model: str):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        date_now = datetime.utcnow()  # Using UTC
-        query = {"dataset_name": dataset}
-        item = request.app.dataset_config_collection.find_one(query)
-    
-        if item is None:
-            # Dataset not found
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="Dataset not found",
-                http_status_code=404  
-            )
-    
-        # Update the ranking model
-        new_values = {"$set": {"last_update": date_now, "ranking_model": ranking_model}}
-        request.app.dataset_config_collection.update_one(query, new_values)
-
-        return response_handler.create_success_response_v1(
-            response_data=new_values,  
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-         
-
-
-@router.get("/rank/list-relevance-datapoints",
-            description="List relevancy files for a dataset",
-            tags=["ranking"],
-            response_model=StandardSuccessResponseV1[ListRelevanceSelection],
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def list_relevancy_files(request: Request, dataset: str):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        path_prefix = f"{dataset}/data/relevancy/aggregate"
-        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
-        json_files = [obj for obj in objects if obj.endswith('.json')]
-
-        return response_handler.create_success_response_v1(
-            response_data={"datapoints": json_files}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )        
-
-@router.get("/rank/list-ranking-datapoints",
-            description="List ranking files for a dataset",
-            tags=["ranking"],
-            response_model=StandardSuccessResponseV1[ListRankingSelection],
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def list_ranking_files(request: Request, dataset: str):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        path_prefix = f"{dataset}/data/ranking/aggregate"
-        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
-        json_files = [obj for obj in objects if obj.endswith('.json')]
-
-        return response_handler.create_success_response_v1(
-            response_data={"datapoints": json_files}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )   
-
-    

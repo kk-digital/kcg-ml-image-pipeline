@@ -11,6 +11,7 @@ from termcolor import colored
 import os
 import threading
 import traceback
+from io import BytesIO
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -53,14 +54,36 @@ def warning(thread_state, message):
         colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[WARNING] ",
                                                                                                           'yellow') + message)
 
+def get_init_image(minio_client, vae_latent_policy, init_image_path):
+    if vae_latent_policy == 0:
+        # generate noise init image
+        noise_image = np.random.rand(512, 512, 3) * 255
+        noise_image = noise_image.astype(np.uint8)
+        init_image = Image.fromarray(noise_image)
+    elif vae_latent_policy == 1:
+        # generate black init image
+        black_image = np.array(np.zeros((512, 512), dtype=np.uint8))
+        init_image = Image.fromarray(black_image)
+    elif vae_latent_policy == 2:
+        bucket_name, file_path= separate_bucket_and_file_path(init_image_path)
+        init_image = get_object(minio_client, file_path)
+        init_image = Image.open(BytesIO(init_image))
+        init_image = init_image.convert("RGB")
+    else:
+        print('Not support such vae latent policy: {}'\
+              .format(vae_latent_policy))
+        return None
+    return init_image
 
 def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
+    
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
 
-    generation_task.task_input_dict["seed"] = seed
+    generation_task["seed"] = seed
     positive_prompt = generation_task.task_input_dict["positive_prompt"]
     negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
     negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
@@ -115,12 +138,24 @@ def run_image_generation_task(worker_state, generation_task):
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
 
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
+    if generation_task.task_input_dict.get("vae_latent_policy") is not None:
+        init_image = \
+            get_init_image(worker_state.minio_client, 
+                           generation_task.task_input_dict["vae_latent_policy"] , 
+                           generation_task.task_input_dict["init_img"])
+    else:
+        init_image = Image.open(generation_task.task_input_dict["init_img"])
 
-    generation_task.task_input_dict["seed"] = seed
-    init_image = Image.open(generation_task.task_input_dict["init_img"])
+    if init_image is None:
+        return
+
     init_mask = Image.open(generation_task.task_input_dict["init_mask"])
 
     positive_prompt = generation_task.task_input_dict["positive_prompt"]
@@ -178,11 +213,24 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
 def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
+    
 
-    generation_task.task_input_dict["seed"] = seed
-    init_image = Image.open(generation_task.task_input_dict["init_img"])
+    if generation_task.task_input_dict.get("vae_latent_policy") is not None:
+        init_image = \
+            get_init_image(worker_state.minio_client, 
+                           generation_task.task_input_dict["vae_latent_policy"] , 
+                           generation_task.task_input_dict["init_img"])
+    else:
+        init_image = Image.open(generation_task.task_input_dict["init_img"])
+
+    if init_image is None:
+        return
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]

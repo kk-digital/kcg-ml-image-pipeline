@@ -59,10 +59,12 @@ def warning(thread_state, message):
 def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
-    random.seed(time.time())
-    seed = random.randint(0, 2 ** 24 - 1)
-
-    generation_task.task_input_dict["seed"] = seed
+    if generation_task["seed"] == "" or generation_task["seed"] is None:
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
 
     output_file_path, output_file_hash, img_data, latent = generate_image_from_text(
         worker_state.minio_client,

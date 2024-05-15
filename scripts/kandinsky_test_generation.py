@@ -23,6 +23,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                                     negative_image_embedding,
                                                     dataset_name,
                                                     prompt_generation_policy,
+                                                    seed = "",
+                                                    decoder_guidance_scale = 12,
                                                     self_training= False,
                                                     init_img_path="./test/test_inpainting/white_512x512.jpg"):
 
@@ -38,7 +40,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder"
     task_input_dict = {
         "strength": 0.75,
-        "seed": "",
+        "seed": seed,
         "dataset": dataset_name,
         "file_path": sequential_ids[count]+".jpg",
         "init_img": init_img_path,
@@ -46,7 +48,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "image_width": 512,
         "image_height": 512,
         "decoder_steps": 100,
-        "decoder_guidance_scale": 12,
+        "decoder_guidance_scale": decoder_guidance_scale,
         "self_training": self_training
     }
 

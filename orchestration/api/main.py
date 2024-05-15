@@ -38,6 +38,7 @@ from orchestration.api.api_classifier_score import router as classifier_score_ro
 from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
 from orchestration.api.api_rank_active_learning import router as rank_router
+from orchestration.api.api_rank_active_learning_policy import router as rank_active_learning_policy_router
 from orchestration.api.api_image_hashes import router as image_hashes_router
 from orchestration.api.api_external_images import router as external_images_router
 from utility.minio import cmd
@@ -82,6 +83,7 @@ app.include_router(classifier_score_router)
 app.include_router(classifier_router)
 app.include_router(ab_rank_router)
 app.include_router(rank_router)
+app.include_router(rank_active_learning_policy_router)
 app.include_router(image_hashes_router)
 app.include_router(external_images_router)
 
@@ -194,6 +196,9 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+
+    app.datasets_collection = app.mongodb_db["datasets"]
+
     # ab ranking
     app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
     app.image_ranks_collection = app.mongodb_db["image_ranks"]
@@ -203,6 +208,12 @@ def startup_db_client():
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
+
+    tagged_images_hash_index=[
+    ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_tags_collection ,tagged_images_hash_index, 'tagged_images_hash_index')
+
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
     # pseudo tags
@@ -251,6 +262,16 @@ def startup_db_client():
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
 
+
+    # ranking data points
+
+    app.ranking_datapoints_collection = app.mongodb_db["ranking_datapoints"]
+
+    # rank active learning policy
+
+    app.rank_active_learning_policies_collection = app.mongodb_db["rank_active_learning_policy"]
+
+
     # image hash
     app.image_hashes_collection = app.mongodb_db["image_hashes"]
 
@@ -261,6 +282,7 @@ def startup_db_client():
     else:
         app.max_image_global_id = 0
         
+
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
     ('score', pymongo.ASCENDING)
@@ -370,6 +392,25 @@ def startup_db_client():
     app.image_rank_use_count_collection = app.mongodb_db["image-rank-use-count"]
 
     app.image_pair_ranking_collection = app.mongodb_db["image_pair_ranking"]
+
+    pair_rank_hash_index = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING),
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index, 'pair_rank_hash_index')
+
+    pair_rank_hash_index_1 = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_1, 'pair_rank_hash_index_1')
+
+    pair_rank_hash_index_2 = [
+
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_2, 'pair_rank_hash_index_2')
 
     print("Connected to the MongoDB database!")
 
