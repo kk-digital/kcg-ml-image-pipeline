@@ -3,7 +3,6 @@ from tqdm import tqdm
 
 # Replace with your MongoDB connection string
 client = MongoClient('mongodb://192.168.3.1:32017/')
-
 # Replace with your database name
 db = client['orchestration-job-db']
 
@@ -32,8 +31,8 @@ for doc in tqdm(documents, desc="Migrating documents"):
         "image_2_metadata": doc["image_2_metadata"],
         "selected_image_index": doc["selected_image_index"],
         "selected_image_hash": doc["selected_image_hash"],
-        "training_mode": doc["training_mode"],
-        "rank_active_learning_policy_id": doc["rank_active_learning_policy_id"],
+        "training_mode": "rank_active_learning",
+        "rank_active_learning_policy_id": None,
         "datetime": doc["datetime"]
     }
 
