@@ -919,7 +919,7 @@ def get_clip_embeddings_by_path(images_paths,label_value):
 
     # Create labels
     data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
-    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+    #print("Clip embeddings array lenght : ",len(data_occcult_clips))
 
     # Split
 
@@ -1491,7 +1491,7 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     rank = 1
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        #print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
         rank += 0
     # Tag the images
 
@@ -1570,7 +1570,7 @@ def plot_samples_hashless_binning(loaded_model,dataset_name, number_of_samples,t
     rank = 1
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        #print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
         rank += 0
     # Tag the images
 
@@ -2127,7 +2127,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         #image_hashes=[job['image_hash'] for job in jobs]
 
         for i in  range(len(file_paths)):
-            print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+            #print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
         
         return file_paths, hashes,uuid
 
@@ -2139,7 +2139,7 @@ def process_and_sort_dataset_with_hashes_uui_dict(images_paths, hashes,uuid, mod
     # Process each image path
     for i in range(len(images_paths)):
         # Extract embedding and image tensor from the image path
-        print(images_paths[i])
+        #print(images_paths[i])
         image, embedding = get_clip_and_image_from_path(images_paths[i])
         
         # Compute the score by passing the image tensor through the model
