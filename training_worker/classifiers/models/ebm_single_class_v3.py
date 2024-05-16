@@ -2127,7 +2127,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         #image_hashes=[job['image_hash'] for job in jobs]
 
         for i in  range(len(file_paths)):
-            #print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+            print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
         
         return file_paths, hashes,uuid
 
