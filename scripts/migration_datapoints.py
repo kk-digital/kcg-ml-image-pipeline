@@ -2,7 +2,7 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 # Replace with your MongoDB connection string
-client = MongoClient('mongodb://localhost:27017/')
+client = MongoClient('mongodb://192.168.3.1:32017/')
 
 # Replace with your database name
 db = client['orchestration-job-db']
