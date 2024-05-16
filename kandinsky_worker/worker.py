@@ -79,11 +79,13 @@ def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
     
-    if generation_task["seed"] == "" or generation_task["seed"] is None:
+    if generation_task.task_input_dict["seed"] == "" or generation_task.task_input_dict["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
-
-    generation_task["seed"] = seed
+        generation_task.task_input_dict["seed"] = seed
+    else:
+        seed = generation_task.task_input_dict["seed"]
+    
     positive_prompt = generation_task.task_input_dict["positive_prompt"]
     negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
     negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
@@ -138,7 +140,7 @@ def run_image_generation_task(worker_state, generation_task):
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    if generation_task["seed"] == "" or generation_task["seed"] is None:
+    if generation_task.task_input_dict["seed"] == "" or generation_task.task_input_dict["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
         generation_task.task_input_dict["seed"] = seed
@@ -213,7 +215,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
 def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    if generation_task["seed"] == "" or generation_task["seed"] is None:
+    if generation_task.task_input_dict["seed"] == "" or generation_task.task_input_dict["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
         generation_task.task_input_dict["seed"] = seed
