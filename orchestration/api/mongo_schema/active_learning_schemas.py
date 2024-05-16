@@ -134,3 +134,34 @@ class ResponseRankSelection(BaseModel):
     
 class ListResponseRankSelection(BaseModel):
     datapoints: List[ResponseRankSelection]    
+
+
+class FlaggedResponse(BaseModel):
+    file_name: str
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+    datetime: datetime
+    flagged: bool
+    flagged_by_user: str
+    flagged_time: str
+
+
+class ImageInfo(BaseModel):
+    image_path: str
+    image_hash: str
+    image_clip_sigma_score: float
+    text_embedding_sigma_score: float
+
+class ResponseImageInfo(BaseModel):
+    selected_image: ImageInfo
+    unselected_image: ImageInfo
+    selection_datapoint_file_name: str
+    delta_score: float
+    flagged: bool
