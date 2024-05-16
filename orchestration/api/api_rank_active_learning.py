@@ -676,7 +676,6 @@ def list_selection_data_with_scores(
     try:
         # Connect to the MongoDB collections
         ranking_collection = request.app.ranking_datapoints_collection
-
         jobs_collection = request.app.completed_jobs_collection
 
         # Build query filter based on dataset and ensure delta_score exists for the model_type
@@ -688,15 +687,15 @@ def list_selection_data_with_scores(
             query_filter["flagged"] = {"$ne": True}
 
         # Ensure delta_score for the model_type exists and is not null
-        #query_filter[f"delta_score.{model_type}"] = {"$exists": True, "$ne": None}
+        query_filter[f"delta_score.{model_type}"] = {"$exists": True, "$ne": None}
 
         # Prepare sorting
         sort_order = 1 if order == "asc" else -1
         # Adjust sorting query for nested delta_score by model_type
-        # = [("delta_score." + model_type, sort_order)] if sort_by == "delta_score" else [(sort_by, sort_order)]
+        sort_query = [("delta_score." + model_type, sort_order)] if sort_by == "delta_score" else [(sort_by, sort_order)]
 
         # Fetch and sort data with pagination
-        cursor = ranking_collection.find(query_filter).skip(offset).limit(limit)
+        cursor = ranking_collection.find(query_filter).sort(sort_query).skip(offset).limit(limit)
 
 
         selection_data = []
@@ -707,7 +706,7 @@ def list_selection_data_with_scores(
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
             selection_file_name = doc["file_name"]
-            #delta_score = doc.get("delta_score", {}).get(model_type, None)
+            delta_score = doc.get("delta_score", {}).get(model_type, None)
             selected_image_index = doc["selected_image_index"]
             selected_image_hash = doc["selected_image_hash"]
             selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
@@ -746,7 +745,7 @@ def list_selection_data_with_scores(
                     "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "selection_datapoint_file_name": selection_file_name,
-                #"delta_score": delta_score,
+                "delta_score": delta_score,
                 "flagged": is_flagged 
             })
             print(f"Finished processing document {doc['_id']}.")
