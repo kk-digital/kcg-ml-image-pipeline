@@ -25,13 +25,14 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
-        classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
-        if not classifier_info:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="The provided classifier ID does not exist.",
-                http_status_code=400
-            )
+        if rank_model_data.classifier_id is not None:
+            classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
+            if not classifier_info:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="The provided classifier ID does not exist.",
+                    http_status_code=400
+                )
             
 
         # Check for existing rank_model_category_id

@@ -21,7 +21,7 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
 @router.post("/image-scores/scores/set-rank-score", 
              status_code=201,
              description="Sets the rank score of an image. The score can only be set one time per image/model combination",
-             tags=["score"],  
+             tags=["image scores"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 @router.post("/score/set-rank-score", 

@@ -192,13 +192,11 @@ class TrainingTask(BaseModel):
 class FlaggedDataUpdate(BaseModel):
     flagged: bool = Field(..., description="Indicates whether the data is flagged or not")
     flagged_by_user: str = Field(..., description="User who is flagging the data")
-    flagged_time: Optional[str] = None
 
     def to_dict(self):
         return {
             "flagged": self.flagged,
             "flagged_by_user": self.flagged_by_user,
-            "flagged_time": self.flagged_time
         }
 
 
@@ -529,6 +527,8 @@ class ListSigmaScoreResponse(BaseModel):
     dataset_name: str
     jobs: List[SigmaScoreResponse]
 
+class JobInfoResponse(BaseModel):
+    job_info: ListSigmaScoreResponse
 
 class RankActiveLearningPolicy(BaseModel):
     rank_active_learning_policy_id: Union[int, None] = None 

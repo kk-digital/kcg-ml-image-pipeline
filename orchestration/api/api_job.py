@@ -9,7 +9,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
-from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask
+from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask, JobInfoResponse
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse, DoneResponse
@@ -1304,19 +1304,19 @@ async def add_job(request: Request, kandinsky_task: KandinskyTask):
 @router.get("/queue/image-generation/get-jobs-count-last-n-hours-v1",
             tags=["jobs-standardized"],
             response_model=StandardSuccessResponseV1[CountLastHour],
-            status_code = 200,
-            description="Gets how many image generation jobs were created in the last N hours for a specific dataset",
+            status_code=200,
+            description="Gets how many image generation jobs were created in the last N hours for a specific dataset. If the 'hours' parameter is not set, returns the full count of all jobs without time filtering.",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int):
+async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int = Query(None)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Calculate the timestamp for N hours ago
-        current_time = datetime.now()
-        time_ago = current_time - timedelta(hours=hours)
-
-        query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
-
-        count = 0
+        query = {"task_input_dict.dataset": dataset}
+        
+        if hours is not None:
+            # Calculate the timestamp for N hours ago
+            current_time = datetime.now()
+            time_ago = current_time - timedelta(hours=hours)
+            query["task_creation_time"] = {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}
 
         # Take into account pending & in progress & completed jobs
         pending_count = request.app.pending_jobs_collection.count_documents(query)
@@ -1324,13 +1324,12 @@ async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int)
         completed_count = request.app.completed_jobs_collection.count_documents(query)
         failed_count = request.app.failed_jobs_collection.count_documents(query)
 
-
         counts = {
-        "pending_count": pending_count,
-        "in_progress_count": in_progress_count,
-        "completed_count": completed_count,
-        "failed_count": failed_count
-    }
+            "pending_count": pending_count,
+            "in_progress_count": in_progress_count,
+            "completed_count": completed_count,
+            "failed_count": failed_count
+        }
 
         return response_handler.create_success_response_v1(
             response_data={"jobs_count": counts},  
@@ -1339,7 +1338,7 @@ async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int)
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string=f"Failed to get jobs count for the last {hours} hours: {str(e)}",
+            error_string=f"Failed to get jobs count: {str(e)}",
             http_status_code=500
         )
 
@@ -1535,10 +1534,10 @@ async def get_list_failed_jobs(request: Request):
 
 
 @router.get("/queue/image-generation/list-completed-jobs-ordered-by-dataset", 
-            response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
+            response_model=StandardSuccessResponseV1[JobInfoResponse],
             tags=["jobs-standardized"],
             status_code=200,
-            description="List completed jobs by date. If no dataset is specified, jobs from all datasets are included.",
+            description="List completed jobs by job creation date. If no dataset is specified, jobs from all datasets are included.",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_list_completed_jobs_by_date(
     request: Request,

@@ -35,6 +35,20 @@ class ListSelection(BaseModel):
 class ListRankingSelection(BaseModel):
     datapoints: List[str]
 
+class FlaggedSelection(BaseModel):
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: Union[int, None] = None
+    selected_image_hash: Union[str, None] = None
+    datetime: Union[str, None] = None
+    training_mode: Union[str, None] = None
+    active_learning_type: Union[str, None] = None
+    active_learning_policy: Union[str, None] = None
+    flagged: bool
+    flagged_by_user: str
+    flagged_time: str
 
 class RelevanceSelection(BaseModel):
     username: str

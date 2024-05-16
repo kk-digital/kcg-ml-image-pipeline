@@ -262,6 +262,7 @@ def startup_db_client():
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
 
+    app.irrelevant_images_collection = app.mongodb_db["irrelevant_images"]
 
     # ranking data points
 

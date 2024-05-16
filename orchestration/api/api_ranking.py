@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection
+from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection, FlaggedSelection
 from .mongo_schemas import FlaggedDataUpdate
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse, JsonContentResponse
 import random
@@ -1497,13 +1497,15 @@ async def read_relevancy_file(request: Request, dataset: str, filename: str = Qu
 
 @router.put("/rank/update-ranking-datapoint", 
             tags=['ranking'], 
-            response_model=StandardSuccessResponseV1[Selection],
+            response_model=StandardSuccessResponseV1[FlaggedSelection],
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
 async def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+
+    flagged_time = datetime.now().isoformat()
 
     # Fetch the content of the specified JSON file from MinIO
     try:
@@ -1531,7 +1533,7 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         content_dict = json.loads(file_content)
         content_dict["flagged"] = update_data.flagged
         content_dict["flagged_by_user"] = update_data.flagged_by_user
-        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        content_dict["flagged_time"] = flagged_time
 
         # Save the modified file back to MinIO
         updated_content = json.dumps(content_dict, indent=2)
@@ -1549,7 +1551,7 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
     update = {"$set": {
         "flagged": update_data.flagged,
         "flagged_by_user": update_data.flagged_by_user,
-        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        "flagged_time": datetime.now().isoformat()
     }}
     updated_document = request.app.image_pair_ranking_collection.find_one_and_update(
         query, update, return_document=ReturnDocument.AFTER
