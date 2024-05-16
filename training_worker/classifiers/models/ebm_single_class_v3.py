@@ -92,7 +92,7 @@ def remove_duplicates(list_a, list_b):
         for element_a in list_a:
             
             if element_b == element_a:
-             print(f"{list_b} exist") 
+             #print(f"{list_b} exist") 
              exist = True
              break
         if exist == False:
