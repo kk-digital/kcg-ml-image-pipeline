@@ -36,7 +36,7 @@ class RankListResponse(BaseModel):
 
 class RankRequest(BaseModel):
     rank_model_string: str = Field(..., description="Name of the rank. Should only contain letters, numbers, hyphens, and underscores.")
-    classifier_id: Optional[int] = None
+    classifier_id: Optional[int] = Field(None, description="ID of the classifier")
     rank_model_category_id: Optional[int] = Field(None, description="ID of the rank category")
     rank_model_description: str = Field(..., description="Description of the rank")
     rank_model_vector_index: Optional[int] = None
