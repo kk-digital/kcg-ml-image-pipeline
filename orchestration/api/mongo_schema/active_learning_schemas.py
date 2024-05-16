@@ -151,3 +151,17 @@ class FlaggedResponse(BaseModel):
     flagged: bool
     flagged_by_user: str
     flagged_time: str
+
+
+class ImageInfo(BaseModel):
+    image_path: str
+    image_hash: str
+    image_clip_sigma_score: float
+    text_embedding_sigma_score: float
+
+class ResponseImageInfo(BaseModel):
+    selected_image: ImageInfo
+    unselected_image: ImageInfo
+    selection_datapoint_file_name: str
+    delta_score: float
+    flagged: bool

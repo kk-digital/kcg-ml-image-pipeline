@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -660,7 +660,11 @@ def add_irrelevant_image(request: Request, image_uuid: str = Query(...)):
         http_status_code=200
     )    
 
-@router.get("/rank-training/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
+@router.get("/rank-training/list-selection-data-with-scores", 
+            tags=['rank-training'], 
+            description="List rank selection datapoints with detailed scores",
+            response_model=StandardSuccessResponseV1[ResponseImageInfo],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def list_selection_data_with_scores(
     request: Request,
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
