@@ -527,6 +527,8 @@ class ListSigmaScoreResponse(BaseModel):
     dataset_name: str
     jobs: List[SigmaScoreResponse]
 
+class JobInfoResponse(BaseModel):
+    job_info: ListSigmaScoreResponse
 
 class RankActiveLearningPolicy(BaseModel):
     rank_active_learning_policy_id: Union[int, None] = None 

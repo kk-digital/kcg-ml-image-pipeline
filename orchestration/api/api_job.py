@@ -9,7 +9,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
-from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask
+from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask, JobInfoResponse
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse, DoneResponse
@@ -1534,10 +1534,10 @@ async def get_list_failed_jobs(request: Request):
 
 
 @router.get("/queue/image-generation/list-completed-jobs-ordered-by-dataset", 
-            response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
+            response_model=StandardSuccessResponseV1[JobInfoResponse],
             tags=["jobs-standardized"],
             status_code=200,
-            description="List completed jobs by date. If no dataset is specified, jobs from all datasets are included.",
+            description="List completed jobs by job creation date. If no dataset is specified, jobs from all datasets are included.",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_list_completed_jobs_by_date(
     request: Request,
