@@ -46,7 +46,7 @@ def main():
 
             test_speed_data.append(ele)
     
-    with open('test_speed_faiss_and_pinecone.json', mode='r', newline='') as f:
+    with open('test_speed_faiss_and_pinecone.json', mode='w+', newline='') as f:
         json.dump(test_speed_data, f, indent=4)
         
 
