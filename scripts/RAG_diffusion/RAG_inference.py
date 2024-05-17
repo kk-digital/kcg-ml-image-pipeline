@@ -264,7 +264,7 @@ def main():
     args= parse_args()
 
     inference_pipeline= RAGInferencePipeline(minio_access_key= args.minio_access_key,
-                                             minio_access_key= args.minio_secret_key,
+                                             minio_secret_key= args.minio_secret_key,
                                              dataset= args.dataset,
                                              k_nearest_images= args.k_nearest_images,
                                              decoder_steps= args.decoder_steps,
