@@ -1,5 +1,5 @@
 import argparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
 import json
 import os
@@ -74,6 +74,24 @@ def load_clip_vae_latents(minio_client, dataset):
     jobs = json.loads(response.content)
     # get the list of file paths to each image
     image_paths=[job["image_path"] for job in jobs]
+     
+    image_latents=[] 
+    # load vae and clip vectors for each one
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit tasks and store futures in a dictionary
+        futures = [executor.submit(load_image_latents, minio_client, path) for path in image_paths]
+
+        # Use tqdm for progress bar with as_completed
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Loading vae latents and clip vectors"):
+            try:
+                result = future.result()
+                # Process the result if needed
+                image_latents.append(result)
+            except Exception as exc:
+                # Handle the exception (e.g., log it)
+                print(f"Error processing job")
+
+    return image_latents
     
     # load vae and clip vectors for each one
     with ThreadPoolExecutor(max_workers=10) as executor:
