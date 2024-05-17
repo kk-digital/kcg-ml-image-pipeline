@@ -31,10 +31,11 @@ def main():
     index.train(clip_vectors)
     index.add(clip_vectors)
 
+    test_speed_data = []
+    
     with open('test_pinecone_clip_vector_search.json', mode='r', newline='') as f:
         pinecone_test_data = json.load(f)
         
-        test_speed_data = []
         for ele in tqdm(pinecone_test_data):
             top_k = ele['top_k']
             query_clip_vector = ele['query_clip_vector']
