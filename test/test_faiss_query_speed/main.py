@@ -3,6 +3,8 @@ import torch
 import time
 import json
 
+from tqdm import tqdm
+
 import sys
 base_dir = './'
 sys.path.insert(0, base_dir)
@@ -33,7 +35,7 @@ def main():
         pinecone_test_data = json.load(f)
         
         test_speed_data = []
-        for ele in pinecone_test_data:
+        for ele in tqdm(pinecone_test_data):
             top_k = ele['top_k']
             query_clip_vector = ele['query_clip_vector']
 
@@ -46,8 +48,8 @@ def main():
 
             test_speed_data.append(ele)
     
-    with open('test_speed_faiss_and_pinecone.json', mode='w+', newline='') as f:
-        json.dump(test_speed_data, f, indent=4)
+    with open('output/test_speed_faiss_and_pinecone.json', mode='w+', newline='') as result_file:
+        json.dump(test_speed_data, result_file, indent=4)
         
 
 if '__name__' == '__main__':
