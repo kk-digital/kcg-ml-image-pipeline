@@ -32,7 +32,7 @@ def main():
     index.add(clip_vectors)
 
     test_speed_data = []
-    
+
     with open('test_pinecone_clip_vector_search.json', mode='r', newline='') as f:
         pinecone_test_data = json.load(f)
         
@@ -53,5 +53,5 @@ def main():
         json.dump(test_speed_data, result_file, indent=4)
         
 
-if '__name__' == '__main__':
+if __name__ == '__main__':
     main()
