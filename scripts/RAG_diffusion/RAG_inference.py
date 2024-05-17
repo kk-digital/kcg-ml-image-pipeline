@@ -92,13 +92,6 @@ def load_clip_vae_latents(minio_client, dataset):
                 print(f"Error processing job")
 
     return image_latents
-    
-    # load vae and clip vectors for each one
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        # Use tqdm for progress bar with executor.map
-        image_latents = list(tqdm(executor.map(lambda p: load_image_latents(minio_client, p), image_paths), total=len(jobs), desc="Submitting jobs"))
-
-    return image_latents
 
 def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_images):
     # Check if the input lists have the same length
@@ -196,6 +189,7 @@ class RAGInferencePipeline:
 
     def initialize_faiss_index(self):
         self.image_latents= load_clip_vae_latents(self.minio_client, self.dataset)
+        print(self.image_latents)
         clip_vectors=[image['clip_vector'] for image in self.image_latents]
 
         dimension = clip_vectors[0].size(0)
