@@ -189,7 +189,6 @@ class RAGInferencePipeline:
 
     def initialize_faiss_index(self):
         self.image_latents= load_clip_vae_latents(self.minio_client, self.dataset)
-        print(self.image_latents)
         clip_vectors=[image['clip_vector'] for image in self.image_latents]
 
         dimension = clip_vectors[0].size(0)
@@ -201,6 +200,7 @@ class RAGInferencePipeline:
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
         clip_vectors = torch.stack(clip_vectors).cpu().numpy().astype('float32')
+        print(len(clip_vectors))
         faiss_index.add(clip_vectors)
 
         return faiss_index
