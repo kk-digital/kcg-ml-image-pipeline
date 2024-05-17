@@ -18,7 +18,8 @@ def main():
     start_time = time.time()
     
     loader = ClipVectorLoader(min_sigma_score=-1000, dataset='environmental')
-    clip_vectors, scores = loader.get_all_clip_vector()
+    # clip_vectors, scores = loader.get_all_clip_vector()
+    clip_vectors, scores = loader.get_clip_vector_by_random(10000)
     clip_vectors = np.array(clip_vectors, dtype='float32')
 
     print('loading clip vectors elapsed time: {} seconds'.format(time.time() - start_time))
