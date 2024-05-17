@@ -43,8 +43,8 @@ def parse_args():
 def load_image_latents(minio_client, file_path:str):
     # get path of clip and vae latents
     bucket, image_path= separate_bucket_and_file_path(file_path)
-    vae_latent_path= image_path.replace(".jpeg", "_vae_latent.msgpack")
-    clip_path= image_path.replace(".jpeg", "_clip_kandinsky.msgpack")
+    vae_latent_path= image_path.replace(".jpg", "_vae_latent.msgpack")
+    clip_path= image_path.replace(".jpg", "_clip_kandinsky.msgpack")
 
     # fetch latents from MinIO
     try:
@@ -57,13 +57,13 @@ def load_image_latents(minio_client, file_path:str):
         clip_vector = torch.tensor(clip_latent_msgpack["clip-feature-vector"])
 
         image_latents={
-            "image_path": file_path,
+            "image_path": image_path,
             "vae_latent": vae_latent,
             "clip_vector": clip_vector
         }
 
     except Exception as e:
-        print(f"Error processing data at path {file_path}: {e}")
+        print(f"Error processing data at path {image_path}: {e}")
 
     return image_latents
 
