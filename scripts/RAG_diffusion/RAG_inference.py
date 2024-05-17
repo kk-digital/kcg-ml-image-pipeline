@@ -192,6 +192,7 @@ class RAGInferencePipeline:
         clip_vectors=[image['clip_vector'] for image in self.image_latents]
 
         dimension = clip_vectors[0].size(0)
+        print(dimension)
         faiss_index = faiss.IndexFlatL2(dimension)
         
         if torch.cuda.is_available():
