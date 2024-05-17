@@ -893,47 +893,73 @@ async def remove_all_model_paths(request: Request):
             description="Get image pair for ab rank with parameters",
             response_model=StandardSuccessResponseV1[dict],
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def get_ab_rank_image_pair(request: Request, min_score:float, max_diff:float, sample_size:int=1000):
+async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:float, max_diff:float, sample_size:int=1000):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        selected_completed_jobs_by_randomly = list(request.app.completed_jobs_collection.aggregate([{
-            '$sample': {'size': sample_size},
-        }, {
-            '$project': {
-                '_id': 0,
-            }
-        }]))
-        filtered_jobs_by_min_score = []
-        filtered_job_scores_by_min_score = []
-        for job in selected_completed_jobs_by_randomly:
-            # get score
-            try:                    
-                if job.get('task_attributes_dict') and  \
-                  job['task_attributes_dict'].get('elm-v1') is not None \
-                      and job['task_attributes_dict']['elm-v1'].get('image_clip_h_score') is not None \
-                          and job['task_attributes_dict']['elm-v1']['image_clip_h_score'] > min_score:
-                    filtered_jobs_by_min_score.append(job)
-                    filtered_job_scores_by_min_score.append(job['task_attributes_dict']['elm-v1']['image_clip_h_score'])
-            except Exception as e:
-                print(e)
-
-        num_images_above_min_score = len(filtered_jobs_by_min_score)
-        sorted_args = np.argsort(filtered_job_scores_by_min_score)
-        filtered_jobs_by_min_score = [filtered_jobs_by_min_score[i] for i in sorted_args]
-        filtered_job_scores_by_min_score = [filtered_job_scores_by_min_score[i] for i in sorted_args]
-
-        image_pair_list = []
-        for i in range(num_images_above_min_score):
-            next = bisect.bisect_left(filtered_job_scores_by_min_score, filtered_job_scores_by_min_score[i] + max_diff, i, num_images_above_min_score)
-            for j in range(i+1, next):
-                image_pair_list.append((filtered_jobs_by_min_score[i], filtered_jobs_by_min_score[j]))
-
-        num_image_pair_within_max_diff = len(image_pair_list)
-        image_pair = image_pair_list[np.random.randint(0, num_images_above_min_score)]
+        rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+        if rank_model is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model not found.",
+                http_status_code=404
+            )
+        if rank_model.get("classifier_id") is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model does not have a classifier_id.",
+                http_status_code=404
+            )
         
+        classifier_id = rank_model.get("classifier_id")
+        
+        filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+            {'$match': {
+                'classifier_id': classifier_id,
+                'score': {'$gte': min_score},
+            }},
+            {'$sample': {
+                'size': sample_size
+            }},
+            {'$project': {
+                '_id': 0
+            }},
+        ]))
+
+        scores = [classifier_score['score'] for classifier_score in filtered_classfier_scores]
+        
+        # Sort the scores and filtered_classfier_scores
+        sorted_args = np.argsort(scores)
+        scores = [scores[i] for i in sorted_args]
+        filtered_classfier_scores = [filtered_classfier_scores[i] for i in sorted_args]
+
+        num_filtered_classifier_scores = len(filtered_classfier_scores)
+
+        image_uuid_pair_list = []
+        
+        for i in range(num_filtered_classifier_scores):
+            next = bisect.bisect_left(scores, scores[i] + max_diff, i, num_filtered_classifier_scores)
+
+            for j in range(i+1, next):
+                image_uuid_pair_list.append((filtered_classfier_scores[i]['uuid'], filtered_classfier_scores[j]['uuid']))
+
+        num_image_pair_within_max_diff = len(image_uuid_pair_list)
+        image_uuid_pair = image_uuid_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+
+        image_uuids = image_uuid_pair
+        images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
+
+        image_pair = []
+        for image in images:
+            image_dict = image.copy()  # Create a copy of the document
+            del image_dict['_id']
+            image_uuid = image_dict['uuid']
+            image_score = request.app.image_classifier_scores_collection.find_one({'uuid': image_uuid})['score']
+            image_dict['image_classifier_score'] = image_score
+            image_pair.append(image_dict) 
+
         return response_handler.create_success_response_v1(
             response_data={'image_pair': image_pair, 
-                           'num_images_above_min_score': num_images_above_min_score, 
+                           'num_images_above_min_score': num_filtered_classifier_scores, 
                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
         )
@@ -941,6 +967,6 @@ async def get_ab_rank_image_pair(request: Request, min_score:float, max_diff:flo
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
-            error_string=f'Failed to get image pair for ab rank',
+            error_string=f'Failed to get image pair for ab rank {e}',
             http_status_code=500
         )
