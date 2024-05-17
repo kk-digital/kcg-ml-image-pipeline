@@ -192,7 +192,8 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self,
         image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]],
         image: Union[torch.FloatTensor, PIL.Image.Image, List[torch.FloatTensor], List[PIL.Image.Image]],
-        negative_image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]],
+        initial_latents: Union[torch.FloatTensor, List[torch.FloatTensor]],
+        negative_image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]]=None,
         height: int = 512,
         width: int = 512,
         num_inference_steps: int = 100,
@@ -314,7 +315,11 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         image = torch.cat([prepare_image(i, width, height) for i in image], dim=0)
         image = image.to(dtype=image_embeds.dtype, device=device)
 
-        latents = self.movq.encode(image)["latents"]
+        if initial_latents:
+            latents= initial_latents
+        else:
+            latents = self.movq.encode(image)["latents"]
+            
         latents = latents.repeat_interleave(num_images_per_prompt, dim=0)
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength, device)
