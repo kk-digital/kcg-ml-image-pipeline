@@ -14,7 +14,6 @@ from test.load_clip_vector_over_sigma_score.clip_vector_loader import ClipVector
 
 def main():
     loader = ClipVectorLoader(min_sigma_score=-1000, dataset='environmental')
-    loader.load_clip_vector_over_sigma_score()
 
     clip_vectors = loader.get_all_clip_vector()
 
