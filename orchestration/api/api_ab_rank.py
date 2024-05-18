@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schema.ab_ranking_schemas import Rankmodel, RankRequest, RankListResponse, ListImageRank, ImageRank, RankCategory, RankCategoryRequest, RankCategoryListResponse, RankCountResponse, RankedSelection
-from .mongo_schemas import Classifier
+from .mongo_schemas import Classifier, ABRankImagePairResponse
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
@@ -891,7 +891,7 @@ async def remove_all_model_paths(request: Request):
             status_code=200,
             tags=["ab-rank"],
             description="Get image pair for ab rank with parameters",
-            response_model=StandardSuccessResponseV1[dict],
+            response_model=StandardSuccessResponseV1[ABRankImagePairResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
 async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:float, max_diff:float, sample_size:int=1000):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -949,16 +949,19 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
         images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
 
         image_pair = []
+        image_score_pair = []
+
         for image in images:
             image_dict = image.copy()  # Create a copy of the document
             del image_dict['_id']
             image_uuid = image_dict['uuid']
             image_score = request.app.image_classifier_scores_collection.find_one({'uuid': image_uuid})['score']
-            image_dict['image_classifier_score'] = image_score
-            image_pair.append(image_dict) 
+            image_pair.append(image_dict)
+            image_score_pair.append(image_score)
 
         return response_handler.create_success_response_v1(
-            response_data={'image_pair': image_pair, 
+            response_data={'image_pair': image_pair,
+                           'image_score_pair': image_score_pair,
                            'num_images_above_min_score': num_filtered_classifier_scores, 
                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
