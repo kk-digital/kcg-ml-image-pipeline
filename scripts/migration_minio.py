@@ -40,10 +40,21 @@ for obj in tqdm(objects, desc="Migrating JSON files"):
         response.release_conn()
 
         # Add rank_model_id as the first field in the JSON data
-        json_data = {"rank_model_id": rank_model_id, **json_data}
+        updated_data = {
+            "rank_model_id": rank_model_id,
+            "task": json_data.get("task"),
+            "username": json_data.get("username"),
+            "image_1_metadata": json_data.get("image_1_metadata"),
+            "image_2_metadata": json_data.get("image_2_metadata"),
+            "selected_image_index": json_data.get("selected_image_index"),
+            "selected_image_hash": json_data.get("selected_image_hash"),
+            "training_mode": "rank_active_learning",
+            "rank_active_learning_policy_id": None,
+            "datetime": json_data.get("datetime")
+        }
 
         # Convert the modified JSON data back to a JSON string with indentation
-        json_data_str = json.dumps(json_data, indent=4)
+        json_data_str = json.dumps(updated_data, indent=4)
 
         # Define the object name in the destination bucket
         destination_object_name = obj.object_name.replace(source_path, destination_path)
