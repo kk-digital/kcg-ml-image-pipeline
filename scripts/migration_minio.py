@@ -11,10 +11,10 @@ minio_client = Minio(
     secure=False  # Set to True if using HTTPS
 )
 
-rank_model_id = 7
+rank_model_id = 6
 source_bucket_name = 'datasets'  
 destination_bucket_name = 'datasets'  
-source_path = 'waifu/data/ranking/aggregate'  
+source_path = 'icons/data/ranking/aggregate'  
 destination_path = f'ranks/{rank_model_id}/data/ranking/aggregate'  
 
 # Ensure the destination bucket exists
