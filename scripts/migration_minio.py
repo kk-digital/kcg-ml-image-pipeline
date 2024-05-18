@@ -34,8 +34,8 @@ for obj in tqdm(objects, desc="Migrating JSON files"):
         # Get the object from the source bucket
         response = minio_client.get_object(source_bucket_name, obj.object_name)
         
-        # Read JSON data from the object
-        json_data = json.loads(response.data)
+        # Read the entire response data
+        json_data = json.loads(response.read())
         response.close()
         response.release_conn()
 
