@@ -42,8 +42,8 @@ for obj in tqdm(objects, desc="Migrating JSON files"):
         # Add rank_model_id as the first field in the JSON data
         json_data = {"rank_model_id": rank_model_id, **json_data}
 
-        # Convert the modified JSON data back to a JSON string
-        json_data_str = json.dumps(json_data)
+        # Convert the modified JSON data back to a JSON string with indentation
+        json_data_str = json.dumps(json_data, indent=4)
 
         # Define the object name in the destination bucket
         destination_object_name = obj.object_name.replace(source_path, destination_path)
