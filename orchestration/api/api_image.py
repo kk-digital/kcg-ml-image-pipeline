@@ -284,9 +284,9 @@ def get_random_image_date_range(
         document.pop('_id', None)  # Remove the auto-generated field
         uuid = document.get('uuid')
         score = classifier_scores_map.get(uuid)
+        print(score)
         if score is not None:
             # Add classifier score as the first field
-            print(f"Job UUID: {uuid}, Score: {score}")
             document_with_score = {'classifier_score': score}
             document_with_score.update(document)
             documents[documents.index(document)] = document_with_score
