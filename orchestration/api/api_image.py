@@ -284,6 +284,7 @@ def get_random_image_date_range(
             # Add classifier score as the first field
             document_with_score = {'classifier_score': score}
             document_with_score.update(document)
+            print(document_with_score)
             documents[documents.index(document)] = document_with_score
 
     return documents
