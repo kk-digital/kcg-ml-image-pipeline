@@ -237,7 +237,7 @@ def get_random_image_date_range(
     if prompt_generation_policy:
         query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
-    classifier_scores_map = {}
+    classifier_id = None
     if rank_id is not None:
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
@@ -261,12 +261,8 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
         
-        for score in classifier_scores:
-            image_hash = score['image_hash']
-            classifier_scores_map[image_hash] = score['score']
-
-        image_hashes = list(classifier_scores_map.keys())
-        query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+        job_uuids = [score['uuid'] for score in classifier_scores]
+        query['uuid'] = {'$in': job_uuids}
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -275,19 +271,22 @@ def get_random_image_date_range(
     documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
     documents = list(documents)
 
-    # Add classifier score to each document and ensure it's the first field
+    # Add classifier score to each document
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
-        image_hash = document.get('task_output_file_dict', {}).get('output_file_hash')
-        if image_hash in classifier_scores_map:
-            score = classifier_scores_map[image_hash]
+        job_uuid = document.get('uuid')
+        classifier_score = request.app.image_classifier_scores_collection.find_one(
+            {'classifier_id': classifier_id, 'uuid': job_uuid},
+            {'_id': 0, 'score': 1}
+        )
+        if classifier_score:
+            score = classifier_score.get('score')
             # Add classifier score as the first field
             document_with_score = {'classifier_score': score}
             document_with_score.update(document)
-            print(document_with_score)
             documents[documents.index(document)] = document_with_score
 
-    return document_with_score
+    return documents
 
 
 """
