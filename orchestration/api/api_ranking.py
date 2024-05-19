@@ -1012,6 +1012,7 @@ async def add_relevancy_selection_datapoint_v1(request: Request, relevance_selec
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_v1(
     request: Request,
+    dataset: str = Query(None),
     start_date: str = Query(None),
     end_date: str = Query(None),
     skip: int = Query(0, alias="offset"),
@@ -1033,6 +1034,9 @@ def list_ranking_data_v1(
             if end_date_obj:
                 date_filter["$lte"] = end_date_obj
             query_filter["datetime"] = date_filter  # Assuming the field in the database is "datetime"
+
+        if dataset:
+            query_filter["dataset"] = dataset
 
         # Fetch data from MongoDB with pagination and ordering
         cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("datetime", -1 if order == "desc" else 1).skip(skip).limit(limit)
