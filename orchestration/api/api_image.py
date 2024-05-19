@@ -287,7 +287,7 @@ def get_random_image_date_range(
             print(document_with_score)
             documents[documents.index(document)] = document_with_score
 
-    return documents
+    return document_with_score
 
 
 """
