@@ -238,6 +238,7 @@ def get_random_image_date_range(
         query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     # If rank_id is provided, adjust the query to consider classifier scores
+    classifier_id = None
     if rank_id is not None:
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
