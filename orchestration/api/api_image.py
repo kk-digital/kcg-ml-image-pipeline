@@ -237,33 +237,36 @@ def get_random_image_date_range(
     if prompt_generation_policy:
         query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
-    # If rank_id is provided, adjust the query to consider classifier scores
+    classifier_scores_map = {}
     if rank_id is not None:
-        # get rank data
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Rank model with this id doesn't exist") 
-        
-        # get the relevance classifier model id
-        classifier_id= rank["classifier_id"]
+                detail="Rank model with this id doesn't exist")
+
+        classifier_id = rank.get("classifier_id")
         if classifier_id is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="This Rank has no relevance classifier model assigned to it")
-        
+
         classifier_query = {'classifier_id': classifier_id}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
-            # Fetch image hashes from classifier_scores collection that match the criteria
-            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-            if classifier_scores is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="The relevance classifier model has no scores.")
-            image_hashes = [score['image_hash'] for score in classifier_scores]
-            query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+        if classifier_scores is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The relevance classifier model has no scores.")
+        
+        for score in classifier_scores:
+            image_hash = score['image_hash']
+            classifier_scores_map[image_hash] = score['score']
+
+        image_hashes = list(classifier_scores_map.keys())
+        query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -272,8 +275,16 @@ def get_random_image_date_range(
     documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
     documents = list(documents)
 
+    # Add classifier score to each document and ensure it's the first field
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
+        image_hash = document.get('task_output_file_dict', {}).get('output_file_hash')
+        if image_hash in classifier_scores_map:
+            score = classifier_scores_map[image_hash]
+            # Add classifier score as the first field
+            document_with_score = {'classifier_score': score}
+            document_with_score.update(document)
+            documents[documents.index(document)] = document_with_score
 
     return documents
 
