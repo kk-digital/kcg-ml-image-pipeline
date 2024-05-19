@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse, IrrelevantResponse, ListIrrelevantResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo
 from .mongo_schemas import FlaggedDataUpdate
 import os
@@ -629,20 +629,27 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
 
 
 @router.post("/rank-training/add-irrelevant-image",
-             description="Adds an image UUID to the irrelevant images collection if it exists in the rank active learning pairs collection.",
+             description="Adds an image UUID to the irrelevant images collection",
              status_code=200,
-             response_model=StandardSuccessResponseV1,
+             response_model=StandardSuccessResponseV1[IrrelevantResponse],
              tags=["Rank Active Learning"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-def add_irrelevant_image(request: Request, image_uuid: str = Query(...)):
+def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
 
     # Fetch the image details from the completed_jobs_collection
-    job = request.app.completed_jobs_collection.find_one({"uuid": image_uuid})
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         return api_response_handler.create_error_response_v1(
             error_code=404,
-            error_string=f"Job with UUID {image_uuid} not found in the completed jobs collection",
+            error_string=f"Job with UUID {job_uuid} not found in the complseted jobs collection",
+            http_status_code=404
+        )
+    rank = request.app.rank_model_models_collection.fine_one({"rank_model_id": rank_model_id})
+    if not rank:
+        return api_response_handler.create_error_response_v1(
+            error_code=404,
+            error_string=f"rank model not found in the rank models collection",
             http_status_code=404
         )
 
@@ -650,6 +657,7 @@ def add_irrelevant_image(request: Request, image_uuid: str = Query(...)):
     image_data = {
         "uuid": job["uuid"],
         "file_hash": job["task_output_file_dict"]["output_file_hash"],
+        "rank_model_id": rank_model_id
     }
 
     # Insert the UUID data into the irrelevant_images_collection
@@ -659,6 +667,63 @@ def add_irrelevant_image(request: Request, image_uuid: str = Query(...)):
         response_data=image_data,
         http_status_code=200
     )    
+
+@router.get("/rank-training/list-irrelevant-images", 
+            description="list irrelevant images",
+            tags=["Rank Active Learning"],
+            status_code=200,
+            response_model=StandardSuccessResponseV1[ListIrrelevantResponse],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def list_irrelevant_images(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Query all the rank models
+        image_cursor = list(request.app.irrelevant_images_collection.find({}))
+
+        # Convert each rank document to rankmodel and then to a dictionary
+        for doc in image_cursor:
+            doc.pop('_id', None)  
+
+        return response_handler.create_success_response_v1(
+            response_data={"rank_model_categories": image_cursor}, 
+            http_status_code=200,
+            )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, 
+                                                         error_string="Internal server error", 
+                                                         http_status_code=500,
+                            
+                                                         )
+
+
+@router.post("/rank-training/unset-irrelevant-image",
+             description="Removes an image UUID from the irrelevant images collection",
+             status_code=200,
+             response_model=StandardSuccessResponseV1[WasPresentResponse],
+             tags=["Rank Active Learning"],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # Check if the job exists in the irrelevant_images_collection
+    query = {"uuid": job_uuid, "rank_model_id": rank_model_id}
+    job = request.app.irrelevant_images_collection.find_one(query)
+    if not job:
+        return api_response_handler.create_success_response_v1(
+                response_data={"wasPresent": False}, 
+                http_status_code=200
+            )
+
+    # Delete the job from the irrelevant_images_collection
+    result = request.app.irrelevant_images_collection.delete_one(query)
+    if result.deleted_count > 0:
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": True}, 
+            http_status_code=200
+        )
+    
+
 
 @router.get("/rank-training/list-selection-data-with-scores", 
             tags=['rank-training'], 
