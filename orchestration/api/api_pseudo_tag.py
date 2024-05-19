@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.pseudo_tag_schemas import ImagePseudoTagRequest, ImagePseudoTag, ListImagePseudoTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import ImagePseudoTagRequest, ImagePseudoTag, ListImagePseudoTag, ImagePseudoTagRequestV1, ListImagePseudoTagScores
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, PseudoTagIdResponse, TagCountResponse, ListImageTag
 import traceback
@@ -227,18 +227,18 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
 
 @router.post("/pseudotag/set-image-pseudotag-score", 
              status_code=200,
-             response_model=StandardSuccessResponseV1[ImagePseudoTagRequest],
+             response_model=StandardSuccessResponseV1[ImagePseudoTagRequestV1],
              description="Set image pseudotag score",
              tags=["pseudo_tags"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
-async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTagRequest):
+async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTagRequestV1):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
 
         # Fetch image_hash from completed_jobs_collection
-        job_data = request.app.completed_jobs_collection.find_one({"uuid": pseudo_tag.uuid},  {"task_output_file_dict.output_file_hash": 1, "task_type": 1})
+        job_data = request.app.completed_jobs_collection.find_one({"uuid": pseudo_tag.job_uuid},  {"task_output_file_dict.output_file_hash": 1, "task_type": 1})
         if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -260,8 +260,7 @@ async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTag
 
         
         query = {
-            "classifier_id": pseudo_tag.classifier_id,
-            "uuid": pseudo_tag.uuid,
+            "job_uuid": pseudo_tag.job_uuid,
             "tag_id": tag_id
         }
 
@@ -270,7 +269,7 @@ async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTag
 
         # Initialize new_score_data outside of the if/else block
         new_score_data = {
-            "uuid": pseudo_tag.uuid,
+            "uuid": pseudo_tag.job_uuid,
             "task_type": task_type,
             "classifier_id": pseudo_tag.classifier_id,
             "image_hash": image_hash,
@@ -283,7 +282,7 @@ async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTag
         existing_score = request.app.pseudo_tag_images_collection.find_one(query)
         if existing_score:
             # Update existing score
-            request.app.pseudo_tag_images_collection.update_one(query, {"$set": {"score": pseudo_tag.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+            request.app.pseudo_tag_images_collection.update_one(query, {"$set": {"classifier_id": pseudo_tag.classifier_id, "score": pseudo_tag.score, "image_hash": image_hash, "creation_time": current_utc_time}})
         else:
             # Insert new score
             insert_result = request.app.pseudo_tag_images_collection.insert_one(new_score_data)
@@ -557,7 +556,7 @@ async def list_image_scores(
 @router.get("/pseudotag/list-pseudotag-scores-for-image",
             description="Get all pseudotag scores for a specific image hash",
             tags=["pseudo_tags"],   
-            response_model=StandardSuccessResponseV1[ListImagePseudoTag],
+            response_model=StandardSuccessResponseV1[ListImagePseudoTagScores],
             responses=ApiResponseHandlerV1.listErrors([404,422]))
 async def get_scores_by_image_hash(
     request: Request,
@@ -579,7 +578,7 @@ async def get_scores_by_image_hash(
 
     # Prepare and return the data for the response
     return response_handler.create_success_response_v1(
-        response_data={"images": scores_data},
+        response_data=scores_data,
         http_status_code=200
     )
 
@@ -649,7 +648,7 @@ async def list_image_scores_v3(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data={'images':images_data}, 
+        response_data=images_data, 
         http_status_code=200
     )  
 
