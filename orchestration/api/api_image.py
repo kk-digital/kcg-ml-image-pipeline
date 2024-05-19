@@ -261,8 +261,8 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
 
-        job_uuids = [score['job_uuid'] for score in classifier_scores]
-        query['job_uuid'] = {'$in': job_uuids}
+        uuids = [score['uuid'] for score in classifier_scores]
+        query['uuid'] = {'$in': uuids}
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -271,20 +271,21 @@ def get_random_image_date_range(
     documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
     documents = list(documents)
 
-    # Map job_uuid to their corresponding scores
+    # Map uuid to their corresponding scores
+    classifier_query = {'classifier_id': classifier_id}
     classifier_scores_map = {
-        score['job_uuid']: score['score']
+        score['uuid']: score['score']
         for score in request.app.image_classifier_scores_collection.find(classifier_query)
     }
 
     # Add classifier score to each document
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
-        job_uuid = document.get('job_uuid')
-        score = classifier_scores_map.get(job_uuid)
+        uuid = document.get('uuid')
+        score = classifier_scores_map.get(uuid)
         if score is not None:
             # Add classifier score as the first field
-            print(f"Job UUID: {job_uuid}, Score: {score}")
+            print(f"Job UUID: {uuid}, Score: {score}")
             document_with_score = {'classifier_score': score}
             document_with_score.update(document)
             documents[documents.index(document)] = document_with_score
