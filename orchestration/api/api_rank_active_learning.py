@@ -2,8 +2,8 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, JsonContentResponse, IrrelevantResponse, ListIrrelevantResponse
+from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo
 from .mongo_schemas import FlaggedDataUpdate
 import os
@@ -415,6 +415,12 @@ def list_ranking_datapoints(request: Request):
     for item in items:
         # remove the auto generated '_id' field
         item.pop('_id', None)
+        
+        # Ensure all fields are present, set default values if not
+        item.setdefault('flagged', None)
+        item.setdefault('flagged_by_user', None)
+        item.setdefault('flagged_time', None)
+        
         score_data.append(item)
     
     # Return a standardized success response with the score data
@@ -453,7 +459,6 @@ async def sort_ranking_data_by_date_v2(
         if date_filter:
             query_filter["datetime"] = date_filter
 
-
         sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
         cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
             "datetime", sort_order  
@@ -462,6 +467,12 @@ async def sort_ranking_data_by_date_v2(
         ranking_data = []
         for doc in cursor:
             doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            
+            # Ensure all fields are present, set default values if not
+            doc.setdefault('flagged', None)
+            doc.setdefault('flagged_by_user', None)
+            doc.setdefault('flagged_time', None)
+            
             ranking_data.append(doc)
 
         return response_handler.create_success_response_v1(
@@ -474,7 +485,8 @@ async def sort_ranking_data_by_date_v2(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f"Internal Server Error: {str(e)}",
             http_status_code=500
-        )  
+        )
+
   
     
 
@@ -592,7 +604,7 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
 @router.get("/rank-training/read-ranking-datapoint", 
             tags=['rank-training'], 
             description = "read ranking datapoints",
-            response_model=StandardSuccessResponseV1[JsonContentResponse], 
+            response_model=StandardSuccessResponseV1[JsonMinioResponse], 
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def read_ranking_datapoints(request: Request, rank_model_id: int, filename: str = Query(..., description="Filename of the JSON to read")):
     response_handler = await ApiResponseHandlerV1.createInstance(request)

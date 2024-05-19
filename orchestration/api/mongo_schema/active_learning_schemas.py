@@ -131,6 +131,9 @@ class ResponseRankSelection(BaseModel):
     training_mode: str
     rank_active_learning_policy_id: Union[int, None] = None
     datetime: datetime
+    flagged: Optional[bool] = None
+    flagged_by_user: Optional[str] = None
+    flagged_time: Optional[str] = None
     
 class ListResponseRankSelection(BaseModel):
     datapoints: List[ResponseRankSelection]    
@@ -165,3 +168,18 @@ class ResponseImageInfo(BaseModel):
     selection_datapoint_file_name: str
     delta_score: float
     flagged: bool
+
+class JsonMinioResponse(BaseModel):
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+    datetime: datetime
+    flagged: Optional[bool] = None
+    flagged_by_user: Optional[str] = None
+    flagged_time: Optional[str] = None    
