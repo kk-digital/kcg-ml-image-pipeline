@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Body, Request
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode
-from .mongo_schemas import ExternalImageData, ImageHashRequest
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
 from typing import List
 from datetime import datetime
 router = APIRouter()
@@ -9,8 +9,8 @@ router = APIRouter()
 @router.post("/external-images/add-external-image", 
             description="Add an external image data",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ExternalImageData],  
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            response_model=StandardSuccessResponseV1[ListExternalImageData],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
@@ -52,8 +52,8 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 @router.post("/external-images/add-external-image-list", 
             description="Add list of external image data",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
-            responses=ApiResponseHandlerV1.listErrors([500]))
+            response_model=StandardSuccessResponseV1[ListExternalImageData],  
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -96,8 +96,8 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
 @router.get("/external-images/get-external-image-list", 
             description="get list of external image data by image hash list",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            response_model=StandardSuccessResponseV1[ListExternalImageData],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_external_image_data_list(request: Request, image_hash_list: List[str]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -123,11 +123,42 @@ async def get_external_image_data_list(request: Request, image_hash_list: List[s
             http_status_code=500
         )
     
+
+@router.post("/external-images/get-external-image-list-v1", 
+             description="Get list of external image data by image hash list",
+             tags=["external-images"],  
+             response_model=StandardSuccessResponseV1[ListExternalImageData],  
+             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_external_image_data_list(request: Request, body: ListImageHashRequest):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        list_external_images = []
+        for image_hash in body.image_hash_list:
+
+            result = request.app.external_images_collection.find_one({
+                "image_hash": image_hash
+            }, {"_id": 0})
+        
+            if result is not None:
+                list_external_images.append(result)
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"data": list_external_images},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+        
 @router.get("/external-images/get-all-external-image-list", 
-            description="get all external image data",
+            description="Get all external image data. If the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            response_model=StandardSuccessResponseV1[ListExternalImageData],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_all_external_image_data_list(request: Request, 
                                            dataset: str=None,
                                            size: int=None):
@@ -163,28 +194,25 @@ async def get_all_external_image_data_list(request: Request,
 @router.delete("/external-images/delete-external-image", 
             description="Delete an external image data",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[int],  
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
-async def delete_external_image_data(request: Request, image_hash:str ):
+            response_model=StandardSuccessResponseV1[WasPresentResponse],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def delete_external_image_data(request: Request, image_hash: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        was_present = False
         result = request.app.external_images_collection.delete_one({
             "image_hash": image_hash
         })
         
         if result.deleted_count == 0:
-            return api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="There is no external image data with image hash: {}".format(image_hash), 
-                http_status_code=400)
-        else:
-            was_present = True
+            return api_response_handler.create_success_response_v1(
+                response_data={"wasPresent": False}, 
+                http_status_code=200
+            )
         
-        return api_response_handler.create_success_delete_response_v1(
-            was_present,
-            200  
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": True}, 
+            http_status_code=200
         )
     
     except Exception as e:
@@ -193,13 +221,14 @@ async def delete_external_image_data(request: Request, image_hash:str ):
             error_string=str(e),
             http_status_code=500
         )
+
     
 
 @router.delete("/external-images/delete-external-image-list", 
             description="Delete an external image data list",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[int],  
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            response_model=StandardSuccessResponseV1[DeletedCount],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def delete_external_image_data_list(request: Request, image_hash_list:List[str] ):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
@@ -225,11 +254,17 @@ async def delete_external_image_data_list(request: Request, image_hash_list:List
             http_status_code=500
         )
     
+
+@router.put("/external-images/add-task-attributes-v1",
+              description="Add or update the task attributes of an external image, No old attibute will be deleted, this function only adds and overwrites",
+              tags=["external-images"],  
+              response_model=StandardSuccessResponseV1[ListExternalImageData],  
+              responses=ApiResponseHandlerV1.listErrors([404,422, 500]))    
 @router.patch("/external-images/add-task-attributes",
               description="Add or update the task attributes of an external image",
               tags=["external-images"],  
-              response_model=StandardSuccessResponseV1[int],  
-              responses=ApiResponseHandlerV1.listErrors([404, 500]))
+              response_model=StandardSuccessResponseV1[ListExternalImageData],  
+              responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_task_attributes(request: Request, image_hash: str, data_dict: dict = Body(...)):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
      

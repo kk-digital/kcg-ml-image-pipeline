@@ -23,6 +23,9 @@ class IrrelevantResponse(BaseModel):
     file_hash: str
     rank_model_id: int
 
+class DeletedCount(BaseModel):
+    deleted_count: int    
+
 class ListIrrelevantResponse(BaseModel):
     images: List[IrrelevantResponse]    
 

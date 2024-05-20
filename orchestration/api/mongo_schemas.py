@@ -291,6 +291,12 @@ class ImageHashRequest(BaseModel):
         return {
             "image_hash": self.image_hash,
         }
+    
+class ListImageHash(BaseModel):
+    data: List[ImageHash]
+
+class ListImageHashRequest(BaseModel):
+    image_hash_list: List[str]    
 
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
@@ -344,7 +350,10 @@ class ExternalImageData(BaseModel):
             "task_attributes_dict": self.task_attributes_dict
         }
 
-    
+
+class ListExternalImageData(BaseModel):
+    data: List[ExternalImageData]
+
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
 
