@@ -90,6 +90,21 @@ class RankActiveLearningPair(BaseModel):
             "images_data": [img.dict() for img in self.images_data]
         }
     
+class RankActiveLearningPairWithScore(BaseModel):
+    file_name: str
+    rank_model_id: int
+    rank_model_string: str
+    active_learning_policy_id: int
+    active_learning_policy: str
+    metadata: str
+    generation_string: str
+    creation_date: str
+    images_data: List[Union[ImageData1, ImageData2]]
+    score_1: float
+    score_2: float
+
+class ListRankActiveLearningPairWithScore(BaseModel):
+    pairs: List[RankActiveLearningPairWithScore]
 
 class ListRankActiveLearningPair(BaseModel):
     pairs: List[RankActiveLearningPair]

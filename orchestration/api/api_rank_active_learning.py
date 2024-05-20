@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -312,6 +312,90 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
             error_string=str(e),
             http_status_code=500
         )
+
+@router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
+            description="Gets random image pairs from the rank active learning queue",
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
+            status_code=200,
+            tags=["Rank Active Learning"],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def random_queue_pair(request: Request, rank_model_id: Optional[int] = None, size: int = 1, rank_active_learning_policy_id: Optional[int] = None):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Define the aggregation pipeline
+        pipeline = []
+
+        match_filter = {}
+        if rank_model_id is not None:
+            match_filter["rank_model_id"] = rank_model_id
+        if rank_active_learning_policy_id is not None:
+            match_filter["rank_active_learning_policy_id"] = rank_active_learning_policy_id
+
+        if match_filter:
+            pipeline.append({"$match": match_filter})
+
+        # Add the random sampling stage to the pipeline
+        pipeline.append({"$sample": {"size": size}})
+
+        # Use MongoDB's aggregation framework to randomly select documents
+        random_pairs_cursor = request.app.rank_active_learning_pairs_collection.aggregate(pipeline)
+
+        # Convert the cursor to a list of dictionaries
+        random_pairs = []
+        for pair in random_pairs_cursor:
+            pair['_id'] = str(pair['_id'])  # Convert _id ObjectId to string
+            random_pairs.append(pair)
+
+        # Fetch classifier_id from rank_model_id
+        classifier_id = None
+        if rank_model_id is not None:
+            rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+            if rank is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Rank model with this id doesn't exist")
+            classifier_id = rank.get("classifier_id")
+            if classifier_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="This Rank has no relevance classifier model assigned to it")
+
+        if classifier_id is not None:
+            classifier_query = {'classifier_id': classifier_id}
+
+            # Map uuid to their corresponding scores
+            classifier_scores_map = {
+                score['job_uuid']: score['score']
+                for score in request.app.image_classifier_scores_collection.find(classifier_query)
+            }
+
+            # Add classifier score to each pair's images_data
+            for pair in random_pairs:
+                for image_data in pair['images_data']:
+                    job_uuid_1 = image_data.get('job_uuid_1')
+                    job_uuid_2 = image_data.get('job_uuid_2')
+                    score_1 = classifier_scores_map.get(job_uuid_1, None)
+                    score_2 = classifier_scores_map.get(job_uuid_2, None)
+                    image_data['score_1'] = score_1
+                    image_data['score_2'] = score_2
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"pairs": random_pairs},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        # Handle exceptions that may occur during database operation
+        print(f"Error during API execution: {str(e)}")
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+
 
 
 
