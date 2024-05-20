@@ -313,9 +313,9 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
             http_status_code=500
         )
 
-@router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
+@router.get("/rank-active-learning-queue/get-random-image-pair", 
             description="Gets random image pairs from the rank active learning queue",
-            response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -380,6 +380,14 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
                     image_data['score_1'] = score_1
                     image_data['score_2'] = score_2
 
+        # Ensure score fields are present even if scores do not exist
+        for pair in random_pairs:
+            for image_data in pair['images_data']:
+                if 'score_1' not in image_data:
+                    image_data['score_1'] = None
+                if 'score_2' not in image_data:
+                    image_data['score_2'] = None
+
         return api_response_handler.create_success_response_v1(
             response_data={"pairs": random_pairs},
             http_status_code=200
@@ -393,6 +401,7 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
             error_string=str(e),
             http_status_code=500
         )
+
 
 
 
