@@ -370,16 +370,26 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
                 for score in request.app.image_classifier_scores_collection.find(classifier_query)
             }
 
-            # Add classifier score to each pair's images_data
+            # Add classifier score to each pair
             for pair in random_pairs:
-                for image_data in pair['images_data']:
-                    job_uuid_1 = image_data.get('job_uuid_1')
-                    job_uuid_2 = image_data.get('job_uuid_2')
+                images_data = pair['images_data']
+                if len(images_data) == 2:
+                    job_uuid_1 = images_data[0].get('job_uuid_1')
+                    job_uuid_2 = images_data[1].get('job_uuid_2')
                     score_1 = classifier_scores_map.get(job_uuid_1, None)
                     score_2 = classifier_scores_map.get(job_uuid_2, None)
-                    image_data['score_1'] = score_1
-                    image_data['score_2'] = score_2
+                    pair['score_1'] = score_1
+                    pair['score_2'] = score_2
+                else:
+                    pair['score_1'] = None
+                    pair['score_2'] = None
 
+        # Ensure score fields are present even if scores do not exist
+        for pair in random_pairs:
+            if 'score_1' not in pair:
+                pair['score_1'] = None
+            if 'score_2' not in pair:
+                pair['score_2'] = None
 
         return api_response_handler.create_success_response_v1(
             response_data={"pairs": random_pairs},
@@ -394,9 +404,6 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
             error_string=str(e),
             http_status_code=500
         )
-
-
-
 
 
 
