@@ -24,8 +24,6 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, default='environmental')
-    parser.add_argument('--prior-cfg-scale', type=int, default=1)
-    parser.add_argument('--decoder-cfg-scale', type=int, default=1)
     parser.add_argument('--image-path', type=str, default=None)
 
     return parser.parse_args()
@@ -63,6 +61,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key)
     if args.image_path is None:
         clip_vector, _, _, _ = get_clip_distribution(minio_client=minio_client, dataset=args.dataset)
+        clip_vector.unsqueeze(0)
     else:
         clip_vector = get_clip_vector_from_image(args.image_path)
 
@@ -78,7 +77,7 @@ def main():
             for task_cfg_scale in tqdm(range(20), total=20):
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
-                        image_embedding=clip_vector.unsqueeze(0),
+                        image_embedding=clip_vector,
                         negative_image_embedding=None,
                         dataset_name="test-generations",
                         seed=seed,
