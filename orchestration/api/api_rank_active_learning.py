@@ -313,7 +313,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
             http_status_code=500
         )
 
-@router.get("/rank-active-learning-queue/get-random-image-pair", 
+@router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
             description="Gets random image pairs from the rank active learning queue",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
             status_code=200,
