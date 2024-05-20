@@ -206,6 +206,7 @@ def get_random_image_date_range(
 
     return documents
 
+
 @router.get("/image/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -213,6 +214,78 @@ def get_random_image_date_range(
     start_date: str = None,
     end_date: str = None,
     min_score: float= 0.6,
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
+):
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'},
+            {'task_type': 'img2img_generation_kandinsky'}
+        ]
+    }
+
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+    # If rank_id is provided, adjust the query to consider classifier scores
+    if rank_id is not None:
+        # get rank data
+        rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        if rank is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Rank model with this id doesn't exist") 
+        
+        # get the relevance classifier model id
+        classifier_id= rank["classifier_id"]
+        if classifier_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="This Rank has no relevance classifier model assigned to it")
+        
+        classifier_query = {'classifier_id': classifier_id}
+        if min_score is not None:
+            classifier_query['score'] = {'$gte': min_score}
+            # Fetch image hashes from classifier_scores collection that match the criteria
+            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+            if classifier_scores is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="The relevance classifier model has no scores.")
+            image_hashes = [score['image_hash'] for score in classifier_scores]
+            query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    documents = list(documents)
+
+    for document in documents:
+        document.pop('_id', None)  # Remove the auto-generated field
+
+    return documents
+
+
+@router.get("/image/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
+def get_random_image_date_range(
+    request: Request,
+    rank_id: int = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_score: float = 0.6,
     size: int = None,
     prompt_generation_policy: Optional[str] = None  # Optional query parameter
 ):
@@ -283,15 +356,13 @@ def get_random_image_date_range(
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
         uuid = document.get('uuid')
-        score = classifier_scores_map.get(uuid)
-        print(score)
-        if score is not None:
-            # Add classifier score as the first field
-            document_with_score = {'classifier_score': score}
-            document_with_score.update(document)
-            documents[documents.index(document)] = document_with_score
+        score = classifier_scores_map.get(uuid, None)  # Ensure score is None if not found
+        document['classifier_score'] = score  # Add classifier score as a top-level field
 
     return documents
+
+
+
 
 
 """
