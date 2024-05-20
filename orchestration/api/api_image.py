@@ -279,7 +279,7 @@ def get_random_image_date_range(
     return documents
 
 
-@router.get("/image/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image_by_classifier_score-v1", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
     rank_id: int = None,
