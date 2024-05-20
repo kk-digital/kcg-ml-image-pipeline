@@ -240,7 +240,10 @@ class RAGInferencePipeline:
                 print(f"Error opening image: {filename}")
         
         # calculate clip vectors
-        image_clip_vectors= self.clip.get_image_features(images)
+        image_clip_vectors=[]
+        for image in images:
+            image_clip_vectors.append(self.clip.get_image_features(image))
+            
         # get nearest vectors
         nearest_indices= self.get_nearest_vectors(faiss_index, image_clip_vectors)
 
