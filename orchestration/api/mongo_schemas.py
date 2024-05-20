@@ -284,6 +284,12 @@ class ImageHash(BaseModel):
             "image_global_id": self.image_global_id,
         }
     
+class GlobalId(BaseModel):
+    image_global_id: int
+
+class ResponseGlobalId(BaseModel):
+    data: GlobalId
+
 class ImageHashRequest(BaseModel):
     image_hash: str
 
