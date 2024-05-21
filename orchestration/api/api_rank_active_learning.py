@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ListRankActiveLearningPairWithScore
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ListRankActiveLearningPairWithScore, ScoreImageTask
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -936,3 +936,100 @@ def list_selection_data_with_scores(
             error_string=str(e),
             http_status_code=500,
         )  
+
+@router.get("/rank-training/get_random_images_by_classifier_score", 
+            tags=['rank-training'], 
+            description="List rank selection datapoints with detailed scores",
+            response_model=StandardSuccessResponseV1[ScoreImageTask],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+def get_random_image_date_range(
+    request: Request,
+    rank_id: int = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_score: float = 0.6,
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
+):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'},
+            {'task_type': 'img2img_generation_kandinsky'}
+        ]
+    }
+
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+    # If rank_id is provided, adjust the query to consider classifier scores
+    classifier_id = None
+    if rank_id is not None:
+        rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        if rank is None:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Rank model with this id doesn't exist",
+                http_status_code=404
+        )
+
+        classifier_id = rank.get("classifier_id")
+        if classifier_id is None:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"This Rank has no relevance classifier model assigned to it",
+                http_status_code=404
+        )
+
+        classifier_query = {'classifier_id': classifier_id}
+        if min_score is not None:
+            classifier_query['score'] = {'$gte': min_score}
+
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+        if classifier_scores is None:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"The relevance classifier model has no scores",
+                http_status_code=404
+        )
+
+        uuids = [score['uuid'] for score in classifier_scores]
+        query['uuid'] = {'$in': uuids}
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    documents = list(documents)
+
+    # Map uuid to their corresponding scores
+    classifier_query = {'classifier_id': classifier_id}
+    classifier_scores_map = {
+        score['uuid']: score['score']
+        for score in request.app.image_classifier_scores_collection.find(classifier_query)
+    }
+
+    # Add classifier score to each document
+    for document in documents:
+        document.pop('_id', None)  # Remove the auto-generated field
+        uuid = document.get('uuid')
+        score = classifier_scores_map.get(uuid, None)  # Ensure score is None if not found
+        document['classifier_score'] = score  # Add classifier score as a top-level field
+
+    return api_response_handler.create_success_response_v1(
+                response_data=documents,
+                http_status_code=200
+            )     

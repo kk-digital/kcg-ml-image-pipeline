@@ -198,3 +198,24 @@ class JsonMinioResponse(BaseModel):
     flagged: Optional[bool] = None
     flagged_by_user: Optional[str] = None
     flagged_time: Optional[str] = None    
+
+class ScoreImageTask(BaseModel):
+    task_type: str
+    uuid: str
+    model_name: str
+    model_file_name: str
+    model_file_path: str
+    model_hash: Optional[str]
+    task_creation_time: datetime
+    task_start_time: str
+    task_completion_time: str
+    task_error_str: Optional[str]
+    task_input_dict: dict
+    task_input_file_dict: dict
+    task_output_file_dict: dict
+    task_attributes_dict: dict
+    prompt_generation_data: dict
+    ranking_count: int
+    safe_to_delete: bool
+    tag_count: int
+    classifier_score: Optional[float] = None 
