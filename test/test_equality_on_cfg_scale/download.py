@@ -83,10 +83,11 @@ def download_images_from_csv(csv_file_path, output_path):
         
         if uuid not in already_downloaded:
             time_taken, saved_image_path = download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed)
-            generated_images_data.loc[i]['downloaded_image_path'] = saved_image_path
+            generated_images_data.loc[i, 'downloaded_image_path'] = saved_image_path
             if time_taken:
                 total_time += time_taken
                 num_images_downloaded += 1
+            generated_images_data.to_csv(csv_file_path, index=False)
                     
     if num_images_downloaded > 0:
         avg_time_per_image = total_time / num_images_downloaded

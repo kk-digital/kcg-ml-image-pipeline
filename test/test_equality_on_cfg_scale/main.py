@@ -68,13 +68,16 @@ def main():
     with open(get_fname(), 'w', newline='') as f:
         csv_writer = csv.DictWriter(f, ['task_uuid', 'task_cfg_scale', 'task_seed','task_creation_time'])
         csv_writer.writeheader()
+        
+        task_cfg_scales = [pow(2, i) for i in range(10)]
+        task_cfg_scales = [0] + task_cfg_scales
 
         for _ in range(20):
 
             random.seed(time.time())
             seed = random.randint(0, 2 ** 24 - 1)
 
-            for task_cfg_scale in tqdm(range(20), total=20):
+            for task_cfg_scale in tqdm(task_cfg_scales, total=len(task_cfg_scales)):
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=clip_vector,
