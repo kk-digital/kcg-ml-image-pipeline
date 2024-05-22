@@ -7,6 +7,7 @@ import os
 import random
 import sys
 import time
+from matplotlib import pyplot as plt
 import msgpack
 import requests
 import torch
@@ -99,56 +100,48 @@ def load_clip_vae_latents(minio_client, dataset):
 
     return image_latents
 
-def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_images):
-    # Check if the input lists have the same length
+def create_comparison_image(minio_client, original_images, zeroed_vae_images, rag_diffusion_images):
+
     if not (len(original_images) == len(zeroed_vae_images) == len(rag_diffusion_images)):
         raise ValueError("All input lists must have the same length")
-
-    # Calculate the dimensions for the output image
-    image_count = len(original_images)
-    if image_count == 0:
+    
+    if len(original_images) == 0:
         raise ValueError("Input lists must not be empty")
-        
+
+    # Number of images and their dimensions
+    image_count = len(original_images)
     image_width, image_height = original_images[0].size
-    margin = 40  # margin between images
-    label_height = 100  # height of the text labels
-    canvas_width = 3 * image_width + 4 * margin  # 3 columns and 4 margins
-    canvas_height = image_count * image_height + (image_count + 1) * margin + label_height  # N rows, N+1 margins, and label height
 
-    # Create a white canvas
-    canvas = Image.new('RGB', (canvas_width, canvas_height), (255, 255, 255))
-    draw = ImageDraw.Draw(canvas)
+    # Create a figure and axes with the appropriate size
+    fig, axs = plt.subplots(nrows=image_count, ncols=3, figsize=(15, 5 * image_count))
+    fig.subplots_adjust(hspace=0.4, wspace=0.05)
+    
+    # Titles for each column
+    titles = ['Original Image', 'Generated with Zeroed VAE', 'RAG Diffusion']
+    if image_count == 1:
+        axs = [axs]
 
-    # Set the font size and style
-    try:
-        font = ImageFont.truetype("arial.ttf", 500)  # You can change the font and size as needed
-    except IOError:
-        font = ImageFont.load_default(size=500)
-
-    # Define the column labels
-    labels = ["Original Image", "Generated with Zeroed VAE", "RAG Diffusion"]
-
-    # Draw the labels at the top of each column
-    for i, label in enumerate(labels):
-        text_width, text_height = draw.textsize(label, font=font)
-        x = margin + i * (image_width + margin) + (image_width - text_width) // 2
-        y = margin
-        draw.text((x, y), label, fill="black", font=font)
-
-    # Paste images on the canvas below the labels
     for i in range(image_count):
-        y_offset = i * image_height + (i + 1) * margin + label_height
-
         # Original image
-        canvas.paste(original_images[i], (margin, y_offset))
+        axs[i][0].imshow(original_images[i])
+        axs[i][0].axis('off')
+        
+        # Zeroed VAE image
+        axs[i][1].imshow(zeroed_vae_images[i])
+        axs[i][1].axis('off')
+        
+        # RAG Diffusion image
+        axs[i][2].imshow(rag_diffusion_images[i])
+        axs[i][2].axis('off')
 
-        # Generated with zeroed VAE
-        canvas.paste(zeroed_vae_images[i], (2 * margin + image_width, y_offset))
+    for ax, title in zip(axs[0], titles):
+        ax.set_title(title, fontsize=32)
 
-        # RAG diffusion
-        canvas.paste(rag_diffusion_images[i], (3 * margin + 2 * image_width, y_offset))
+    img_byte_arr = io.BytesIO()
+    plt.savefig(img_byte_arr, format='png')
+    img_byte_arr.seek(0)
 
-    return canvas
+    cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH + f"/inference_comparisons.png" , img_byte_arr)
 
 class RAGInferencePipeline:
     def __init__(self,
@@ -275,13 +268,8 @@ class RAGInferencePipeline:
                                                   seed= seed)
             rag_diffusion_images.append(rag_diffusion_image)
         
-        canvas = create_comparison_image(original_images, blank_vae_images, rag_diffusion_images)
+        canvas = create_comparison_image(self.minio_client ,original_images, blank_vae_images, rag_diffusion_images)
 
-        img_byte_arr = io.BytesIO()
-        canvas.save(img_byte_arr, format="png")
-        img_byte_arr.seek(0)  # Move to the start of the byte array
-
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/inference_comparisons.png" , img_byte_arr)
 
 def main():
     args= parse_args()
