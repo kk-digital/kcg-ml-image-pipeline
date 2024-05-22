@@ -184,6 +184,9 @@ class ResponseImageInfo(BaseModel):
     delta_score: float
     flagged: bool
 
+class ResponseImageInfoV1(BaseModel):
+    selections: ResponseImageInfo 
+
 class JsonMinioResponse(BaseModel):
     rank_model_id: int
     task: str

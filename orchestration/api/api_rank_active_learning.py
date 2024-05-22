@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ListRankActiveLearningPairWithScore, ScoreImageTask
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -833,7 +833,7 @@ def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mo
 @router.get("/rank-training/list-selection-data-with-scores", 
             tags=['rank-training'], 
             description="List rank selection datapoints with detailed scores",
-            response_model=StandardSuccessResponseV1[ResponseImageInfo],
+            response_model=StandardSuccessResponseV1[ResponseImageInfoV1],
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def list_selection_data_with_scores(
     request: Request,
@@ -926,7 +926,7 @@ def list_selection_data_with_scores(
 
         print(f"Total documents processed: {doc_count}. Selection data count: {len(selection_data)}")    
         return response_handler.create_success_response_v1(
-            response_data=selection_data,
+            response_data={"selections": selection_data},
             http_status_code=200
         )
 
