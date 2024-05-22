@@ -244,8 +244,7 @@ class RAGInferencePipeline:
         # calculate clip vectors
         image_clip_vectors=[]
         for image in images:
-            vector= self.clip.get_image_features(image)
-            print(vector.shape)
+            vector= self.clip.get_image_features(image).squeeze()
             image_clip_vectors.append(vector)
         
         image_clip_vectors= torch.stack(image_clip_vectors)
