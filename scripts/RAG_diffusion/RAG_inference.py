@@ -110,8 +110,8 @@ def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_im
         raise ValueError("Input lists must not be empty")
         
     image_width, image_height = original_images[0].size
-    margin = 20  # margin between images
-    label_height = 40  # height of the text labels
+    margin = 40  # margin between images
+    label_height = 100  # height of the text labels
     canvas_width = 3 * image_width + 4 * margin  # 3 columns and 4 margins
     canvas_height = image_count * image_height + (image_count + 1) * margin + label_height  # N rows, N+1 margins, and label height
 
@@ -121,7 +121,7 @@ def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_im
 
     # Set the font size and style
     try:
-        font = ImageFont.truetype("arial.ttf", 24)  # You can change the font and size as needed
+        font = ImageFont.truetype("arial.ttf", 64)  # You can change the font and size as needed
     except IOError:
         font = ImageFont.load_default()
 
