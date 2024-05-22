@@ -72,7 +72,7 @@ def load_image_latents(minio_client, file_path:str):
 def load_clip_vae_latents(minio_client, dataset):
     print(f"Fetching clip and vae vectors for all images in the {dataset} dataset")
 
-    response = requests.get(f'{API_URL}/image/get-random-image-list-v1?dataset={dataset}&size=100')
+    response = requests.get(f'{API_URL}/image/get-random-image-list-v1?dataset={dataset}&size=200000')
     # get the list of jobs
     jobs = json.loads(response.content)["response"]
     # get the list of file paths to each image
@@ -135,7 +135,7 @@ def create_comparison_image(minio_client, original_images, zeroed_vae_images, ra
         axs[i][2].axis('off')
 
     for ax, title in zip(axs[0], titles):
-        ax.set_title(title, fontsize=16)
+        ax.set_title(title, fontsize=20)
 
     img_byte_arr = io.BytesIO()
     plt.savefig(img_byte_arr, format='png')
