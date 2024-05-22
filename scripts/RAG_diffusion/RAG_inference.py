@@ -207,7 +207,7 @@ class RAGInferencePipeline:
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
         clip_vectors = torch.stack(clip_vectors).cpu().numpy().astype('float32')
-        print(len(clip_vectors), clip_vectors[0])
+        print(clip_vectors.shape)
         faiss_index.add(clip_vectors)
 
         return faiss_index
