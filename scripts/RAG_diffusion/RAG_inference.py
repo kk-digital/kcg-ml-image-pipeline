@@ -71,7 +71,7 @@ def load_image_latents(minio_client, file_path:str):
 def load_clip_vae_latents(minio_client, dataset):
     print(f"Fetching clip and vae vectors for all images in the {dataset} dataset")
 
-    response = requests.get(f'{API_URL}/image/get-random-image-list-v1?dataset={dataset}&size=150000')
+    response = requests.get(f'{API_URL}/image/get-random-image-list-v1?dataset={dataset}&size=100')
     # get the list of jobs
     jobs = json.loads(response.content)["response"]
     # get the list of file paths to each image
@@ -121,9 +121,9 @@ def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_im
 
     # Set the font size and style
     try:
-        font = ImageFont.truetype("arial.ttf", 64)  # You can change the font and size as needed
+        font = ImageFont.truetype("arial.ttf", 500)  # You can change the font and size as needed
     except IOError:
-        font = ImageFont.load_default()
+        font = ImageFont.load_default(500)
 
     # Define the column labels
     labels = ["Original Image", "Generated with Zeroed VAE", "RAG Diffusion"]
