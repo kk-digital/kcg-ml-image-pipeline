@@ -248,7 +248,6 @@ class RAGInferencePipeline:
             image_clip_vectors.append(vector)
         
         image_clip_vectors= torch.stack(image_clip_vectors)
-        print(image_clip_vectors.shape)
 
         # get nearest vectors
         nearest_indices= self.get_nearest_vectors(faiss_index, image_clip_vectors)
@@ -259,19 +258,19 @@ class RAGInferencePipeline:
 
         # get initial vae for each image
         for index, image_indices in enumerate(nearest_indices):
-            init_vae_latents= torch.stack([self.image_latents[index] for index in image_indices])
+            init_vae_latents= torch.stack([self.image_latents[index]['vae_latent'] for index in image_indices])
             init_vae_latent= torch.mean(init_vae_latents)
 
             original_image= images[index] 
             original_images.append(original_image)
 
             generated_image, _= self.image_generator.generate_img2img(init_img=initial_image,
-                                                  image_embeds= image_clip_vectors[index],
+                                                  image_embeds= image_clip_vectors[index].unsqueeze(0),
                                                   seed= seed)
             blank_vae_images.append(generated_image)
 
             rag_diffusion_image, _= self.image_generator.generate_img2img(init_img=initial_image,
-                                                  image_embeds= image_clip_vectors[index],
+                                                  image_embeds= image_clip_vectors[index].unsqueeze(0),
                                                   init_vae= init_vae_latent,
                                                   seed= seed)
             rag_diffusion_images.append(rag_diffusion_image)
