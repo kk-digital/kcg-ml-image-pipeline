@@ -64,7 +64,6 @@ def load_image_latents(minio_client, file_path:str):
         }
 
     except Exception as e:
-        print(f"Error processing data at path {image_path}: {e}")
         return None
 
     return image_latents
@@ -207,7 +206,6 @@ class RAGInferencePipeline:
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
         clip_vectors = torch.stack(clip_vectors).cpu().numpy().astype('float32')
-        print(clip_vectors.shape)
         faiss_index.add(clip_vectors)
 
         return faiss_index
@@ -246,9 +244,12 @@ class RAGInferencePipeline:
         # calculate clip vectors
         image_clip_vectors=[]
         for image in images:
-            image_clip_vectors.append(self.clip.get_image_features(image))
+            vector= self.clip.get_image_features(image)
+            print(vector.shape)
+            image_clip_vectors.append(vector)
         
         image_clip_vectors= torch.stack(image_clip_vectors)
+        print(image_clip_vectors.shape)
 
         # get nearest vectors
         nearest_indices= self.get_nearest_vectors(faiss_index, image_clip_vectors)
