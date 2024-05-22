@@ -72,7 +72,7 @@ def load_image_latents(minio_client, file_path:str):
 def load_clip_vae_latents(minio_client, dataset):
     print(f"Fetching clip and vae vectors for all images in the {dataset} dataset")
     end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&end_date={end_date}&limit=40000000')
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&end_date={end_date}&limit=40000')
     # get the list of jobs
     jobs = json.loads(response.content)
     # get the list of file paths to each image
