@@ -114,7 +114,7 @@ def create_comparison_image(minio_client, original_images, zeroed_vae_images, ra
 
     # Create a figure and axes with the appropriate size
     fig, axs = plt.subplots(nrows=image_count, ncols=3, figsize=(15, 5 * image_count))
-    fig.subplots_adjust(hspace=0.4, wspace=0.05)
+    fig.subplots_adjust(hspace=0.05, wspace=0.05)
     
     # Titles for each column
     titles = ['Original Image', 'Generated with Zeroed VAE', 'RAG Diffusion']
@@ -135,7 +135,7 @@ def create_comparison_image(minio_client, original_images, zeroed_vae_images, ra
         axs[i][2].axis('off')
 
     for ax, title in zip(axs[0], titles):
-        ax.set_title(title, fontsize=32)
+        ax.set_title(title, fontsize=16)
 
     img_byte_arr = io.BytesIO()
     plt.savefig(img_byte_arr, format='png')
