@@ -260,6 +260,7 @@ class RAGInferencePipeline:
         for index, image_indices in enumerate(nearest_indices):
             init_vae_latents= torch.stack([self.image_latents[index]['vae_latent'] for index in image_indices])
             init_vae_latent= torch.mean(init_vae_latents)
+            print(f"vae latent {init_vae_latent.shape}")
 
             original_image= images[index] 
             original_images.append(original_image)
