@@ -268,7 +268,7 @@ class RAGInferencePipeline:
                                                   seed= seed)
             rag_diffusion_images.append(rag_diffusion_image)
         
-        canvas = create_comparison_image(self.minio_client ,original_images, blank_vae_images, rag_diffusion_images)
+        create_comparison_image(self.minio_client ,original_images, blank_vae_images, rag_diffusion_images)
 
 
 def main():
