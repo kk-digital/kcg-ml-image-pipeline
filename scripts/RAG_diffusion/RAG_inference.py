@@ -123,7 +123,7 @@ def create_comparison_image(original_images, zeroed_vae_images, rag_diffusion_im
     try:
         font = ImageFont.truetype("arial.ttf", 500)  # You can change the font and size as needed
     except IOError:
-        font = ImageFont.load_default(500)
+        font = ImageFont.load_default(size=500)
 
     # Define the column labels
     labels = ["Original Image", "Generated with Zeroed VAE", "RAG Diffusion"]
