@@ -887,9 +887,9 @@ async def remove_all_model_paths(request: Request):
         )
 
 
-@router.get('/ab-rank/get-ab-rank-image-pair',
+@router.get('/rank-training/get-ab-rank-image-pair',
             status_code=200,
-            tags=["ab-rank"],
+            tags=["rank-training"],
             description="Get image pair for ab rank with parameters",
             response_model=StandardSuccessResponseV1[ABRankImagePairResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
@@ -913,17 +913,28 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
         classifier_id = rank_model.get("classifier_id")
         
         filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+            {'$sample': {
+                'size': sample_size
+            }},
             {'$match': {
                 'classifier_id': classifier_id,
                 'score': {'$gte': min_score},
             }},
-            {'$sample': {
-                'size': sample_size
-            }},
             {'$project': {
-                '_id': 0
+                'uuid': 1,
+                'score': 1
             }},
         ]))
+
+        unique_filtered_classifier_scores = []
+        uuid_set = set()
+
+        for document in filtered_classfier_scores:
+            uuid = document.get('uuid')
+            if uuid not in uuid_set:
+                uuid_set.add(uuid)
+                unique_filtered_classifier_scores.append(document)
+        filtered_classfier_scores = unique_filtered_classifier_scores
 
         scores = [classifier_score['score'] for classifier_score in filtered_classfier_scores]
         
@@ -934,34 +945,28 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
 
         num_filtered_classifier_scores = len(filtered_classfier_scores)
 
-        image_uuid_pair_list = []
+        image_pair_list = []
         
         for i in range(num_filtered_classifier_scores):
             next = bisect.bisect_left(scores, scores[i] + max_diff, i, num_filtered_classifier_scores)
 
             for j in range(i+1, next):
-                image_uuid_pair_list.append((filtered_classfier_scores[i]['uuid'], filtered_classfier_scores[j]['uuid']))
+                image_pair_list.append((i, j))
 
-        num_image_pair_within_max_diff = len(image_uuid_pair_list)
-        image_uuid_pair = image_uuid_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+        num_image_pair_within_max_diff = len(image_pair_list)
+        image_pair = image_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
 
-        image_uuids = image_uuid_pair
-        images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
+        image_1 = request.app.completed_jobs_collection.find_one({'uuid': filtered_classfier_scores[image_pair[0]]['uuid']})
+        image_2 = request.app.completed_jobs_collection.find_one({'uuid': filtered_classfier_scores[image_pair[1]]['uuid']})
+        image_1 = dict(image_1.pop('_id'))
+        image_2 = dict(image_2.pop('_id'))
 
-        image_pair = []
-        image_score_pair = []
-
-        for image in images:
-            image_dict = image.copy()  # Create a copy of the document
-            del image_dict['_id']
-            image_uuid = image_dict['uuid']
-            image_score = request.app.image_classifier_scores_collection.find_one({'uuid': image_uuid})['score']
-            image_pair.append(image_dict)
-            image_score_pair.append(image_score)
+        image_1['classifier_score'] = filtered_classfier_scores[image_pair[0]]['score']
+        image_2['classifier_score'] = filtered_classfier_scores[image_pair[1]]['score']
 
         return response_handler.create_success_response_v1(
-            response_data={'image_pair': image_pair,
-                           'image_score_pair': image_score_pair,
+            response_data={'image_1': image_1,
+                           'image_2': image_2,
                            'num_images_above_min_score': num_filtered_classifier_scores, 
                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
