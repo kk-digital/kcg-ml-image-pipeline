@@ -268,6 +268,25 @@ def startup_db_client():
 
     app.ranking_datapoints_collection = app.mongodb_db["ranking_datapoints"]
 
+    pair_ranking_hash_index = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING),
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index, 'pair_ranking_hash_index')
+
+    pair_ranking_hash_index_1 = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index_1, 'pair_ranking_hash_index_1')
+
+    pair_ranking_hash_index_2 = [
+
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index_2, 'pair_ranking_hash_index_2')
+
     # rank active learning policy
 
     app.rank_active_learning_policies_collection = app.mongodb_db["rank_active_learning_policy"]
@@ -418,6 +437,8 @@ def startup_db_client():
         ('image_2_metadata.file_hash', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_2, 'pair_rank_hash_index_2')
+
+
 
     print("Connected to the MongoDB database!")
 
