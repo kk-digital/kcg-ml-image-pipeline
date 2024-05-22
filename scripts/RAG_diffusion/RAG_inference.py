@@ -198,9 +198,6 @@ class RAGInferencePipeline:
         self.image_latents= load_clip_vae_latents(self.minio_client, self.dataset)
         clip_vectors=[image['clip_vector'].squeeze() for image in self.image_latents]
 
-        print(clip_vectors)
-        print(clip_vectors[0])
-        print(clip_vectors[0].size(0))
         dimension = clip_vectors[0].size(0)
         faiss_index = faiss.IndexFlatL2(dimension)
         
