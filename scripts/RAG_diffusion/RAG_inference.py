@@ -65,13 +65,14 @@ def load_image_latents(minio_client, file_path:str):
 
     except Exception as e:
         print(f"Error processing data at path {image_path}: {e}")
+        return None
 
     return image_latents
 
 def load_clip_vae_latents(minio_client, dataset):
     print(f"Fetching clip and vae vectors for all images in the {dataset} dataset")
     end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&end_date={end_date}')
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&end_date={end_date}&limit=40000000')
     # get the list of jobs
     jobs = json.loads(response.content)
     # get the list of file paths to each image
@@ -88,7 +89,11 @@ def load_clip_vae_latents(minio_client, dataset):
             try:
                 result = future.result()
                 # Process the result if needed
-                image_latents.append(result)
+                if result:
+                    image_latents.append(result)
+                else:
+                   print(f"Error processing job")
+
             except Exception as exc:
                 # Handle the exception (e.g., log it)
                 print(f"Error processing job")
