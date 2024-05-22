@@ -250,6 +250,8 @@ class RAGInferencePipeline:
         image_clip_vectors=[]
         for image in images:
             image_clip_vectors.append(self.clip.get_image_features(image))
+        
+        image_clip_vectors= torch.stack(image_clip_vectors)
 
         # get nearest vectors
         nearest_indices= self.get_nearest_vectors(faiss_index, image_clip_vectors)
