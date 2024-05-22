@@ -1,5 +1,6 @@
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
 import io
 import json
 import os
@@ -69,7 +70,8 @@ def load_image_latents(minio_client, file_path:str):
 
 def load_clip_vae_latents(minio_client, dataset):
     print(f"Fetching clip and vae vectors for all images in the {dataset} dataset")
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}')
+    end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&end_date={end_date}')
     # get the list of jobs
     jobs = json.loads(response.content)
     # get the list of file paths to each image
@@ -243,7 +245,7 @@ class RAGInferencePipeline:
         image_clip_vectors=[]
         for image in images:
             image_clip_vectors.append(self.clip.get_image_features(image))
-            
+
         # get nearest vectors
         nearest_indices= self.get_nearest_vectors(faiss_index, image_clip_vectors)
 
