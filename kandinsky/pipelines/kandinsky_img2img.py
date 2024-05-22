@@ -315,7 +315,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         image = torch.cat([prepare_image(i, width, height) for i in image], dim=0)
         image = image.to(dtype=image_embeds.dtype, device=device)
 
-        if initial_latents:
+        if initial_latents is not None:
             latents= initial_latents
         else:
             latents = self.movq.encode(image)["latents"]
