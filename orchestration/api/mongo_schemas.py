@@ -58,7 +58,22 @@ class Task(BaseModel):
         if isinstance(value, str):
             return cls(**json.loads(value))
         return value
+    
 
+class ABRankTrainingImage(Task):
+    classifier_score: float
+
+class ABRankImagePairResponse_v1(BaseModel):
+    image_1: ABRankTrainingImage
+    image_2: ABRankTrainingImage
+    num_images_above_min_score: float
+    num_image_pair_within_max_diff: float
+
+class ABRankImagePairResponse(BaseModel):
+    image_pair: List[Task]
+    image_score_pair: List[int]
+    num_images_above_min_score: float
+    num_image_pair_within_max_diff: float
 
 class ListTask(BaseModel):
     jobs: List[Task]
