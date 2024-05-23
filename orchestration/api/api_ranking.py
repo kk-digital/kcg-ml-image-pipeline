@@ -35,7 +35,7 @@ def list_policies(request: Request):
     return policies
 
 
-@router.post("/rank/add-ranking-data-point")
+@router.post("/rank/add-ranking-data-point", tags = ['deprecated3'], description= "changed with /rank/add-ranking-data-point-v3")
 def add_selection_datapoint(
     request: Request, 
     selection: Selection,
@@ -94,7 +94,7 @@ def update_image_rank_use_count(request: Request, image_hash):
     return True
 
 
-@router.post("/rank/set-image-rank-use-count", description="Set image rank use count")
+@router.post("/rank/set-image-rank-use-count", tags = ['deprecated3'], description= "changed with /rank/set-image-rank-use-count-v1")
 def set_image_rank_use_count(request: Request, image_hash, count: int):
     counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
 
@@ -116,7 +116,7 @@ def set_image_rank_use_count(request: Request, image_hash, count: int):
     return True
 
 
-@router.get("/rank/get-image-rank-use-count", description="Get image rank use count")
+@router.get("/rank/get-image-rank-use-count",tags = ['deprecated3'], description= "changed with /rank/get-image-rank-use-count-v1")
 def get_image_rank_use_count(request: Request, image_hash: str):
     # check if exist
     query = {"image_hash": image_hash}
@@ -225,7 +225,7 @@ def list_ranking_data(
     return ranking_data
 
 
-@router.get("/rank/sort-ranking-data-by-residual", response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-residual", tags = ['deprecated3'], description= "changed with /rank/sort-ranking-data-by-residual-v1")
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
@@ -315,7 +315,7 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
+@router.get("/rank/count-ranking-data", tags = ['deprecated3'], description= "changed with /rank/count-ranking-data-v1")
 def count_ranking_data(request: Request):
     try:
         # Get the count of documents in the image_pair_ranking_collection
@@ -327,7 +327,7 @@ def count_ranking_data(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/rank/count-selected-residual-data", response_class=PrettyJSONResponse)
+@router.get("/rank/count-selected-residual-data", tags = ['deprecated3'], description= "changed with /rank/count-selected-residual-data-v1")
 def count_ranking_data(request: Request):
     try:
         # Count documents that contain the 'selected_residual' field
@@ -682,7 +682,8 @@ async def calculate_delta_scores(request: Request):
 
 @router.post("/rank/add-ranking-data-point-v2", 
              status_code=201,
-             tags=["ranking"],
+             tags = ['deprecated3'], 
+             description= "changed with /rank/add-ranking-data-point-v3",
              response_model=StandardSuccessResponseV1[Selection],  
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def add_selection_datapoint_v2(

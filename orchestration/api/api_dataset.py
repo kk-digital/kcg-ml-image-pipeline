@@ -14,21 +14,23 @@ from pymongo import ReturnDocument
 router = APIRouter()
 
 
-@router.delete("/dataset/clear-sequential-id")
+@router.delete("/dataset/clear-sequential-id", 
+               tags = ['deprecated3'],
+               description="changed with /datasets/clear-all-sequential-id ")
 def clear_dataset_sequential_id_jobs(request: Request):
     request.app.dataset_sequential_id_collection.delete_many({})
 
     return True
 
 
-@router.get("/dataset/list")
+@router.get("/dataset/list", tags = ['deprecated3'], description= "changed with /datasets/list-datasets " )
 def get_datasets(request: Request):
     objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
 
     return objects
 
 
-@router.get("/dataset/sequential-id/{dataset}")
+@router.get("/dataset/sequential-id/{dataset}",tags = ['deprecated3'], description= "changed with /datasets/get-sequential-ids" )
 def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
 
@@ -61,13 +63,13 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
-@router.delete("/dataset/clear-self-training-sequential-id")
+@router.delete("/dataset/clear-self-training-sequential-id", tags = ['deprecated3'], description= "changed with /datasets/clear-all-self-training-sequential-ids" )
 def clear_self_training_sequential_id_jobs(request: Request):
     request.app.self_training_sequential_id_collection.delete_many({})
 
     return True
 
-@router.get("/dataset/self-training-sequential-id/{dataset}")
+@router.get("/dataset/self-training-sequential-id/{dataset} ", tags = ['deprecated3'], description= " changed with /datasets/get-self-training-sequential-id")
 def get_self_training_sequential_id(request: Request, dataset: str):
     dataset_path = f"{dataset}/data/latent-generator/self_training/"
     # Check and initialize if necessary
@@ -95,7 +97,7 @@ def get_self_training_sequential_id(request: Request, dataset: str):
         raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
 
 # -------------------- Dataset rate -------------------------
-@router.get("/dataset/get-rate")
+@router.get("/dataset/get-rate", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -109,7 +111,7 @@ def get_rate(request: Request, dataset: str):
     return item["dataset_rate"]
 
 
-@router.put("/dataset/set-rate")
+@router.put("/dataset/set-rate", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
@@ -133,7 +135,7 @@ def set_rate(request: Request, dataset, rate=0):
     return True
 
 
-@router.get("/dataset/get-hourly-limit")
+@router.get("/dataset/get-hourly-limit", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -147,7 +149,7 @@ def get_rate(request: Request, dataset: str):
     return item["hourly_limit"]
 
 
-@router.put("/dataset/set-hourly-limit")
+@router.put("/dataset/set-hourly-limit", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_rate(request: Request, dataset, hourly_limit=0):
     date_now = datetime.now()
     # check if exist
@@ -172,7 +174,7 @@ def set_rate(request: Request, dataset, hourly_limit=0):
     return True
 
 
-@router.get("/dataset/get-dataset-config", response_class=PrettyJSONResponse)
+@router.get("/dataset/get-dataset-config, ", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
     item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
@@ -186,7 +188,7 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
     return item
 
 
-@router.get("/dataset/get-all-dataset-config", response_class=PrettyJSONResponse)
+@router.get("/dataset/get-all-dataset-config", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-all-dataset-config" )
 def get_all_dataset_config(request: Request):
     dataset_configs = []
 
@@ -203,7 +205,7 @@ def get_all_dataset_config(request: Request):
     return dataset_configs
 
 
-@router.put("/dataset/set-relevance-model")
+@router.put("/dataset/set-relevance-model", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     date_now = datetime.now()
     # check if dataset exists
@@ -224,7 +226,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     return True
 
 
-@router.put("/dataset/set-ranking-model")
+@router.put("/dataset/set-ranking-model", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     date_now = datetime.now()
     # check if dataset exists
@@ -262,7 +264,7 @@ def list_ranking_files(request: Request, dataset: str):
     return json_files
     
 
-@router.get("/datasets/rank/list-v1", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-v1", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
 def list_ranking_files(
     request: Request, 
     dataset: str, 
@@ -316,7 +318,7 @@ def list_ranking_files(
     return filtered_json_files
 
 
-@router.get("/datasets/rank/list-v3", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-v3", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
 def list_ranking_files_v3(
     request: Request,
     dataset: str,
@@ -384,7 +386,7 @@ def read_json_data(request, json_file):
     return selected_image_hash, json_file
 
 
-@router.get("/datasets/rank/list-sort-by-score", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-sort-by-score", tags = ['deprecated3'], response_class=PrettyJSONResponse)
 def list_ranking_files_sort_by_score(
     request: Request, 
     dataset: str,
@@ -456,7 +458,7 @@ def list_ranking_files_sort_by_score(
     return sorted_json_files
 
 
-@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse, tags = ['deprecated3'], description= "changed wtih /rank/sort-ranking-data-by-residual-v1")
 def list_ranking_files_sort_by_residual(
     request: Request, 
     dataset: str,
@@ -529,7 +531,7 @@ def list_ranking_files_sort_by_residual(
 
 
 
-@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse)
+@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse,tags = ['deprecated3'], description= "changed wtih /rank/list-relevance-datapoints" )
 def list_relevancy_files(request: Request, dataset: str):
     # Construct the path prefix for relevancy
     path_prefix = f"{dataset}/data/relevancy/aggregate"
@@ -546,7 +548,7 @@ def list_relevancy_files(request: Request, dataset: str):
     return json_files
 
 
-@router.put("/datasets/rank/update_datapoint")
+@router.put("/datasets/rank/update_datapoint", tags = ['deprecated3'], description= "changed wtih /rank/update-ranking-datapoint" )
 def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"

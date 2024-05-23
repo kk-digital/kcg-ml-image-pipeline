@@ -40,7 +40,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
-@router.get("/image/get_image_details")
+@router.get("/image/get_image_details", tags = ['deprecated3'], description= "changed wtih get-image-generation/by-hash")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
     document = request.app.completed_jobs_collection.find_one(
@@ -382,7 +382,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 """
 
 # TODO: deprecate
-@router.get("/images/{file_path:path}")
+@router.get("/images/{file_path:path}", tags = ['deprecated3'], description= "changed wtih /static/images/{file_path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
@@ -529,7 +529,7 @@ def get_random_image_with_time(
 # New Endpoints with /static/ prefix
 
 
-@router.get("/static/images/{file_path:path}")
+@router.get("/static/images/{file_path:path}", tags = ['deprecated3'], description= "changed wtih /static/images/{file_path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
@@ -641,9 +641,8 @@ def get_random_image_v1(request: Request, dataset: str = Query(...)):
         )
 
 
-@router.get("/image/get-image-details-v1",
+@router.get("/image/get-image-details-v1", tags = ['deprecated3'], description= "changed wtih get-image-generation/by-hash",
             response_model=StandardSuccessResponseV1[Task],  
-            description="Get details of an image",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_image_details_v1(request: Request, image_path: str = Query(...)):
@@ -1117,7 +1116,8 @@ async def get_image_data_by_filepath_2(request: Request, file_path: str):
 
 
 @router.get("/static/images/get-image-by-job-uuid-v1/{job_uuid}",
-            description="Fetch image by job UUID",
+            tags = ['deprecated3'], 
+            description= "changed wtih /get-image-by-job-uuid/{job_uuid}",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_by_job_uuid(request: Request, job_uuid: str):
