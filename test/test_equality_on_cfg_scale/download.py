@@ -27,7 +27,7 @@ def get_output_file_path(uuid):
         print(f"Failed to fetch job details for UUID {uuid}. Status code: {response.status_code}")
         return None
 
-def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed):
+def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed, i):
     start_time = time.time()
 
     output_file_path = get_output_file_path(uuid)
@@ -36,7 +36,7 @@ def download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, see
 
     filename, extension = os.path.splitext(output_file_path)
 
-    new_filename = f"cfg_scale_{task_cfg_scale}_seed_{seed}{extension}"
+    new_filename = f"cfg_scale_{task_cfg_scale}_seed_{seed}_{i}{extension}"
 
     full_local_path = os.path.join(output_path, new_filename)
 
@@ -74,6 +74,7 @@ def download_images_from_csv(csv_file_path, output_path):
     generated_images_data = pd.read_csv(csv_file_path)
 
     if 'downloaded_image_path' not in generated_images_data.columns:
+        print('added downloaded_image_path')
         generated_images_data['downloaded_image_path'] = None
 
     for i in range(len(generated_images_data)):
@@ -82,7 +83,7 @@ def download_images_from_csv(csv_file_path, output_path):
         seed = generated_images_data.loc[i]['task_seed']
         
         if uuid not in already_downloaded:
-            time_taken, saved_image_path = download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed)
+            time_taken, saved_image_path = download_image(uuid, output_path, downloaded_uuids_path, task_cfg_scale, seed, i)
             generated_images_data.loc[i, 'downloaded_image_path'] = saved_image_path
             if time_taken:
                 total_time += time_taken

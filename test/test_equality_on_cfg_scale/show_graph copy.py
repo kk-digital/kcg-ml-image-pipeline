@@ -41,13 +41,9 @@ def main():
     for index, seed in enumerate(seeds):
         seed_to_index[seed] = index
 
-    print(cfg_scale_to_index, seed_to_index)
+    scale = 5
 
-    fig, ax = plt.subplots(len_seeds, len_cfg_scales, figsize=(len_cfg_scales * 5, len_seeds * 5))
-
-    for i in range(len_seeds):
-        for j in range(len_cfg_scales):
-            ax[i, j].axis('off')
+    fig, ax = plt.subplots(len(downloaded_image_data) // len_cfg_scales, len_cfg_scales, figsize=(len_cfg_scales * scale, scale * len(downloaded_image_data) // len_cfg_scales))
 
     for i in range(len(downloaded_image_data)):
         image_path = downloaded_image_data.loc[i, 'downloaded_image_path']
@@ -56,14 +52,18 @@ def main():
         seed = downloaded_image_data.loc[i, 'task_seed']
         
         col = cfg_scale_to_index[cfg_scale]
-        row = seed_to_index[seed]
+        row = i // len_cfg_scales
+
         if image_path is not None:
             image = plt.imread(image_path, format='jpg')
             ax[row, col].imshow(image)
-            ax[row, col].set_title(f'cfg_scale: {cfg_scale}\nseed: {seed}', fontsize=8 + 5)
+            ax[row, col].set_title(f'cfg_scale: {cfg_scale}\nseed: {seed}', fontsize=8)
+            ax[row, col].axis('off')
         else:
-            ax[row, col].text(0.5, 0.5, 'Failed', ha='center', va='center', fontsize=8)
-    plt.subplots_adjust(wspace=0.1 / 5, hspace=1 / 5)
+            ax[row, col].text(0.5, 0.5, 'Failed', ha='center', va='center', fontsize=8 + scale)
+            ax[row, col].axis('off')
+
+    plt.subplots_adjust(wspace=0.1 / scale, hspace=1 / scale)
     plt.savefig('test/output/cfg_scale/result_on_cfg_scale.png', format='png')
     plt.show()
 
