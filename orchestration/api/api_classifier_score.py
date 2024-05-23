@@ -743,77 +743,7 @@ async def set_image_classifier_score_list(request: Request, classifier_score_lis
             http_status_code=500
         )
 
-@router.get("/pseudotag-classifier-scores/list-images-by-scores-v2", 
-            description="deprecated changed with v3",
-            tags=["deprecated"],  
-            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
-            responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def list_image_scores(
-    request: Request,
-    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
-    task_type: Optional[str] = Query(None, description="Filter by task_type"),
-    min_score: Optional[float] = Query(None, description="Minimum score"),
-    max_score: Optional[float] = Query(None, description="Maximum score"),
-    limit: int = Query(10, description="Limit on the number of results returned"),
-    offset: int = Query(0, description="Offset for pagination"),
-    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
-    random_sampling: bool = Query(True, description="Enable random sampling")
-):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    start_time = time.time()  # Start time tracking
 
-    print("Building query...")
-    # Build the query based on provided filters
-    query = {}
-    if classifier_id is not None:
-        query["classifier_id"] = classifier_id
-    if task_type is not None:
-        query["task_type"] = task_type
-    if min_score is not None and max_score is not None:
-        query["score"] = {"$gte": min_score, "$lte": max_score}
-    elif min_score is not None:
-        query["score"] = {"$gte": min_score}
-    elif max_score is not None:
-        query["score"] = {"$lte": max_score}
-
-    print("Query built. Time taken:", time.time() - start_time)
-
-    # Modify behavior based on random_sampling parameter
-    if random_sampling:
-        # Apply some filtering before sampling
-        query_filter = {"$match": query}  
-        sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
-        
-        # Build the optimized pipeline
-        pipeline = [query_filter, sampling_stage]
-
-        cursor = request.app.image_classifier_scores_collection.aggregate(pipeline)
-
-    else:
-        # Determine sort order and fetch sorted data when random_sampling is False
-        sort_order = 1 if order == "asc" else -1
-        cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
-    
-    print("Data fetched. Time taken:", time.time() - start_time)
-
-    scores_data = list(cursor)
-
-    # Remove _id in response data
-    for score in scores_data:
-        score.pop('_id', None)
-
-    # Prepare the data for the response
-    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
-
-    print("Returning response. Total time:", time.time() - start_time)
-
-    # Return the fetched data with a success response
-    return response_handler.create_success_response_v1(
-        response_data={"images":images_data}, 
-        http_status_code=200
-    )
-
-   
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v3", 
             description="List image scores based on classifier",
             tags=["pseudotag-classifier-scores"],  

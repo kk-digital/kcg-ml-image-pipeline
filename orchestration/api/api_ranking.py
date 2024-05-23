@@ -186,68 +186,6 @@ def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: 
             http_status_code=500,
         )
 
-@router.post("/rank/add-ranking-data-point-v1", 
-             status_code=201,
-             tags = ['deprecated'],
-             description="'rank/add-ranking-data-point-v2' is the replacement.",
-             response_model=StandardSuccessResponse[Selection],
-             responses=ApiResponseHandler.listErrors([422, 500]))
-def add_selection_datapoint(request: Request, selection: Selection):
-    api_handler = ApiResponseHandler(request)
-    
-    try:
-        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-        file_name = f"{current_time}-{selection.username}.json"
-        dataset = selection.image_1_metadata.file_path.split('/')[1]
-        selection.datetime = current_time
-
-        dict_data = selection.to_dict()
-
-        # Prepare ordered data for MongoDB insertion
-        mongo_data = OrderedDict([
-            ("_id", ObjectId()),  # Generate new ObjectId
-            ("file_name", file_name),
-            ("dataset", dataset),
-            *dict_data.items()  # Unpack the rest of dict_data
-        ])
-
-        # Insert the ordered data into MongoDB
-        request.app.image_pair_ranking_collection.insert_one(mongo_data)
-
-        # Prepare data for MinIO upload (excluding the '_id' field)
-        minio_data = mongo_data.copy()
-        minio_data.pop("_id")
-        minio_data.pop("file_name")
-        minio_data.pop("dataset")
-        path = "data/ranking/aggregate"
-        full_path = os.path.join(dataset, path, file_name)
-        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-        data = BytesIO(json_data)
-
-        # Upload data to MinIO
-        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
-
-        image_1_hash = selection.image_1_metadata.file_hash
-        image_2_hash = selection.image_2_metadata.file_hash
-
-        # Update rank count for images
-        for img_hash in [image_1_hash, image_2_hash]:
-            update_image_rank_use_count(request, img_hash)
-
-        # Return a success response
-        return api_handler.create_success_response(
-            response_data=minio_data,
-            http_status_code=201
-        )
-
-    except Exception as e:
-
-        return api_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string="Internal Server Error",
-            http_status_code=500
-        )
-
 
 @router.get("/rank/list-ranking-data", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
@@ -853,47 +791,6 @@ async def add_selection_datapoint_v3(request: Request, selection: Selection):
         )
 
 
-
-@router.post("/rank/update-image-rank-use-count-v1", 
-             description="Update image rank use count", 
-             tags=["deprecated"],
-             response_model=StandardSuccessResponseV1[RankCountResponse],  
-             responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
-def update_image_rank_use_count_v1(request: Request, image_hash: str):
-    response_handler = ApiResponseHandlerV1(request)
-    try:
-        counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
-
-        if counter is None:
-            # If the image hash does not exist, initialize the count to 1
-            count = 1
-            rank_use_count_data = {
-                "image_hash": image_hash,
-                "count": count,
-            }
-            request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
-
-        else:
-            # If the image hash exists, increment the count
-            count = counter["count"] + 1
-            request.app.image_rank_use_count_collection.update_one(
-                {"image_hash": image_hash},
-                {"$set": {"count": count}}
-            )
-
-        # Return a success response indicating the action performed
-        return response_handler.create_success_response_v1(
-            response_data={"image_hash": image_hash, "count": count},
-            http_status_code=200,
-        )
-    except Exception as e:
-        # Log the exception and return an error response
-        print(f"Exception occurred: {e}")  # For debugging
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500,
-        )    
     
 @router.post("/rank/set-image-rank-use-count-v1", 
              description="Set image rank use count", 
