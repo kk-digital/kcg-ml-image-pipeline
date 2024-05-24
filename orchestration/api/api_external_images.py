@@ -5,6 +5,7 @@ from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImag
 from typing import List
 from datetime import datetime
 from pymongo import UpdateOne
+import uuid
 
 router = APIRouter()
 
