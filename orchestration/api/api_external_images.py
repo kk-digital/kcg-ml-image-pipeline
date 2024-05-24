@@ -320,22 +320,20 @@ def update_external_images(request: Request):
 
     updated_count = 0
     for item in items:
-        # Fetch the corresponding uuid from the completed_jobs_collection using the image_hash
-        completed_job = request.app.completed_jobs_collection.find_one(
-            {"task_output_file_dict.output_file_hash": item["image_hash"]}
-        )
-        if completed_job and "uuid" in completed_job:
-            # Construct the updated document with uuid before image_hash
-            updated_item = {"uuid": completed_job["uuid"], **item}
-            updated_item.pop('_id', None)  # Remove the '_id' field to avoid duplication issues
+        # Generate a new UUID
+        new_uuid = str(uuid.uuid4())
 
-            # Perform the update operation
-            result = request.app.external_images_collection.update_one(
-                {"_id": item["_id"]},
-                {"$set": updated_item}
-            )
-            if result.modified_count > 0:
-                updated_count += 1
+        # Construct the updated document with uuid before image_hash
+        updated_item = {"uuid": new_uuid, **item}
+        updated_item.pop('_id', None)  # Remove the '_id' field to avoid duplication issues
+
+        # Perform the update operation
+        result = request.app.external_images_collection.update_one(
+            {"_id": item["_id"]},
+            {"$set": updated_item}
+        )
+        if result.modified_count > 0:
+            updated_count += 1
 
     if updated_count == 0:
         raise HTTPException(status_code=404, detail="No items updated")
@@ -344,7 +342,7 @@ def update_external_images(request: Request):
     return api_response_handler.create_success_response_v1(
         response_data={'updated_count': updated_count},
         http_status_code=200
-    )   
+    ) 
 
 @router.get("/external-images/list-images",
             status_code=200,
