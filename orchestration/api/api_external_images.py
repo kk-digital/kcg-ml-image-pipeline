@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
+from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag
 from typing import List
 from datetime import datetime
 from pymongo import UpdateOne
@@ -318,6 +319,7 @@ async def add_task_attributes(request: Request, image_hash: str, data_dict: dict
 
 @router.post("/external-images/update-uuids",
              status_code=200,
+             tags=["external-images"],  
              response_model=StandardSuccessResponseV1,  
              responses=ApiResponseHandlerV1.listErrors([404, 422]))
 def update_external_images(request: Request):
@@ -354,6 +356,7 @@ def update_external_images(request: Request):
 
 @router.get("/external-images/list-images",
             status_code=200,
+            tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List],  
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
 def get_external_images(request: Request):
@@ -373,3 +376,50 @@ def get_external_images(request: Request):
         response_data={'images': images},
         http_status_code=200
     )
+
+
+@router.post("/external-images/add-tag-to-external-image",
+             status_code=201,
+             tags=["external-images"],  
+             response_model=StandardSuccessResponseV1[ExternalImageTag], 
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: int, user_who_created: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        date_now = datetime.now().isoformat()
+    
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
+        if not existing_tag:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="Tag does not exist!", http_status_code=400)
+
+        image = request.app.external_images_collection.find_one({'image_hash': image_hash})
+        if not image:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No image found with the given hash", http_status_code=400)
+
+        file_path = image.get("file_path", "")
+        
+        # Check if the tag is already associated with the image
+        existing_image_tag = request.app.image_tags_collection.find_one({"tag_id": tag_id, "image_hash": image_hash})
+        if existing_image_tag:
+            # Return an error response indicating that the tag has already been added to the image
+            return response_handler.create_error_response_v1(error_code=ErrorCode.INVALID_PARAMS, error_string="This tag has already been added to the image", http_status_code=400)
+
+        # Add new tag to image
+        image_tag_data = {
+            "tag_id": tag_id,
+            "file_path": file_path,  
+            "image_hash": image_hash,
+            "tag_type": tag_type,
+            "image_type": "external-image",
+            "user_who_created": user_who_created,
+            "tag_count": 1,  # Since this is a new tag for this image, set count to 1
+            "creation_time": date_now
+           
+        }
+        request.app.image_tags_collection.insert_one(image_tag_data)
+
+        return response_handler.create_success_response_v1(response_data={"tag_id": tag_id, "file_path": file_path, "image_hash": image_hash, "tag_type": tag_type, "image_type": "external-image", "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+

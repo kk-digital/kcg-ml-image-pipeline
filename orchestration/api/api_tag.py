@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
 from .mongo_schemas import Classifier
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
@@ -1294,4 +1294,36 @@ async def list_classifiers(request: Request):
     except Exception as e:
         # Implement appropriate error handling
         print(f"Error: {str(e)}")
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+
+@router.get("/external-images/get-tagged-external-images-by-image-type",
+            status_code=200,
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[ListExternalImageTag],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tagged_images_by_type(request: Request, image_type: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        tagged_images = list(request.app.image_tags_collection.find({"image_type": image_type}))
+
+        if not tagged_images:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No tagged images found for the given image type", http_status_code=400)
+
+        tagged_images_data = []
+        for tag in tagged_images:
+            tagged_images_data.append({
+                "tag_id": tag["tag_id"],
+                "file_path": tag["file_path"],
+                "image_hash": tag["image_hash"],
+                "tag_type": tag["tag_type"],
+                "image_type": tag["image_type"],
+                "user_who_created": tag["user_who_created"],
+                "tag_count": tag["tag_count"],
+                "creation_time": tag["creation_time"]
+            })
+
+        return response_handler.create_success_response_v1(response_data=tagged_images_data, http_status_code=200)
+
+    except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
