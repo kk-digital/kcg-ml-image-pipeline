@@ -303,3 +303,25 @@ async def add_task_attributes(request: Request, image_hash: str, data_dict: dict
             error_string=str(e),
             http_status_code=500
         )
+
+@router.get("/external-images/list-images",
+            status_code=200,
+            response_model=StandardSuccessResponseV1[List],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422]))
+def get_external_images(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    # Fetch all items from the collection, sorted by score in descending order
+    items = list(request.app.external_images_collection.find())
+    
+    images = []
+    for item in items:
+        # Remove the auto-generated '_id' field
+        item.pop('_id', None)
+        images.append(item)
+    
+    # Return a standardized success response with the images data
+    return api_response_handler.create_success_response_v1(
+        response_data={'images': images},
+        http_status_code=200
+    )
