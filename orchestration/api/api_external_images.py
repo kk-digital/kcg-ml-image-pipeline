@@ -19,6 +19,8 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 
     try:
 
+        image_data.uuid = str(uuid.uuid4())
+
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
         })
@@ -37,7 +39,8 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
                     "image_format": image_data.image_format,
                     "file_path": image_data.file_path,
                     "source_image_dict": image_data.source_image_dict,
-                    "task_attributes_dict": image_data.task_attributes_dict
+                    "task_attributes_dict": image_data.task_attributes_dict,
+                    "uuid": image_data.uuid
                 }
             })
         return api_response_handler.create_success_response_v1(
@@ -60,6 +63,9 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
+
+        image_data.uuid = str(uuid.uuid4())
+
         for image_data in image_data_list:
             
             existed = request.app.external_images_collection.find_one({
@@ -80,7 +86,8 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                         "image_format": image_data.image_format,
                         "file_path": image_data.file_path,
                         "source_image_dict": image_data.source_image_dict,
-                        "task_attributes_dict": image_data.task_attributes_dict
+                        "task_attributes_dict": image_data.task_attributes_dict,
+                        "uuid": image_data.uuid
                     }
                 })
 

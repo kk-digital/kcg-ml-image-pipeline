@@ -343,6 +343,7 @@ class ExternalImageData(BaseModel):
     upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
+    uuid: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -353,7 +354,8 @@ class ExternalImageData(BaseModel):
             "image_format": self.image_format,
             "file_path": self.file_path,
             "source_image_dict": self.source_image_dict,
-            "task_attributes_dict": self.task_attributes_dict
+            "task_attributes_dict": self.task_attributes_dict,
+            "uuid": self.uuid
         }
 
 
