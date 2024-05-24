@@ -1,9 +1,11 @@
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Request, HTTPException
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
 from typing import List
 from datetime import datetime
+from pymongo import UpdateOne
+
 router = APIRouter()
 
 @router.post("/external-images/add-external-image", 
@@ -303,6 +305,49 @@ async def add_task_attributes(request: Request, image_hash: str, data_dict: dict
             error_string=str(e),
             http_status_code=500
         )
+
+
+
+@router.post("/external-images/update-uuids",
+             status_code=200,
+             response_model=StandardSuccessResponseV1,  
+             responses=ApiResponseHandlerV1.listErrors([404, 422]))
+def update_external_images(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    external_images_collection = request.app.external_images_collection
+    completed_jobs_collection = request.app.completed_jobs_collection
+
+    # Fetch all items from the external_images_collection
+    items = list(external_images_collection.find())
+    
+    updates = []
+    for item in items:
+        # Fetch the corresponding uuid from the completed_jobs_collection using the image_hash
+        completed_job = completed_jobs_collection.find_one(
+            {"task_output_file_dict.output_file_hash": item["image_hash"]}
+        )
+        if completed_job and "uuid" in completed_job:
+            # Construct the updated document with uuid before image_hash
+            updated_item = {"uuid": completed_job["uuid"], **item}
+            updated_item.pop('_id', None)  # Remove the '_id' field to avoid duplication issues
+
+            # Prepare the update operation
+            updates.append(UpdateOne(
+                {"_id": item["_id"]},
+                {"$set": updated_item}
+            ))
+
+    if not updates:
+        raise HTTPException(status_code=404, detail="No items to update")
+
+    # Perform bulk update operation
+    result = external_images_collection.bulk_write(updates)
+
+    # Return a standardized success response with the update result
+    return api_response_handler.create_success_response_v1(
+        response_data={'updated_count': result.modified_count},
+        http_status_code=200
+    )      
 
 @router.get("/external-images/list-images",
             status_code=200,
