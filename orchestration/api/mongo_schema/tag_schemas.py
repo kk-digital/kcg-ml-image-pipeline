@@ -102,7 +102,7 @@ class ExternalImageTag(BaseModel):
     file_path: str
     image_hash: str
     tag_type: int = Field(..., description="1 for positive, 0 for negative")
-    image_type: str
+    image_source: str
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Union[str, None] = None 
     
@@ -118,7 +118,7 @@ class ExternalImageTag(BaseModel):
             "file_path": self.file_path,
             "image_hash": self.image_hash,
             "tag_type": self.tag_type,
-            "image_type": self.image_type,
+            "image_source": self.image_source,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }    

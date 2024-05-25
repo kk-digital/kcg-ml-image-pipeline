@@ -410,7 +410,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "file_path": file_path,  
             "image_hash": image_hash,
             "tag_type": tag_type,
-            "image_type": "external-image",
+            "image_source": "external-image",
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
@@ -418,8 +418,93 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
         }
         request.app.image_tags_collection.insert_one(image_tag_data)
 
-        return response_handler.create_success_response_v1(response_data={"tag_id": tag_id, "file_path": file_path, "image_hash": image_hash, "tag_type": tag_type, "image_type": "external-image", "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response_v1(response_data={"tag_id": tag_id, "file_path": file_path, "image_hash": image_hash, "tag_type": tag_type, "image_source": "external-image", "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
+
+@router.delete("/external-images/remove-tag-from-external-image",
+               status_code=200,
+               tags=["external-images"],
+               response_model=StandardSuccessResponseV1,
+               responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Check if the tag is associated with the image
+        existing_image_tag = request.app.image_tags_collection.find_one({"tag_id": tag_id, "image_hash": image_hash})
+        if not existing_image_tag:
+            return response_handler.create_success_delete_response_v1(
+            False,
+            http_status_code=200
+        )
+
+        # Remove the tag
+        request.app.image_tags_collection.delete_one({"tag_id": tag_id, "image_hash": image_hash})
+
+        return response_handler.create_success_delete_response_v1(
+            True,
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+
+@router.get("/external-images/images-by-tag",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[ListExternalImageTag],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_images_by_tag(request: Request, tag_id: int):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        images = list(request.app.image_tags_collection.find({"tag_id": tag_id}))
+        
+        if not images:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No images found for the given tag", http_status_code=400)
+
+        return response_handler.create_success_response_v1(response_data=images, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+
+@router.get("/external-images/tags-by-image",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[List[int]],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tags_by_image(request: Request, image_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        tags = list(request.app.image_tags_collection.find({"image_hash": image_hash}, {"tag_id": 1, "_id": 0}))
+
+        if not tags:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No tags found for the given image", http_status_code=400)
+
+        tag_ids = [tag["tag_id"] for tag in tags]
+
+        return response_handler.create_success_response_v1(response_data=tag_ids, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+@router.get("/external-images/count-by-tag",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[int],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_count_by_tag(request: Request, tag_id: int):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        count = request.app.image_tags_collection.count_documents({"tag_id": tag_id})
+
+        if count == 0:
+            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No images found for the given tag", http_status_code=400)
+
+        return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
