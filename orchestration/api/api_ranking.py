@@ -407,18 +407,6 @@ def delete_ranking_data(request: Request, id: str):
 
 
 
-@router.delete("/rank/delete-all-ranking-data-points")
-def delete_all_ranking_data_points(request: Request):
-    # Attempt to delete all documents from the collection
-    result = request.app.image_pair_ranking_collection.delete_many({})
-
-    # Check if any documents were deleted
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="No documents found in the collection")
-
-    return {"message": "All documents deleted successfully"}
-
-
 @router.post("/update/add-residual-data", 
              status_code=200,
              description="Add Residual Data to Images")

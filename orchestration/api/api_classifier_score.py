@@ -842,22 +842,4 @@ async def get_scores_by_image_hash(
         response_data={"scores": scores_data},
         http_status_code=200
     )
-
-
-@router.delete("/pseudotag-classifier-scores/delete-all-classifier-scores", 
-
-             response_class=PrettyJSONResponse)
-async def delete_classifier_scores(request: Request):
-    # Delete all classifier scores
-    delete_result = request.app.image_classifier_scores_collection.delete_many({})
-
-    return {
-        "message": f"Deleted {delete_result.deleted_count} classifier scores"
-    }
    
-
-@router.delete("/clean-classifier-score")
-def clear_classifier_scores(request: Request):
-    request.app.image_classifier_scores_collection.delete_many({})
-
-    return True

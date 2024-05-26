@@ -634,14 +634,6 @@ def list_rank_model_models(request: Request):
                                                          )
 
 
-
-@router.delete("/clear-rank-model-categories")
-def clear_all_pending_jobs(request: Request):
-    request.app.rank_model_categories_collection.delete_many({})
-
-    return True
-
-
 @router.get("/ab-rank/get-images-count-by-rank-id", 
             status_code=200,
             tags=["ab-rank"], 
@@ -852,39 +844,6 @@ def update_rank_model_category_deprecated_status(request: Request, rank_model_ca
         http_status_code=200,
     )
 
-@router.delete("/rank-models/remove-all-model-paths", 
-               response_model=StandardSuccessResponseV1[dict],
-               status_code=200,
-               tags=["rank-model-management"],
-               description="Removes the model_path field from all rank models",
-               responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def remove_all_model_paths(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        # Remove the model_path field from all documents in the collection
-        update_result = request.app.rank_model_models_collection.update_many(
-            {},  # This empty query matches all documents
-            {"$unset": {"model_path": ""}}  # Remove the model_path field
-        )
-
-        if update_result.modified_count == 0:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="No documents were updated, possibly they already lack a model_path.",
-                http_status_code=404
-            )
-
-        return response_handler.create_success_response_v1(
-            response_data={"updated_count": update_result.modified_count},
-            http_status_code=200
-        )
-    
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"Failed to remove model_path from all documents: {str(e)}",
-            http_status_code=500
-        )
 
 @router.get('/rank-training/get-ab-rank-image-pair-v1',
             status_code=200,
