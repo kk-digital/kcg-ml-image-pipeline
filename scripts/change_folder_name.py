@@ -1,5 +1,7 @@
-from minio import Minio, CopySource
+from minio import Minio
 from minio.error import S3Error
+from minio.commonconfig import CopySource
+
 
 # Initialize MinIO client
 minio_client = Minio(
