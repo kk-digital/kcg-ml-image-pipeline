@@ -11,11 +11,14 @@ minio_client = Minio(
     secure=False  # or True if your MinIO server is using HTTPS
 )
 
+print("connected minio")
+
 bucket_name = "datasets"
 prefix = "ranks/"
 
 # List all objects under the given prefix
 objects = minio_client.list_objects(bucket_name, prefix, recursive=True)
+print(objects)
 
 # Find unique folder names
 unique_folders = set()
