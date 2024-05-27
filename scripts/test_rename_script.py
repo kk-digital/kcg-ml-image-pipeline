@@ -1,4 +1,4 @@
-from minio import Minio, CopySource
+from minio import Minio
 from minio.error import S3Error
 import re
 from minio.commonconfig import CopySource
