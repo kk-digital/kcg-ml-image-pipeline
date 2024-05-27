@@ -457,11 +457,12 @@ async def add_datapoints(request: Request, selection: RankSelection):
         # Insert the ordered data into MongoDB
         request.app.ranking_datapoints_collection.insert_one(mongo_data)
 
+        formatted_rank_model_id = f"{selection.rank_model_id:05d}"
         # Prepare data for MinIO upload (excluding the '_id' field)
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        path = f"ranks/{selection.rank_model_id}/data/ranking/aggregate"
+        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
         full_path = os.path.join(path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
