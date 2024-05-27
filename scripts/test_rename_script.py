@@ -1,8 +1,7 @@
-from minio import Minio
+from minio import Minio, CopySource
 from minio.error import S3Error
 import re
 from minio.commonconfig import CopySource
-
 
 # Initialize MinIO client
 minio_client = Minio(
@@ -13,7 +12,7 @@ minio_client = Minio(
 )
 
 bucket_name = "datasets"
-prefix = "test/"
+prefix = "character/0001/"
 
 # Regular expression pattern to match files with three '_vae_' substrings
 pattern = re.compile(r"(_vae_vae_vae_)")
