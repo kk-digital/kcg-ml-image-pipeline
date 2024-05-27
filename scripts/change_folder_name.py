@@ -1,4 +1,4 @@
-from minio import Minio
+from minio import Minio, CopySource
 from minio.error import S3Error
 
 # Initialize MinIO client
@@ -6,7 +6,7 @@ minio_client = Minio(
     "192.168.3.5:9000",  # e.g., "play.min.io"
     access_key="v048BpXpWrsVIHUfdAix",
     secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu",
-    secure=False  # or False if your MinIO server is not using HTTPS
+    secure=False  # or True if your MinIO server is using HTTPS
 )
 
 bucket_name = "datasets"
@@ -33,10 +33,11 @@ for folder in sorted(unique_folders):
             new_object_name = old_object_name.replace(f"{prefix}{folder}/", f"{prefix}{padded_folder}/", 1)
             
             # Copy object to the new location
+            copy_source = CopySource(bucket_name, old_object_name)
             minio_client.copy_object(
                 bucket_name,
                 new_object_name,
-                f"/{bucket_name}/{old_object_name}"
+                copy_source
             )
             
             # Remove the old object
