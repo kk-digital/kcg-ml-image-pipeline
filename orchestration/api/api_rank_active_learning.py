@@ -625,8 +625,10 @@ async def count_ranking_data(request: Request,
 async def update_ranking_datapoint(request: Request, rank_model_id: int, filename: str, update_data: FlaggedDataUpdate):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
+    formatted_rank_model_id = f"{rank_model_id:05d}"
+
     # Construct the object name based on the dataset
-    object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+    object_name = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate/{filename}"
 
     flagged_time = datetime.now().isoformat()
 
@@ -704,8 +706,9 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
 async def read_ranking_datapoints(request: Request, rank_model_id: int, filename: str = Query(..., description="Filename of the JSON to read")):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
+        formatted_rank_model_id = f"{rank_model_id:05d}"
         # Construct the object name for ranking
-        object_name = f"ranks/{rank_model_id}/data/ranking/aggregate/{filename}"
+        object_name = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate/{filename}"
 
         # Fetch the content of the specified JSON file
         data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
