@@ -12,7 +12,7 @@ minio_client = Minio(
 )
 
 bucket_name = "datasets"
-prefix = "test/"
+prefix = "ranks/"
 
 # List all objects under the given prefix
 objects = minio_client.list_objects(bucket_name, prefix, recursive=True)
