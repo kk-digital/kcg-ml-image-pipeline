@@ -18,6 +18,17 @@ import os
 from typing import List, Union
 from urllib.parse import urlparse
 
+class IrrelevantResponse(BaseModel):
+    uuid: str
+    file_hash: str
+    rank_model_id: int
+
+class DeletedCount(BaseModel):
+    deleted_count: int    
+
+class ListIrrelevantResponse(BaseModel):
+    images: List[IrrelevantResponse]    
+
 class DoneResponse(BaseModel):
     Done: bool
 

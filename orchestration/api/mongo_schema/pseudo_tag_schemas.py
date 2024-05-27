@@ -29,6 +29,9 @@ NonEmptyString = constr(strict=True, min_length=1)
 class ListImagePseudoTag(BaseModel):
     images: List [ImagePseudoTag]
 
+class ListImagePseudoTagScores(BaseModel):
+    scores: List [ImagePseudoTag]
+
 class ImagePseudoTagRequest(BaseModel):
         uuid: Union[str, None]
         classifier_id: int
@@ -40,3 +43,15 @@ class ImagePseudoTagRequest(BaseModel):
                 "classifier_id": self.classifier_id,
                 "score": self.score
             }
+
+class ImagePseudoTagRequestV1(BaseModel):
+        job_uuid: Union[str, None]
+        classifier_id: int
+        score: float
+        
+        def to_dict(self):
+            return {
+                "job_uuid": self.job_uuid,
+                "classifier_id": self.classifier_id,
+                "score": self.score
+            }        

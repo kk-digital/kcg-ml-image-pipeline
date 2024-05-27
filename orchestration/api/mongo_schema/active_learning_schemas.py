@@ -90,6 +90,21 @@ class RankActiveLearningPair(BaseModel):
             "images_data": [img.dict() for img in self.images_data]
         }
     
+class RankActiveLearningPairWithScore(BaseModel):
+    file_name: str
+    rank_model_id: int
+    rank_model_string: str
+    active_learning_policy_id: int
+    active_learning_policy: str
+    metadata: str
+    generation_string: str
+    creation_date: str
+    images_data: List[Union[ImageData1, ImageData2]]
+    score_1: float
+    score_2: float
+
+class ListRankActiveLearningPairWithScore(BaseModel):
+    pairs: List[RankActiveLearningPairWithScore]
 
 class ListRankActiveLearningPair(BaseModel):
     pairs: List[RankActiveLearningPair]
@@ -131,6 +146,9 @@ class ResponseRankSelection(BaseModel):
     training_mode: str
     rank_active_learning_policy_id: Union[int, None] = None
     datetime: datetime
+    flagged: Optional[bool] = None
+    flagged_by_user: Optional[str] = None
+    flagged_time: Optional[str] = None
     
 class ListResponseRankSelection(BaseModel):
     datapoints: List[ResponseRankSelection]    
@@ -165,3 +183,42 @@ class ResponseImageInfo(BaseModel):
     selection_datapoint_file_name: str
     delta_score: float
     flagged: bool
+
+class ResponseImageInfoV1(BaseModel):
+    selections: ResponseImageInfo 
+
+class JsonMinioResponse(BaseModel):
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+    datetime: datetime
+    flagged: Optional[bool] = None
+    flagged_by_user: Optional[str] = None
+    flagged_time: Optional[str] = None    
+
+class ScoreImageTask(BaseModel):
+    task_type: str
+    uuid: str
+    model_name: str
+    model_file_name: str
+    model_file_path: str
+    model_hash: Optional[str]
+    task_creation_time: datetime
+    task_start_time: str
+    task_completion_time: str
+    task_error_str: Optional[str]
+    task_input_dict: dict
+    task_input_file_dict: dict
+    task_output_file_dict: dict
+    task_attributes_dict: dict
+    prompt_generation_data: dict
+    ranking_count: int
+    safe_to_delete: bool
+    tag_count: int
+    classifier_score: Optional[float] = None 

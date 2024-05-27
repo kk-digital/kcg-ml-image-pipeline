@@ -11,7 +11,7 @@ source_collection = db['image_pair_ranking']
 destination_collection = db['ranking_datapoints']
 
 # Query to find documents where dataset="mech"
-query = {"dataset": "character"}
+query = {"dataset": "test-generations"}
 
 # Fetch documents from source collection
 documents = list(source_collection.find(query))
@@ -24,7 +24,7 @@ for doc in tqdm(documents, desc="Migrating documents"):
     # Prepare the new document
     new_doc = {
         "file_name": doc["file_name"],
-        "rank_model_id": 5,
+        "rank_model_id": 10,
         "task": doc["task"],
         "username": doc["username"],
         "image_1_metadata": doc["image_1_metadata"],

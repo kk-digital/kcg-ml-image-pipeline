@@ -6,7 +6,7 @@ from typing import List
 router = APIRouter()
 
 
-@router.post("/sigma-score/set-image-rank-sigma-score", description="Set image rank sigma_score")
+@router.post("/sigma-score/set-image-rank-sigma-score",tags = ['deprecated3'], description= "changed with /image-scores/sigma-scores/set-image-rank-sigma-score")
 def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSigmaScore):
     # check if exists
     query = {"image_hash": ranking_sigma_score.image_hash,
@@ -20,7 +20,7 @@ def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSig
     return True
 
 
-@router.get("/sigma-score/get-image-rank-sigma-score-by-hash", description="Get image rank sigma_score by hash")
+@router.get("/sigma-score/get-image-rank-sigma-score-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/sigma-scores/get-image-rank-sigma-score")
 def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
     query = {"image_hash": image_hash,
@@ -37,7 +37,7 @@ def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_
 
 
 @router.get("/sigma-score/get-image-rank-sigma-scores-by-model-id",
-            description="Get image rank sigma_scores by model id. Returns as descending order of sigma_scores")
+            tags = ['deprecated3'], description= "changed with /image-scores/sigma-scores/list-image-rank-sigma-scores-by-model-id")
 def get_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -54,7 +54,7 @@ def get_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     return sigma_score_data
 
 
-@router.delete("/sigma-score/delete-image-rank-sigma-scores-by-model-id", description="Delete all image rank sigma_scores by model id.")
+@router.delete("/sigma-score/delete-image-rank-sigma-scores-by-model-id", tags = ['deprecated3'], description= "remove scores according model id")
 def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -151,35 +151,3 @@ def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
         return response_handler.create_success_response_v1(response_data={'scores': items}, http_status_code=200)
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string=str(e), http_status_code=500)
-
-
-@router.delete("/image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id",
-               tags=["image scores"],
-               description="remove all rank sigma scores by model id",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([404, 422]))
-@router.delete("/sigma-score/image-rank-sigma-scores-by-model-id",
-               tags=["deprecated2"],
-               description="deprecated: use /image-scores/sigma-scores/delete-all-image-rank-sigma-scores-by-model-id ",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([404, 422]))
-def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
-    response_handler = ApiResponseHandlerV1(request)
-    query = {"model_id": model_id}
-    
-    # Perform the deletion operation
-    res = request.app.image_sigma_scores_collection.delete_many(query)
-    
-    # Check if any documents were deleted and prepare the response accordingly
-    was_present = res.deleted_count > 0
-    
-    if was_present:
-        return response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )

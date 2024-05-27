@@ -36,7 +36,7 @@ def convert_objectid_to_str(doc):
         doc["_id"] = str(doc["_id"])
     return doc
 
-@router.get("/queue/image-generation/get-job")
+@router.get("/queue/image-generation/get-job", tags = ['deprecated3'], description= "changed wtih /queue/image-generation/move-job-to-in-progress")
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     # Define the base query
     base_query = {}
@@ -70,7 +70,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
 
 
  # --------------------- Add ---------------------------
-@router.post("/queue/image-generation/add", description="Add a job to db")
+@router.post("/queue/image-generation/add", tags = ['deprecated3'], description= "changed wtih /queue/image-generation/move-job-to-in-progress")
 def add_job(request: Request, task: Task):
     if task.uuid in ["", None]:
         # generate since its empty
@@ -93,7 +93,7 @@ def add_job(request: Request, task: Task):
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
 
 
-@router.post("/queue/image-generation/add-kandinsky", description="Add a kandinsky job to db")
+@router.post("/queue/image-generation/add-kandinsky", tags = ['deprecated3'], description= "changed with /queue/image-generation/add-kandinsky-job")
 def add_job(request: Request, kandinsky_task: KandinskyTask):
     task= kandinsky_task.job
 
@@ -145,7 +145,7 @@ def encode_ndarray(obj):
 
 
 
-@router.get("/queue/image-generation/get-jobs-count-last-hour")
+@router.get("/queue/image-generation/get-jobs-count-last-hour", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-jobs-count-last-n-hours-v1")
 def get_jobs_count_last_hour(request: Request, dataset):
 
     # Calculate the timestamp for one hour ago
@@ -172,7 +172,7 @@ def get_jobs_count_last_hour(request: Request, dataset):
     return count
 
 
-@router.get("/queue/image-generation/get-jobs-count-last-n-hour")
+@router.get("/queue/image-generation/get-jobs-count-last-n-hour", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-jobs-count-last-n-hours-v1")
 def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
 
     # Calculate the timestamp for one hour ago
@@ -199,60 +199,34 @@ def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
 
 
 # -------------- Get jobs count ----------------------
-@router.get("/queue/image-generation/pending-count")
+@router.get("/queue/image-generation/pending-count", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-pending-jobs-count")
 def get_pending_job_count(request: Request):
     count = request.app.pending_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/image-generation/in-progress-count")
+@router.get("/queue/image-generation/in-progress-count", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-in-progress-jobs-count")
 def get_in_progress_job_count(request: Request):
     count = request.app.in_progress_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/image-generation/completed-count")
+@router.get("/queue/image-generation/completed-count", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-completed-jobs-count")
 def get_completed_job_count(request: Request):
     count = request.app.completed_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/image-generation/failed-count")
+@router.get("/queue/image-generation/failed-count", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-failed-jobs-count")
 def get_failed_job_count(request: Request):
     count = request.app.failed_jobs_collection.count_documents({})
     return count
 
 
 # ----------------- delete jobs ----------------------
-@router.delete("/queue/image-generation/clear-all-pending")
-def clear_all_pending_jobs(request: Request):
-    request.app.pending_jobs_collection.delete_many({})
-
-    return True
-
-    
-@router.delete("/queue/image-generation/clear-all-in-progress")
-def clear_all_in_progress_jobs(request: Request):
-    request.app.in_progress_jobs_collection.delete_many({})
-
-    return True
 
 
-@router.delete("/queue/image-generation/clear-all-failed")
-def clear_all_failed_jobs(request: Request):
-    request.app.failed_jobs_collection.delete_many({})
-
-    return True
-
-
-@router.delete("/queue/image-generation/clear-all-completed")
-def clear_all_completed_jobs(request: Request):
-    request.app.completed_jobs_collection.delete_many({})
-
-    return True
-
-
-@router.delete("/queue/image-generation/delete-completed")
+@router.delete("/queue/image-generation/delete-completed", tags = ['deprecated3'], description= "changed with /queue/image-generation/delete-completed-by-uuid")
 def delete_completed_job(request: Request, uuid):
     query = {"uuid": uuid}
     request.app.completed_jobs_collection.delete_one(query)
@@ -293,7 +267,7 @@ def delete_completed_job(request: Request, uuid: str):
         )
  # --------------------- List ----------------------
 
-@router.get("/queue/image-generation/list-pending", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-pending", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-pending-jobs")
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.pending_jobs_collection.find({}))
 
@@ -303,7 +277,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/list-in-progress", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-in-progress", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-in-progress-jobs")
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.in_progress_jobs_collection.find({}))
 
@@ -313,7 +287,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/list-completed", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-completed", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-completed-jobs")
 def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_jobs_collection.find({}).limit(limit))
@@ -324,7 +298,7 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
     return jobs
 
 
-@router.get("/queue/image-generation/list-completed-by-task-type", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-completed-by-task-type", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-completed-jobs")
 def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_jobs_collection.find({"task_type": task_type}).limit(limit))
@@ -334,7 +308,7 @@ def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optio
 
     return jobs
 
-@router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-completed-by-dataset", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-completed-jobs")
 def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
@@ -344,7 +318,7 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 
     return jobs
 
-@router.get("/queue/image-generation/list-completed-by-dataset-and-task-type", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-completed-by-dataset-and-task-type", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-completed-jobs")
 def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
@@ -366,7 +340,7 @@ def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: 
 
     return job_data
 
-@router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-by-date", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-completed-jobs-ordered-by-dataset")
 def get_list_completed_jobs_by_date(
     request: Request,
     start_date: str = Query(..., description="Start date for filtering jobs"), 
@@ -411,7 +385,7 @@ def get_list_completed_jobs_by_date(
 
     return datasets
 
-@router.get("/queue/image-generation/list-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-by-dataset", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-completed-jobs-using-random-sampling")
 def get_list_completed_jobs_by_dataset(
     request: Request,
     dataset: str= Query(..., description="Dataset name"),  
@@ -461,7 +435,7 @@ def get_list_completed_jobs_by_dataset(
     return datasets
 
 
-@router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/list-failed", tags = ['deprecated3'], description= "changed with /queue/image-generation/list-failed-jobs")
 def get_list_failed_jobs(request: Request):
     jobs = list(request.app.failed_jobs_collection.find({}))
 
@@ -471,7 +445,7 @@ def get_list_failed_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/count-completed")
+@router.get("/queue/image-generation/count-completed", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-completed-jobs-count")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.completed_jobs_collection.find({
@@ -481,7 +455,7 @@ def count_completed(request: Request, dataset: str = None):
     return len(jobs)
 
 
-@router.get("/queue/image-generation/count-by-task-type")
+@router.get("/queue/image-generation/count-by-task-type", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-completed-jobs-count")
 def count_by_task_type(request: Request, task_type: str = "image_generation_task"):
     # Get the completed jobs collection
     completed_jobs_collection = request.app.completed_jobs_collection
@@ -498,7 +472,7 @@ def count_by_task_type(request: Request, task_type: str = "image_generation_task
     # Return the count and documents
     return PrettyJSONResponse(content={"count": count, "documents": documents_list})
 
-@router.get("/queue/image-generation/count-pending")
+@router.get("/queue/image-generation/count-pending", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-pending-jobs-count")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.pending_jobs_collection.find({
@@ -507,7 +481,7 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
-@router.get("/queue/image-generation/count-in-progress")
+@router.get("/queue/image-generation/count-in-progress", tags = ['deprecated3'], description= "changed with /queue/image-generation/get-in-progress-jobs-count")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.in_progress_jobs_collection.find({
@@ -538,7 +512,7 @@ def update_completed_jobs_with_better_name(request: Request, task_type_mapping: 
     return total_count_updated
 
 
-@router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")
+@router.put("/queue/image-generation/update-completed", tags = ['deprecated3'], description= "changed with /queue/image-generation/set-in-progress-job-as-completed")
 def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
@@ -554,7 +528,7 @@ def update_job_completed(request: Request, task: Task):
     return True
 
 
-@router.put("/queue/image-generation/update-failed", description="Update in progress job and mark as failed.")
+@router.put("/queue/image-generation/update-failed",tags = ['deprecated3'], description= "changed with /queue/image-generation/set-in-progress-job-as-failed")
 def update_job_failed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
@@ -569,7 +543,7 @@ def update_job_failed(request: Request, task: Task):
 
     return True
 
-@router.delete("/queue/image-generation/cleanup-completed-and-orphaned")
+@router.delete("/queue/image-generation/cleanup-completed-and-orphaned", tags = ['deprecated3'], description= "changed with /queue/image-generation/remove-all-orphaned-completed-jobs")
 def cleanup_completed_and_orphaned_jobs(request: Request):
 
     jobs = request.app.completed_jobs_collection.find({})
@@ -669,7 +643,7 @@ def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(None)):
 
 # --------------- Get Job With Required Fields ---------------------
 
-@router.get("/get-image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
+@router.get("/get-image-generation/by-hash/{image_hash}", tags = ["deprecated3"], description="changed with /queue/image-generation/get-completed-jobs-data-by-hash/{image_hash}, NOTE: the new endpoint returns the properties using a different name format when the 'fields' param contains properties. ")
 def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
     # Create a projection object that understands nested fields using dot notation
     projection = {field: 1 for field in fields} if fields else {}
@@ -699,7 +673,7 @@ def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] =
         print("Job Not Found")
     
 
-@router.get("/get-image-generation/by-job-id/{job_id}", response_class=PrettyJSONResponse)
+@router.get("/get-image-generation/by-job-id/{job_id}",tags = ["deprecated3"], description="changed with /queue/image-generation/get-completed-jobs-data-by-uuid/{uuid, NOTE: the new endpoint returns the properties using a different name format when the 'fields' param contains properties. ")
 def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(None)):
     # Create a projection object that understands nested fields using dot notation
     projection = {field: 1 for field in fields} if fields else {}
@@ -1341,102 +1315,7 @@ async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int 
             error_string=f"Failed to get jobs count: {str(e)}",
             http_status_code=500
         )
-
-
-@router.delete("/queue/image-generation/remove-all-pending-jobs",
-               description="remove all pending jobs",
-               status_code = 200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["jobs-standardized"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_pending_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.pending_jobs_collection.count_documents({}) > 0
-        request.app.pending_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-
-@router.delete("/queue/image-generation/remove-all-in-progress-jobs",
-               description="remove all in-progress jobs",
-               status_code = 200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["jobs-standardized"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.in_progress_jobs_collection.count_documents({}) > 0
-        request.app.in_progress_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-
-@router.delete("/queue/image-generation/remove-all-failed-jobs",
-               description="remove all failed jobs",
-               status_code = 200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["jobs-standardized"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.failed_jobs_collection.count_documents({}) > 0
-        request.app.failed_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-    
-@router.delete("/queue/image-generation/remove-all-completed-jobs",
-               description="remove all completed jobs",
-               status_code = 200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["jobs-standardized"],
-               responses=ApiResponseHandler.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.completed_jobs_collection.count_documents({}) > 0
-        request.app.completed_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )    
+ 
     
 
 @router.get("/queue/image-generation/list-pending-jobs", 
@@ -1834,8 +1713,8 @@ async def cleanup_completed_and_orphaned_jobs(request: Request):
 @router.get("/job/get-completed-job-by-hash-v1", 
             response_model=StandardSuccessResponseV1[Task],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves a completed job by its output file hash.",
+            tags=["deprecated3"],
+            description="changed with /queue/image-generation/get-completed-jobs-data-by-hash/{image_hash}",
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_completed_job_by_hash(request: Request, image_hash: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -1893,11 +1772,17 @@ async def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(...)):
     return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
 
 
+@router.get("/queue/image-generation/get-completed-jobs-data-by-hash/{image_hash}", 
+            response_model=StandardSuccessResponseV1[Task],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves the data of a completed job by image hash. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 @router.get("/get-image-generation/by-hash-v1/{image_hash}", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves a job by its image hash.",
+            tags=["deprecated3"],
+            description="changed with /queue/image-generation/get-completed-jobs-data-by-hash/{image_hash}",
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -1914,12 +1799,32 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
             http_status_code=404
         )
 
+@router.get("/queue/image-generation/get-completed-jobs-data-by-uuid/{uuid}", 
+            response_model=StandardSuccessResponseV1[Task],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves the data of a completed job by uuid. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_job_by_uuid(request: Request, uuid: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    job = request.app.completed_jobs_collection.find_one({"uuid": uuid}, projection)
+    if job:
+        return response_handler.create_success_response_v1(response_data=job, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Job not found",
+            http_status_code=404
+        )
 
 @router.get("/get-image-generation/by-hash-v2/{image_hash}",
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves a job by its image hash. Returns the full property path for clarity.",
+            tags=["deprecated3"],
+            description="changed with /queue/image-generation/get-completed-jobs-data-by-hash/{image_hash}",
             responses=ApiResponseHandlerV1.listErrors([404, 500]),
 )
 async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
@@ -1982,8 +1887,8 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
 @router.get("/get-image-generation/by-job-id-v1/{job_id}", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves a job by its job ID.",
+            tags=["deprecated3"],
+            description="changed with /queue/image-generation/get-completed-jobs-data-by-uuid/{uuid}",
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(None)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -2002,9 +1907,9 @@ async def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Q
 
 
 @router.get("/queue/image-generation/count-non-empty-task-attributes", 
-            response_model=StandardSuccessResponseV1[dict],
+            response_model=StandardSuccessResponseV1[CountResponse],
             status_code=200,
-            tags=["image-generation"],
+            tags=["jobs-standardized"],
             description="Counts the number of jobs where task_attributes_dict is not empty.",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def count_non_empty_task_attributes(request: Request, task_type: str = "image_generation_task"):
@@ -2093,3 +1998,4 @@ async def get_completed_job_count(request: Request):
     count = request.app.completed_jobs_collection.count_documents({"safe_to_delete": {"$exists": True}})
     
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
+

@@ -9,7 +9,7 @@ router = APIRouter()
 
 # -------------------- Dataset generation policy -------------------------
 
-@router.get("/dataset/settings/get-all-dataset-generation-policy")
+@router.get("/dataset/settings/get-all-dataset-generation-policy", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-all-dataset-config")
 def get_all_dataset_generation_policy(request: Request):
     dataset_generation_policies = []
     # find
@@ -25,7 +25,7 @@ def get_all_dataset_generation_policy(request: Request):
     return dataset_generation_policies
 
 
-@router.get("/dataset/settings/get-generation-policy")
+@router.get("/dataset/settings/get-generation-policy",tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config" )
 def get_generation_policy(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -36,7 +36,7 @@ def get_generation_policy(request: Request, dataset: str):
     return item["generation_policy"]
 
 
-@router.put("/dataset/settings/set-generation-policy")
+@router.put("/dataset/settings/set-generation-policy", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config" )
 def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     date_now = datetime.now()
     
@@ -62,7 +62,7 @@ def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     return True
 
 
-@router.get("/dataset/settings/get-top-k")
+@router.get("/dataset/settings/get-top-k", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_top_k(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -73,7 +73,7 @@ def get_top_k(request: Request, dataset: str):
     return item["top_k"]
 
 
-@router.put("/dataset/settings/set-top-k")
+@router.put("/dataset/settings/set-top-k", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config" )
 def set_top_k(request: Request, dataset, top_k=0.1):
     date_now = datetime.now()
     
@@ -99,7 +99,7 @@ def set_top_k(request: Request, dataset, top_k=0.1):
     return True
 
 
-@router.post("/dataset/settings/set-option")
+@router.post("/dataset/settings/set-option", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config" )
 def set_option(request: Request, dataset: str, generation_policy: str):
     if generation_policy not in ["generation-off", "rate-generation", "rate-generation-top-k"]:
         raise HTTPException(status_code=400, detail="Invalid generation policy. Accepted values are 'generation-off', 'rate-generation', and 'rate-generation-top-k'.")
@@ -120,7 +120,7 @@ def set_option(request: Request, dataset: str, generation_policy: str):
     }
 
 
-@router.post("/dataset/settings/set-generation-relevance-threshold")
+@router.post("/dataset/settings/set-generation-relevance-threshold", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config" )
 def set_generation_relevance_threshold(request: Request, dataset: str, threshold: float):
     dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
     if dataset_config is not None:
@@ -138,7 +138,7 @@ def set_generation_relevance_threshold(request: Request, dataset: str, threshold
     }
 
 
-@router.get("/dataset/settings/get-relevance-threshold")
+@router.get("/dataset/settings/get-relevance-threshold", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_relevance_threshold(request: Request, dataset: str):
     dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
     if dataset_config is not None and "relevance_threshold" in dataset_config:
@@ -146,7 +146,7 @@ def get_relevance_threshold(request: Request, dataset: str):
     else:
         return {"relevance_threshold": None}
 
-@router.get("/dataset/settings/get-relevance-policy")
+@router.get("/dataset/settings/get-relevance-policy",tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_relevance_policy(request: Request, dataset: str):
     dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
     if dataset_config is not None:
@@ -157,7 +157,7 @@ def get_relevance_policy(request: Request, dataset: str):
     else:
         return {"generation_policy": None }
 
-@router.get("/dataset/settings/get-options-list-generation-policies")
+@router.get("/dataset/settings/get-options-list-generation-policies",tags = ['deprecated3'], description= "changed wtih /datasets/settings/list-dataset-generation-policies" )
 def list_generation_policies():
     return {"generation_policies": ["generation-off", "rate-generation", "rate-generation-top-k"]}
 

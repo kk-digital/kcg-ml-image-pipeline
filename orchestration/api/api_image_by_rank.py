@@ -72,7 +72,7 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
 
 
 
-@router.get("/image_by_rank/image-list-sorted-by-score", response_class=PrettyJSONResponse)
+@router.get("/image_by_rank/image-list-sorted-by-score", response_class=PrettyJSONResponse, tags = ['deprecated3'], description= "changed wtih /image-by-rank/image-list-sorted-by-score-v1")
 def image_list_sorted_by_score(
     request: Request,
     dataset: str = Query(...),
@@ -152,8 +152,10 @@ def image_list_sorted_by_score(
 @router.get("/image_by_rank/image-list-sorted", 
             response_model=StandardSuccessResponse[ImageData],
             status_code=200,
+            tags = ['deprecated3'], 
+            description= "changed wtih /image-by-rank/image-list-sorted-by-score-v1",
             responses=ApiResponseHandler.listErrors([500]),
-            description="List sorted images from jobs collection")
+            )
 def image_list_sorted_by_score_v1(
     request: Request,
     model_type: str = Query(..., description="Model type to filter the scores, e.g., 'linear' or 'elm-v1'"),
@@ -220,8 +222,10 @@ def image_list_sorted_by_score_v1(
 @router.get("/image_by_rank/image-list-sampled-sorted", 
             response_model=StandardSuccessResponse[ImageData],
             status_code=200,
+            tags = ['deprecated3'], 
+            description= "changed wtih /image-by-rank/image-list-sorted-by-score-v1",
             responses=ApiResponseHandler.listErrors([500]),
-            description="List randomly sampled and sorted images from jobs collection")
+        )
 def image_list_sampled_sorted(
     request: Request,
     model_type: str = Query(..., description="Model type to filter the scores, e.g., 'linear' or 'elm-v1'"),
@@ -366,7 +370,7 @@ def image_list_sorted_by_percentile(
     return images_data
 
 
-@router.get("/image_by_rank/image-list-sorted-by-residual", response_class=PrettyJSONResponse)
+@router.get("/image_by_rank/image-list-sorted-by-residual", response_class=PrettyJSONResponse, tags = ['deprecated3'], description= "changed wtih /image-by-rank/image-list-sorted-by-residual-v1")
 def image_list_sorted_by_residual(
     request: Request,
     dataset: str = Query(...),
