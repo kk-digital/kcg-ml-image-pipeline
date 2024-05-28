@@ -491,6 +491,7 @@ def get_tags_by_image(request: Request, image_hash: str):
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
+
 @router.get("/external-images/count-by-tag",
             status_code=200,
             tags=["external-images"],

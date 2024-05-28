@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 
-@router.get("/image/get_random_image", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
+@router.get("/image/get_random_image", tags = ["deprecated3"], description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint")
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -56,7 +56,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     # Return the image details
     return {"image_details": document}  
     
-@router.get("/image/get_random_image_list", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
+@router.get("/image/get_random_image_list", tags = ["deprecated3"], description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.")
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -97,7 +97,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/get_random_previously_ranked_image_list", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
+@router.get("/image/get_random_previously_ranked_image_list", tags = ["deprecated3"], description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.")
 def get_random_previously_ranked_image_list(
     request: Request, 
     dataset: str = Query(...), 
@@ -171,7 +171,7 @@ def get_random_previously_ranked_image_list(
 
 
 
-@router.get("/image/get_random_image_by_date_range", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
+@router.get("/image/get_random_image_by_date_range", tags = ["deprecated3"], description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.")
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
@@ -566,7 +566,7 @@ def get_images_metadata(
     # Return the metadata for the filtered images
     return images_metadata
 
-@router.get("/image/get_random_image_with_time", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
+@router.get("/image/get_random_image_with_time", tags = ["deprecated3"], description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.")
 def get_random_image_with_time(
     request: Request,
     dataset: str = Query(...),
@@ -768,7 +768,7 @@ def list_prompt_generation_policies():
 @router.get("/image/get-random-image-v1",
             response_model=StandardSuccessResponseV1[Task],  
             tags = ["deprecated3"], 
-            description= "no replacements for them, cause we are not using anymore",
+            description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_v1(request: Request, dataset: str = Query(...)):
@@ -841,7 +841,7 @@ def get_image_details_v1(request: Request, image_path: str = Query(...)):
 @router.get("/image/get-random-image-list-v1",
             response_model=StandardSuccessResponseV1[List[Task]], 
             tags = ["deprecated3"], 
-            description= "no replacements for them, cause we are not using anymore",
+            description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_list_v1(request: Request, dataset: str = Query(...), size: int = Query(1)):  
@@ -898,7 +898,7 @@ def get_random_image_list_v1(request: Request, dataset: str = Query(...), size: 
 @router.get("/image/get-random-previously-ranked-image-list-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust the response model as needed
             tags = ["deprecated3"], 
-            description= "no replacements for them, cause we are not using anymore",
+            description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_previously_ranked_image_list_v1(
@@ -976,7 +976,7 @@ def get_random_previously_ranked_image_list_v1(
 @router.get("/image/get-random-image-by-date-range-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust response model as necessary
             tags = ["deprecated3"], 
-            description= "no replacements for them, cause we are not using anymore",
+            description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_date_range_v1(
@@ -1035,7 +1035,7 @@ def get_random_image_date_range_v1(
 @router.get("/image/get-random-image-with-time-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust response model as necessary
             tags = ["deprecated3"], 
-            description= "no replacements for them, cause we are not using anymore",
+            description= "Deprecated without a direct alternative. Inform in the chat if you are using this endpoint.",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 def get_random_image_with_time_v1(
@@ -1252,7 +1252,7 @@ async def upload_image_v1(request: Request,
         )
     
 @router.get("/static/images/get-image-by-path/{file_path:path}",
-            description="Get image by file path",
+            description="get the image with file path",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_data_by_filepath_2(request: Request, file_path: str):

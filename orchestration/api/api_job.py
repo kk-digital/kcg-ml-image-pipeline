@@ -70,7 +70,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
 
 
  # --------------------- Add ---------------------------
-@router.post("/queue/image-generation/add", tags = ['deprecated3'], description= "changed wtih /queue/image-generation/move-job-to-in-progress")
+@router.post("/queue/image-generation/add", tags = ['deprecated3'], description= "changed wtih /queue/image-generation/add-job")
 def add_job(request: Request, task: Task):
     if task.uuid in ["", None]:
         # generate since its empty

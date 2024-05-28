@@ -851,9 +851,35 @@ def update_rank_model_category_deprecated_status(request: Request, rank_model_ca
             description="Get image pair for ab rank with parameters",
             response_model=StandardSuccessResponseV1[ABRankImagePairResponse_v1],
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def get_ab_rank_image_pair_v1(request: Request, rank_model_id:int, min_score:float, max_diff:float, sample_size:int=1000):
+async def get_ab_rank_image_pair_v1(
+    request: Request, 
+    rank_model_id: int, 
+    min_score: float, 
+    max_diff: float, 
+    sample_size: int = 1000,
+    start_date: str = None,
+    end_date: str = None
+):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
+        # Validate the provided start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                    http_status_code=400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+
         rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
         if rank_model is None:
             return response_handler.create_error_response_v1(
@@ -862,7 +888,6 @@ async def get_ab_rank_image_pair_v1(request: Request, rank_model_id:int, min_sco
                 http_status_code=404
             )
         
-
         classifier_id = rank_model.get("classifier_id")
         if classifier_id is None:
             return response_handler.create_error_response_v1(
@@ -871,15 +896,24 @@ async def get_ab_rank_image_pair_v1(request: Request, rank_model_id:int, min_sco
                 http_status_code=404
             )
         
+        # Build the query for filtering classifier scores
+        query = {
+            'classifier_id': classifier_id,
+            'score': {'$gte': min_score}
+        }
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": validated_end_date}
+        
         while True:
             filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
                 {'$sample': {
                     'size': sample_size
                 }},
-                {'$match': {
-                    'classifier_id': classifier_id,
-                    'score': {'$gte': min_score},
-                }},
+                {'$match': query},
                 {'$project': {
                     'uuid': 1,
                     'score': 1
