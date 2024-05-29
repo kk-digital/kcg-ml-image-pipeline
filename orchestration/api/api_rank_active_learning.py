@@ -790,10 +790,15 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     }
 
     # Insert the UUID data into the irrelevant_images_collection
-    request.app.irrelevant_images_collection.insert_one(image_data)
-    
+    inserted_id = request.app.irrelevant_images_collection.insert_one(image_data).inserted_id
+    inserted_image_data = request.app.irrelevant_images_collection.find_one({"_id": inserted_id})
+
+    # Remove the '_id' field from the response data
+    if '_id' in inserted_image_data:
+        inserted_image_data.pop('_id')
+
     return api_response_handler.create_success_response_v1(
-        response_data=image_data,
+        response_data=inserted_image_data,
         http_status_code=200
     )
 
