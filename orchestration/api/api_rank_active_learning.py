@@ -1007,6 +1007,7 @@ def get_random_image_date_range(
 
     # If rank_id is provided, adjust the query to consider classifier scores
     classifier_id = None
+    uuids = []
     if rank_id is not None:
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
@@ -1028,25 +1029,33 @@ def get_random_image_date_range(
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
 
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query, {"uuid": 1})
+        for score in classifier_scores:
+            uuids.append(score['uuid'])
+
+        if not uuids:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="The relevance classifier model has no scores",
                 http_status_code=404
             )
 
-        uuids = [score['uuid'] for score in classifier_scores]
-        query['uuid'] = {'$in': uuids}
-
-    aggregation_pipeline = [{"$match": query}]
-    if size:
-        aggregation_pipeline.append({"$sample": {"size": size}})
-
-    documents = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+    # Pagination for handling large number of UUIDs
+    batch_size = 5000  # Adjust as needed to fit within the document size limit
+    all_documents = []
+    for i in range(0, len(uuids), batch_size):
+        batch_uuids = uuids[i:i + batch_size]
+        batch_query = query.copy()
+        batch_query['uuid'] = {'$in': batch_uuids}
+        aggregation_pipeline = [{"$match": batch_query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+        
+        documents = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+        all_documents.extend(documents)
 
     # Retrieve the UUIDs of the selected documents
-    document_uuids = [doc['uuid'] for doc in documents]
+    document_uuids = [doc['uuid'] for doc in all_documents]
 
     # Fetch classifier scores only for the selected documents
     classifier_scores = list(request.app.image_classifier_scores_collection.find({
@@ -1055,22 +1064,22 @@ def get_random_image_date_range(
     }))
 
     # Map UUIDs to their corresponding scores
-    classifier_scores_for_uuid = {score['uuid']: score['score'] for score in classifier_scores}
+    classifier_scores_map = {score['uuid']: score['score'] for score in classifier_scores}
 
     # Prepare image scores array
     image_scores = []
-    for document in documents:
+    for document in all_documents:
         uuid = document.get('uuid')
-        score = classifier_scores_for_uuid.get(uuid, None)
+        score = classifier_scores_map.get(uuid, None)
         if score is not None:
             image_scores.append(score)
 
     # Prepare response without including classifier_score in the document data
-    for document in documents:
+    for document in all_documents:
         document.pop('_id', None)  # Remove the auto-generated field
 
     return api_response_handler.create_success_response_v1(
-        response_data={"images": documents, "image_scores": image_scores},
+        response_data={"images": all_documents, "image_scores": image_scores},
         http_status_code=200
     )
 
