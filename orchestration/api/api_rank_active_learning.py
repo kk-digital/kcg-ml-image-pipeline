@@ -968,7 +968,7 @@ def list_selection_data_with_scores(
             http_status_code=500,
         )  
 
-@router.get("/rank-training/get_random_images_by_classifier_score", 
+@router.get("/rank-training/get-random-images-by-classifier-score", 
             tags=['rank-training'], 
             description="Returns random images filtering by rank scores",
             response_model=StandardSuccessResponseV1[ListScoreImageTask],
