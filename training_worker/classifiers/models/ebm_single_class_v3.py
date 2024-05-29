@@ -1499,8 +1499,13 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     images_paths = get_file_paths(dataset_name,number_of_samples)
     
     # Process the images
-    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
 
+    start_time = time.time()
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Processing time {elapsed_time:.2f} seconds")
+   
     rank = 1
     for image in sorted_images_and_hashes:
         #
@@ -2586,31 +2591,48 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 ######### let's go
 
 
+# # Start timing
+# start_time = time.time()
+# trainer.fit(self.model , train_loader, val_loader)        
+# # End timing
+# end_time = time.time()
+
+# # Calculate the elapsed time
+# elapsed_time = end_time - start_time
+
+# # Print the elapsed time
+# print(f"Training completed in {elapsed_time:.2f} seconds")
 
 
-# # #EBM
-# args = parse_args()
-# original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= "topic-aquatic" ,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
+# #EBM
+args = parse_args()
+original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= "topic-medieval" ,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
 
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-#  # "defect-color-over-saturated" #"defect-color-mildly-over-saturated" # "defect-color-over-saturated"  #"topic-forest" #"concept-occult" #"concept-cybernetic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
-# #  "topic-desert"  "topic-medieval"  "concept-cybernetic"
-# tag_name_x = "concept-vehicle" #"concept-nature"
-# original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+ # "defect-color-over-saturated" #"defect-color-mildly-over-saturated" # "defect-color-over-saturated"  #"topic-forest" #"concept-occult" #"concept-cybernetic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
+#  "topic-desert"  "topic-medieval"  "concept-cybernetic"
+tag_name_x = "topic-medieval" #"concept-nature"
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
 
+
+start_time = time.time()
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Inference plus printing results in {elapsed_time:.2f} seconds")
 # # ELM
 # from training_worker.classifiers.models.elm_regression import ELMRegression
 # # elm_model = ELMRegression()
@@ -2747,22 +2769,22 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
 # ############################ Train ########################
 
-# forest occult fantasy medieval
-tag_name_x_2 = "topic-medieval" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
-defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-                            dataset= "environmental",
-                            class_name= tag_name_x_2,
-                            model = None,
-                            save_name = "bla",
-                            class_id =  get_tag_id_by_name(tag_name_x_2),
-                            training_batch_size=32,
-                            num_samples= 32000,
-                            epochs= 20,
-                            learning_rate= 0.001)
+# # forest occult fantasy medieval
+# tag_name_x_2 = "topic-medieval" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+#                             dataset= "environmental",
+#                             class_name= tag_name_x_2,
+#                             model = None,
+#                             save_name = "bla",
+#                             class_id =  get_tag_id_by_name(tag_name_x_2),
+#                             training_batch_size=32,
+#                             num_samples= 32000,
+#                             epochs= 20,
+#                             learning_rate= 0.001)
 
 
-defect_test.train_v3()
+# defect_test.train_v3()
 
 
 # defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
