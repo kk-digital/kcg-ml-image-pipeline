@@ -1043,16 +1043,22 @@ def get_random_image_date_range(
     # Pagination for handling large number of UUIDs
     batch_size = 5000  # Adjust as needed to fit within the document size limit
     all_documents = []
+    total_docs_added = 0  # Track the number of documents added
     for i in range(0, len(uuids), batch_size):
         batch_uuids = uuids[i:i + batch_size]
         batch_query = query.copy()
         batch_query['uuid'] = {'$in': batch_uuids}
         aggregation_pipeline = [{"$match": batch_query}]
         if size:
-            aggregation_pipeline.append({"$sample": {"size": size}})
+            remaining_size = size - total_docs_added
+            aggregation_pipeline.append({"$sample": {"size": remaining_size}})
         
         documents = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
         all_documents.extend(documents)
+        total_docs_added += len(documents)
+
+        if total_docs_added >= size:
+            break
 
     # Retrieve the UUIDs of the selected documents
     document_uuids = [doc['uuid'] for doc in all_documents]
