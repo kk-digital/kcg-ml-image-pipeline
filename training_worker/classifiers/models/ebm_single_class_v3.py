@@ -631,7 +631,6 @@ class EBM_Single_Class:
                             devices=1,
                             max_epochs=self.epochs,
                             gradient_clip_val=0.1,
-                            batch
                             callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                         LearningRateMonitor("epoch")
                                     ])
