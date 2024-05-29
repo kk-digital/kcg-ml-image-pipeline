@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask
 from .mongo_schemas import FlaggedDataUpdate
 import os
@@ -724,9 +724,17 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
         for chunk in data.stream(32 * 1024):
             file_content += chunk.decode('utf-8')
 
+        json_content = json.loads(file_content)
+
+        # Ensure all fields are present, set default values if not
+        for datapoint in json_content.get('datapoints', []):
+            datapoint.setdefault('flagged', None)
+            datapoint.setdefault('flagged_by_user', None)
+            datapoint.setdefault('flagged_time', None)
+
         # Successfully return the content of the JSON file
         return response_handler.create_success_response_v1(
-            response_data={"json_content":json.loads(file_content)},
+            response_data={"json_content": json_content},
             http_status_code=200
         )
     except Exception as e:
@@ -735,14 +743,16 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal Server Error",
             http_status_code=500,
-        )    
+        )
+  
+
 
 
 @router.post("/rank-training/add-irrelevant-image",
              description="Adds an image UUID to the irrelevant images collection",
              status_code=200,
              response_model=StandardSuccessResponseV1[IrrelevantResponse],
-             tags=["Rank Active Learning"],
+             tags=["rank-training"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -752,15 +762,24 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     if not job:
         return api_response_handler.create_error_response_v1(
             error_code=404,
-            error_string=f"Job with UUID {job_uuid} not found in the complseted jobs collection",
+            error_string=f"Job with UUID {job_uuid} not found in the completed jobs collection",
             http_status_code=404
         )
-    rank = request.app.rank_model_models_collection.fine_one({"rank_model_id": rank_model_id})
+
+    rank = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_id})
     if not rank:
         return api_response_handler.create_error_response_v1(
             error_code=404,
-            error_string=f"rank model not found in the rank models collection",
+            error_string=f"Rank model not found in the rank models collection",
             http_status_code=404
+        )
+
+    # Check if the image is already marked as irrelevant
+    existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
+    if existing_entry:
+        return api_response_handler.create_success_response_v1(
+            response_data="Image already marked as irrelevant",
+            http_status_code=200
         )
 
     # Extract the relevant details
@@ -776,11 +795,13 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     return api_response_handler.create_success_response_v1(
         response_data=image_data,
         http_status_code=200
-    )    
+    )
+
+
 
 @router.get("/rank-training/list-irrelevant-images", 
             description="list irrelevant images",
-            tags=["Rank Active Learning"],
+            tags=["rank-training"],
             status_code=200,
             response_model=StandardSuccessResponseV1[ListIrrelevantResponse],
             responses=ApiResponseHandlerV1.listErrors([500]))
@@ -795,7 +816,7 @@ def list_irrelevant_images(request: Request):
             doc.pop('_id', None)  
 
         return response_handler.create_success_response_v1(
-            response_data={"rank_model_categories": image_cursor}, 
+            response_data={"images": image_cursor}, 
             http_status_code=200,
             )
 
@@ -807,11 +828,11 @@ def list_irrelevant_images(request: Request):
                                                          )
 
 
-@router.post("/rank-training/unset-irrelevant-image",
+@router.delete("/rank-training/remove-irrelevant-image",
              description="Removes an image UUID from the irrelevant images collection",
              status_code=200,
              response_model=StandardSuccessResponseV1[WasPresentResponse],
-             tags=["Rank Active Learning"],
+             tags=["rank-training"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -1093,3 +1114,30 @@ async def calculate_delta_scores(request: Request):
     total_time = end_time - start_time
 
     return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}            
+
+
+@router.get("/rank-training/get-if-image-is-irrelevant",
+            description="Checks if an image is marked as irrelevant for a specific rank model",
+            status_code=200,
+            response_model=StandardSuccessResponseV1[BoolIrrelevantResponse],
+            tags=["rank-training"],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    try:
+        # Check if the image is marked as irrelevant for the given rank model
+        is_irrelevant = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id}) is not None
+
+        # Return the result
+        return api_response_handler.create_success_response_v1(
+            response_data={"irrelevant": is_irrelevant},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to check if image is irrelevant: {str(e)}',
+            http_status_code=500
+        )

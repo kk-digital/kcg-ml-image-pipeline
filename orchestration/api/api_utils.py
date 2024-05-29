@@ -26,6 +26,9 @@ class IrrelevantResponse(BaseModel):
 class DeletedCount(BaseModel):
     deleted_count: int    
 
+class BoolIrrelevantResponse(BaseModel):
+    irrelevant: bool    
+
 class ListIrrelevantResponse(BaseModel):
     images: List[IrrelevantResponse]    
 
