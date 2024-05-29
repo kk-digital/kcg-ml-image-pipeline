@@ -650,7 +650,7 @@ class EBM_Single_Class:
 
         # Print the elapsed time
         print(f"Training completed in {elapsed_time:.2f} seconds")
-        
+
         self.save_model_to_minio(self.save_name,'temp_model.safetensors')
 
         # up loader graphs
@@ -1125,7 +1125,7 @@ def main():
 
 
 
-main()
+#main()
 
     ##################### Standard method ##########################
 
@@ -2747,22 +2747,22 @@ def plot_samples_graph_interpolation_plus_mapping_combined(loaded_model, loaded_
 
 # ############################ Train ########################
 
-# # forest occult fantasy medieval
-# tag_name_x_2 = "topic-medieval" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
-# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#                             dataset= "environmental",
-#                             class_name= tag_name_x_2,
-#                             model = None,
-#                             save_name = "bla",
-#                             class_id =  get_tag_id_by_name(tag_name_x_2),
-#                             training_batch_size=64,
-#                             num_samples= 32000,
-#                             epochs= 20,
-#                             learning_rate= 0.001)
+# forest occult fantasy medieval
+tag_name_x_2 = "topic-medieval" # "topic-medieval" # "content-has-character" #"perspective-isometric"  # "perspective-3d"  #"concept-cybernetic" #"concept-nature"
+defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                            dataset= "environmental",
+                            class_name= tag_name_x_2,
+                            model = None,
+                            save_name = "bla",
+                            class_id =  get_tag_id_by_name(tag_name_x_2),
+                            training_batch_size=64,
+                            num_samples= 32000,
+                            epochs= 20,
+                            learning_rate= 0.001)
 
 
-# defect_test.train_v3()
+defect_test.train_v3()
 
 
 # defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
