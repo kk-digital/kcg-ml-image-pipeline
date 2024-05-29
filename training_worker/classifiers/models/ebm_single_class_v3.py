@@ -4,6 +4,7 @@ import json
 import math
 import numpy as np
 import random
+import time
 
 ## Imports for plotting
 import matplotlib.pyplot as plt
@@ -637,7 +638,19 @@ class EBM_Single_Class:
         pl.seed_everything(42)
         self.model = DeepEnergyModel(adv_loader =adv_loader,img_shape=(1280,) ,**kwargs)
         
+
+        # Start timing
+        start_time = time.time()
         trainer.fit(self.model , train_loader, val_loader)        
+        # End timing
+        end_time = time.time()
+
+        # Calculate the elapsed time
+        elapsed_time = end_time - start_time
+
+        # Print the elapsed time
+        print(f"Training completed in {elapsed_time:.2f} seconds")
+        
         self.save_model_to_minio(self.save_name,'temp_model.safetensors')
 
         # up loader graphs
