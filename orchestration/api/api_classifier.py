@@ -257,29 +257,4 @@ async def list_classifiers(request: Request):
         print(f"Error: {str(e)}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
-@router.delete("/pseudotag-classifiers/delete-unecessary-classifiers", 
-             response_class=PrettyJSONResponse)
-async def delete_classifiers(request: Request):
-     # Query to find classifiers whose names do not contain 'clip-h'
-    classifiers_to_delete = request.app.classifier_models_collection.find({
-        "classifier_name": {"$not": {"$regex": "clip-h"}}
-    })
-
-    # Collect the IDs of these classifiers
-    classifier_ids = [classifier['_id'] for classifier in classifiers_to_delete]
-
-    if not classifier_ids:
-        return {"message": "No classifiers to delete"}
-
-    # Delete these classifiers from the classifiers collection
-    delete_result = request.app.classifier_models_collection.delete_many({
-        "_id": {"$in": classifier_ids}
-    })
-
-    # Remove all associated entries from the image_classifier_scores_collection
-    request.app.image_classifier_scores_collection.delete_many({
-        "classifier_id": {"$in": classifier_ids}
-    })
-
-    return {"message": f"Deleted {delete_result.deleted_count} classifiers and associated scores"}
     
