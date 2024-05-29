@@ -2756,7 +2756,7 @@ defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
                             model = None,
                             save_name = "bla",
                             class_id =  get_tag_id_by_name(tag_name_x_2),
-                            training_batch_size=64,
+                            training_batch_size=32,
                             num_samples= 32000,
                             epochs= 20,
                             learning_rate= 0.001)
