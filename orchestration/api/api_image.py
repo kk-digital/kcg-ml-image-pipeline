@@ -4,7 +4,7 @@ from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
-from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata
+from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata, ListTask
 from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
 from .api_ranking import get_image_rank_use_count
 import os
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 
-@router.get("/image/get_random_image", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -40,7 +40,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
-@router.get("/image/get_image_details")
+@router.get("/image/get_image_details", tags = ['deprecated3'], description= "changed wtih get-image-generation/by-hash")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
     document = request.app.completed_jobs_collection.find_one(
@@ -56,7 +56,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     # Return the image details
     return {"image_details": document}  
     
-@router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image_list", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -97,7 +97,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_previously_ranked_image_list", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
 def get_random_previously_ranked_image_list(
     request: Request, 
     dataset: str = Query(...), 
@@ -171,7 +171,7 @@ def get_random_previously_ranked_image_list(
 
 
 
-@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image_by_date_range", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
@@ -205,6 +205,7 @@ def get_random_image_date_range(
         document.pop('_id', None)  # Remove the auto-generated field
 
     return documents
+
 
 @router.get("/image/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
@@ -278,6 +279,180 @@ def get_random_image_date_range(
     return documents
 
 
+@router.get("/images/get-random-image-by-classifier-score", 
+        response_model=StandardSuccessResponseV1[ListTask],  
+        description= "get random image classifier scores",
+        status_code=200,
+        responses=ApiResponseHandlerV1.listErrors([404,422, 500]))  
+def get_random_image_date_range(
+    request: Request,
+    rank_id: int = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_score: float= 0.6,
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
+):
+    response_handler = ApiResponseHandlerV1(request)
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'},
+            {'task_type': 'img2img_generation_kandinsky'}
+        ]
+    }
+
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+    # If rank_id is provided, adjust the query to consider classifier scores
+    if rank_id is not None:
+        # get rank data
+        rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        if rank is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model with this id doesn't exist",
+                http_status_code=404,
+            )
+        
+        # get the relevance classifier model id
+        classifier_id= rank["classifier_id"]
+        if classifier_id is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="This Rank has no relevance classifier model assigned to it",
+                http_status_code=404,
+            )
+
+        
+        classifier_query = {'classifier_id': classifier_id}
+        if min_score is not None:
+            classifier_query['score'] = {'$gte': min_score}
+            # Fetch image hashes from classifier_scores collection that match the criteria
+            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+            if classifier_scores is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                    error_string="The relevance classifier model has no scores.",
+                    http_status_code=404,
+                )
+                
+            image_hashes = [score['image_hash'] for score in classifier_scores]
+            query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    documents = list(documents)
+
+    for document in documents:
+        document.pop('_id', None)  # Remove the auto-generated field
+
+    return response_handler.create_success_response_v1(
+            response_data=documents,
+            http_status_code=200,
+        )
+
+
+@router.get("/image/get_random_image_by_classifier_score-v1", response_class=PrettyJSONResponse)
+def get_random_image_date_range(
+    request: Request,
+    rank_id: int = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_score: float = 0.6,
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
+):
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'},
+            {'task_type': 'img2img_generation_kandinsky'}
+        ]
+    }
+
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+    # If rank_id is provided, adjust the query to consider classifier scores
+    classifier_id = None
+    if rank_id is not None:
+        rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        if rank is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Rank model with this id doesn't exist")
+
+        classifier_id = rank.get("classifier_id")
+        if classifier_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="This Rank has no relevance classifier model assigned to it")
+
+        classifier_query = {'classifier_id': classifier_id}
+        if min_score is not None:
+            classifier_query['score'] = {'$gte': min_score}
+
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+        if classifier_scores is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The relevance classifier model has no scores.")
+
+        uuids = [score['uuid'] for score in classifier_scores]
+        query['uuid'] = {'$in': uuids}
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    documents = list(documents)
+
+    # Map uuid to their corresponding scores
+    classifier_query = {'classifier_id': classifier_id}
+    classifier_scores_map = {
+        score['uuid']: score['score']
+        for score in request.app.image_classifier_scores_collection.find(classifier_query)
+    }
+
+    # Add classifier score to each document
+    for document in documents:
+        document.pop('_id', None)  # Remove the auto-generated field
+        uuid = document.get('uuid')
+        score = classifier_scores_map.get(uuid, None)  # Ensure score is None if not found
+        document['classifier_score'] = score  # Add classifier score as a top-level field
+
+    return documents
+
+
+
+
+
 """
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
@@ -295,7 +470,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 """
 
 # TODO: deprecate
-@router.get("/images/{file_path:path}")
+@router.get("/images/{file_path:path}", tags = ['deprecated3'], description= "changed wtih /static/images/{file_path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
@@ -391,7 +566,7 @@ def get_images_metadata(
     # Return the metadata for the filtered images
     return images_metadata
 
-@router.get("/image/get_random_image_with_time", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image_with_time", tags = ["deprecated3"], description= "no replacements for them, cause we are not using anymore")
 def get_random_image_with_time(
     request: Request,
     dataset: str = Query(...),
@@ -442,7 +617,7 @@ def get_random_image_with_time(
 # New Endpoints with /static/ prefix
 
 
-@router.get("/static/images/{file_path:path}")
+@router.get("/static/images/{file_path:path}", tags = ['deprecated3'], description= "changed wtih /static/images/get-image/{file_path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
@@ -460,8 +635,35 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
 
+@router.get("/static/images/get-image/{file_path}", 
+        response_model=StandardSuccessResponseV1[List[str]],  
+        description= "get image with file_path",
+        status_code=200,
+        responses=ApiResponseHandlerV1.listErrors([404, 500]))
+def get_image_data_by_filepath_2(request: Request, file_path: str):
+    response_handler = ApiResponseHandlerV1(request)
 
-@router.get("/get-image-by-job-uuid/{job_uuid}", response_class=Response)
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+    file_path = file_path.replace("\\", "/")
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+    # Load data into memory
+    if image_data is not None:
+        content = image_data.read()
+    else:
+        return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="image not found in minio",
+                http_status_code=404,
+            )
+
+    response = Response(content=content, media_type="image/jpeg")
+
+    return response
+
+
+@router.get("/get-image-by-job-uuid/{job_uuid}", 
+            response_class=Response)
 def get_image_by_job_uuid(request: Request, job_uuid: str):
     # Fetch the job from the completed_jobs_collection using the UUID
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
@@ -494,6 +696,54 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
     headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
     return Response(content=content, media_type="image/jpeg", headers=headers)
 
+
+@router.get("images/get-image-by-job-uuid/{job_uuid}", 
+            response_model=StandardSuccessResponseV1[List[str]],  
+            description= "get image by job uuid",
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+def get_image_by_job_uuid(request: Request, job_uuid: str):
+    response_handler = ApiResponseHandlerV1(request)
+    # Fetch the job from the completed_jobs_collection using the UUID
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+    if not job:
+        return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="job not found",
+                http_status_code=404,
+            )
+
+    # Extract the output file path from the job data
+    output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+    if not output_file_path:
+        return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="image not found in mongodb",
+                http_status_code=404,
+            )
+
+    original_filename = os.path.basename(output_file_path)
+
+    # Fetch the image from MinIO
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+    file_path = file_path.replace("\\", "/")
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+    # Load data into memory
+    if image_data is not None:
+        content = image_data.read()
+    else:
+        return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="image not found in minio",
+                http_status_code=404,
+            )
+            
+    # Return the image in the response
+    headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
+    return Response(content=content, media_type="image/jpeg", headers=headers)
+    
+
 @router.get("/list-prompt-generation-policies")
 def list_prompt_generation_policies():
     return ["greedy-substitution-search-v1", 
@@ -513,12 +763,12 @@ def list_prompt_generation_policies():
 
 
 
-
 #new apis
 
 @router.get("/image/get-random-image-v1",
             response_model=StandardSuccessResponseV1[Task],  
-            description="Get a random image from a dataset",
+            tags = ["deprecated3"], 
+            description= "no replacements for them, cause we are not using anymore",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_v1(request: Request, dataset: str = Query(...)):
@@ -554,9 +804,8 @@ def get_random_image_v1(request: Request, dataset: str = Query(...)):
         )
 
 
-@router.get("/image/get-image-details-v1",
+@router.get("/image/get-image-details-v1", tags = ['deprecated3'], description= "changed wtih get-image-generation/by-hash",
             response_model=StandardSuccessResponseV1[Task],  
-            description="Get details of an image",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_image_details_v1(request: Request, image_path: str = Query(...)):
@@ -591,7 +840,8 @@ def get_image_details_v1(request: Request, image_path: str = Query(...)):
 
 @router.get("/image/get-random-image-list-v1",
             response_model=StandardSuccessResponseV1[List[Task]], 
-            description="Get a list of random images from a dataset",
+            tags = ["deprecated3"], 
+            description= "no replacements for them, cause we are not using anymore",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_list_v1(request: Request, dataset: str = Query(...), size: int = Query(1)):  
@@ -647,7 +897,8 @@ def get_random_image_list_v1(request: Request, dataset: str = Query(...), size: 
 
 @router.get("/image/get-random-previously-ranked-image-list-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust the response model as needed
-            description="Get a list of random, previously ranked images from a dataset with specific filters",
+            tags = ["deprecated3"], 
+            description= "no replacements for them, cause we are not using anymore",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_previously_ranked_image_list_v1(
@@ -724,7 +975,8 @@ def get_random_previously_ranked_image_list_v1(
 
 @router.get("/image/get-random-image-by-date-range-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust response model as necessary
-            description="Get a random image or a list of images from a dataset within a specific date range",
+            tags = ["deprecated3"], 
+            description= "no replacements for them, cause we are not using anymore",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_random_image_date_range_v1(
@@ -782,7 +1034,8 @@ def get_random_image_date_range_v1(
 
 @router.get("/image/get-random-image-with-time-v1",
             response_model=StandardSuccessResponseV1[List[Task]],  # Adjust response model as necessary
-            description="Get a random image or a list of images from a dataset within a specific time range",
+            tags = ["deprecated3"], 
+            description= "no replacements for them, cause we are not using anymore",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 def get_random_image_with_time_v1(
@@ -1030,7 +1283,8 @@ async def get_image_data_by_filepath_2(request: Request, file_path: str):
 
 
 @router.get("/static/images/get-image-by-job-uuid-v1/{job_uuid}",
-            description="Fetch image by job UUID",
+            tags = ['deprecated3'], 
+            description= "changed wtih /get-image-by-job-uuid/{job_uuid}",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_by_job_uuid(request: Request, job_uuid: str):

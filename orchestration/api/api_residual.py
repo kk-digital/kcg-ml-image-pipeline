@@ -5,7 +5,7 @@ from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, W
 router = APIRouter()
 
 
-@router.post("/residual/set-image-rank-residual", description="Set image rank residual")
+@router.post("/residual/set-image-rank-residual", tags = ['deprecated3'], description= "changed with /image-scores/residuals/set-image-rank-residual")
 def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
     # check if exists
     query = {"image_hash": ranking_residual.image_hash,
@@ -48,7 +48,8 @@ async def set_image_rank_residual(request: Request, ranking_residual: RankingRes
         http_status_code=201
     )
 
-@router.get("/residual/get-image-rank-residual-by-hash", description="Get image rank residual by hash")
+@router.get("/residual/get-image-rank-residual-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/residuals/get-image-rank-residual"
+)
 def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
     query = {"image_hash": image_hash,
@@ -95,7 +96,8 @@ def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id:
 
 
 @router.get("/residual/get-image-rank-residuals-by-model-id",
-            description="Get image rank residuals by model id. Returns as descending order of residual")
+            tags = ['deprecated3'], description= "changed with /image-scores/residuals/list-image-rank-residuals-by-model-id"
+)
 def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -137,7 +139,8 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: str):
     )
 
 
-@router.delete("/residual/delete-image-rank-residuals-by-model-id", description="Delete all image rank residuals by model id.")
+@router.delete("/residual/delete-image-rank-residuals-by-model-id", tags = ['deprecated3'], description= "remove scores according model id"
+)
 def delete_image_rank_residuals_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -146,32 +149,3 @@ def delete_image_rank_residuals_by_model_id(request: Request, model_id: int):
 
     return None
 
-
-@router.delete("/image-scores/residuals/delete-all-image-rank-residuals-by-model-id", 
-               description="Delete all image rank residuals by model id.",
-               tags = ["image scores"],
-               status_code=200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([422]))
-@router.delete("/residual/image-rank-residuals-by-model-id", 
-               description="deprecated: use /image-scores/residuals/delete-all-image-rank-residuals-by-model-id",
-               tags = ["deprecated2"],
-               status_code=200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([422]))
-def delete_image_rank_residuals_by_model_id(request: Request, model_id: str):
-    api_response_handler = ApiResponseHandlerV1(request)
-    query = {"model_id": model_id}
-    res = request.app.image_residuals_collection.delete_many(query)
-    
-    was_present = res.deleted_count > 0
-    if was_present:
-        return api_response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return api_response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )

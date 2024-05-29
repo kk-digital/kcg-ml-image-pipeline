@@ -5,7 +5,7 @@ from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, W
 router = APIRouter()
 
 
-@router.post("/score/set-image-rank-score", description="Set image rank score")
+@router.post("/score/set-image-rank-score",tags = ['deprecated3'], description= "changed with /image-scores/scores/set-rank-score")
 def set_image_rank_score(request: Request, ranking_score: RankingScore):
     # check if exists
     query = {"image_hash": ranking_score.image_hash,
@@ -21,7 +21,7 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
 @router.post("/image-scores/scores/set-rank-score", 
              status_code=201,
              description="Sets the rank score of an image. The score can only be set one time per image/model combination",
-             tags=["score"],  
+             tags=["image scores"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 @router.post("/score/set-rank-score", 
@@ -56,7 +56,7 @@ async def set_image_rank_score(request: Request, ranking_score: RankingScore):
     )
 
 
-@router.get("/score/get-image-rank-score-by-hash", description="Get image rank score by hash")
+@router.get("/score/get-image-rank-score-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/scores/get-image-rank-score")
 def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
     query = {"image_hash": image_hash,
@@ -110,7 +110,7 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: st
 
 
 @router.get("/score/get-image-rank-scores-by-model-id",
-            description="Get image rank scores by model id. Returns as descending order of scores")
+            tags = ['deprecated3'], description= "changed with /image-scores/scores/list-image-rank-scores-by-model-id")
 def get_image_rank_scores_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -158,7 +158,7 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: str):
     )
 
 
-@router.delete("/score/delete-image-rank-scores-by-model-id", description="Delete all image rank scores by model id.")
+@router.delete("/score/delete-image-rank-scores-by-model-id", tags = ['deprecated3'], description= "delete scores accoridng model id")
 def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -167,39 +167,6 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
 
     return None
 
-
-
-@router.delete("/image-scores/scores/delete-all-image-rank-scores-by-model-id", 
-               description="Delete all image rank scores by model id.",
-               status_code=200,
-               tags=["image scores"],  
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([422]))
-@router.delete("/score/image-rank-scores-by-model-id", 
-               description="deprecated: use /image-scores/scores/list-image-rank-scores-by-model-id",
-               status_code=200,
-               tags=["deprecated2"],  
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([422]))
-def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
-    api_response_handler = ApiResponseHandlerV1(request)
-    
-    query = {"model_id": model_id}
-    res = request.app.image_scores_collection.delete_many(query)
-    
-    was_present = res.deleted_count > 0
-    
-    if was_present:
-        return api_response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return api_response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )
-    
 
 
 @router.delete("/image-scores/scores/delete-image-rank-score", 

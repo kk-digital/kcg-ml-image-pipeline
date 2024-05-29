@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection
+from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection, FlaggedSelection
 from .mongo_schemas import FlaggedDataUpdate
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse, JsonContentResponse
 import random
@@ -35,7 +35,7 @@ def list_policies(request: Request):
     return policies
 
 
-@router.post("/rank/add-ranking-data-point")
+@router.post("/rank/add-ranking-data-point", tags = ['deprecated3'], description= "changed with /rank/add-ranking-data-point-v3")
 def add_selection_datapoint(
     request: Request, 
     selection: Selection,
@@ -94,7 +94,7 @@ def update_image_rank_use_count(request: Request, image_hash):
     return True
 
 
-@router.post("/rank/set-image-rank-use-count", description="Set image rank use count")
+@router.post("/rank/set-image-rank-use-count", tags = ['deprecated3'], description= "changed with /rank/set-image-rank-use-count-v1")
 def set_image_rank_use_count(request: Request, image_hash, count: int):
     counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
 
@@ -116,7 +116,7 @@ def set_image_rank_use_count(request: Request, image_hash, count: int):
     return True
 
 
-@router.get("/rank/get-image-rank-use-count", description="Get image rank use count")
+@router.get("/rank/get-image-rank-use-count",tags = ['deprecated3'], description= "changed with /rank/get-image-rank-use-count-v1")
 def get_image_rank_use_count(request: Request, image_hash: str):
     # check if exist
     query = {"image_hash": image_hash}
@@ -186,68 +186,6 @@ def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: 
             http_status_code=500,
         )
 
-@router.post("/rank/add-ranking-data-point-v1", 
-             status_code=201,
-             tags = ['deprecated'],
-             description="'rank/add-ranking-data-point-v2' is the replacement.",
-             response_model=StandardSuccessResponse[Selection],
-             responses=ApiResponseHandler.listErrors([422, 500]))
-def add_selection_datapoint(request: Request, selection: Selection):
-    api_handler = ApiResponseHandler(request)
-    
-    try:
-        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-        file_name = f"{current_time}-{selection.username}.json"
-        dataset = selection.image_1_metadata.file_path.split('/')[1]
-        selection.datetime = current_time
-
-        dict_data = selection.to_dict()
-
-        # Prepare ordered data for MongoDB insertion
-        mongo_data = OrderedDict([
-            ("_id", ObjectId()),  # Generate new ObjectId
-            ("file_name", file_name),
-            ("dataset", dataset),
-            *dict_data.items()  # Unpack the rest of dict_data
-        ])
-
-        # Insert the ordered data into MongoDB
-        request.app.image_pair_ranking_collection.insert_one(mongo_data)
-
-        # Prepare data for MinIO upload (excluding the '_id' field)
-        minio_data = mongo_data.copy()
-        minio_data.pop("_id")
-        minio_data.pop("file_name")
-        minio_data.pop("dataset")
-        path = "data/ranking/aggregate"
-        full_path = os.path.join(dataset, path, file_name)
-        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-        data = BytesIO(json_data)
-
-        # Upload data to MinIO
-        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
-
-        image_1_hash = selection.image_1_metadata.file_hash
-        image_2_hash = selection.image_2_metadata.file_hash
-
-        # Update rank count for images
-        for img_hash in [image_1_hash, image_2_hash]:
-            update_image_rank_use_count(request, img_hash)
-
-        # Return a success response
-        return api_handler.create_success_response(
-            response_data=minio_data,
-            http_status_code=201
-        )
-
-    except Exception as e:
-
-        return api_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string="Internal Server Error",
-            http_status_code=500
-        )
-
 
 @router.get("/rank/list-ranking-data", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
@@ -287,7 +225,7 @@ def list_ranking_data(
     return ranking_data
 
 
-@router.get("/rank/sort-ranking-data-by-residual", response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-residual", tags = ['deprecated3'], description= "changed with /rank/sort-ranking-data-by-residual-v1")
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
@@ -377,7 +315,7 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
+@router.get("/rank/count-ranking-data", tags = ['deprecated3'], description= "changed with /rank/count-ranking-data-v1")
 def count_ranking_data(request: Request):
     try:
         # Get the count of documents in the image_pair_ranking_collection
@@ -389,7 +327,7 @@ def count_ranking_data(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/rank/count-selected-residual-data", response_class=PrettyJSONResponse)
+@router.get("/rank/count-selected-residual-data", tags = ['deprecated3'], description= "changed with /rank/count-selected-residual-data-v1")
 def count_ranking_data(request: Request):
     try:
         # Count documents that contain the 'selected_residual' field
@@ -467,18 +405,6 @@ def delete_ranking_data(request: Request, id: str):
 
     return response_handler.create_success_response({"wasPresent": was_present})
 
-
-
-@router.delete("/rank/delete-all-ranking-data-points")
-def delete_all_ranking_data_points(request: Request):
-    # Attempt to delete all documents from the collection
-    result = request.app.image_pair_ranking_collection.delete_many({})
-
-    # Check if any documents were deleted
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="No documents found in the collection")
-
-    return {"message": "All documents deleted successfully"}
 
 
 @router.post("/update/add-residual-data", 
@@ -744,7 +670,8 @@ async def calculate_delta_scores(request: Request):
 
 @router.post("/rank/add-ranking-data-point-v2", 
              status_code=201,
-             tags=["ranking"],
+             tags = ['deprecated3'], 
+             description= "changed with /rank/add-ranking-data-point-v3",
              response_model=StandardSuccessResponseV1[Selection],  
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def add_selection_datapoint_v2(
@@ -853,47 +780,6 @@ async def add_selection_datapoint_v3(request: Request, selection: Selection):
         )
 
 
-
-@router.post("/rank/update-image-rank-use-count-v1", 
-             description="Update image rank use count", 
-             tags=["deprecated"],
-             response_model=StandardSuccessResponseV1[RankCountResponse],  
-             responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
-def update_image_rank_use_count_v1(request: Request, image_hash: str):
-    response_handler = ApiResponseHandlerV1(request)
-    try:
-        counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
-
-        if counter is None:
-            # If the image hash does not exist, initialize the count to 1
-            count = 1
-            rank_use_count_data = {
-                "image_hash": image_hash,
-                "count": count,
-            }
-            request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
-
-        else:
-            # If the image hash exists, increment the count
-            count = counter["count"] + 1
-            request.app.image_rank_use_count_collection.update_one(
-                {"image_hash": image_hash},
-                {"$set": {"count": count}}
-            )
-
-        # Return a success response indicating the action performed
-        return response_handler.create_success_response_v1(
-            response_data={"image_hash": image_hash, "count": count},
-            http_status_code=200,
-        )
-    except Exception as e:
-        # Log the exception and return an error response
-        print(f"Exception occurred: {e}")  # For debugging
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500,
-        )    
     
 @router.post("/rank/set-image-rank-use-count-v1", 
              description="Set image rank use count", 
@@ -1012,6 +898,7 @@ async def add_relevancy_selection_datapoint_v1(request: Request, relevance_selec
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_v1(
     request: Request,
+    dataset: str = Query(None),
     start_date: str = Query(None),
     end_date: str = Query(None),
     skip: int = Query(0, alias="offset"),
@@ -1033,6 +920,9 @@ def list_ranking_data_v1(
             if end_date_obj:
                 date_filter["$lte"] = end_date_obj
             query_filter["datetime"] = date_filter  # Assuming the field in the database is "datetime"
+
+        if dataset:
+            query_filter["dataset"] = dataset
 
         # Fetch data from MongoDB with pagination and ordering
         cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("datetime", -1 if order == "desc" else 1).skip(skip).limit(limit)
@@ -1497,13 +1387,15 @@ async def read_relevancy_file(request: Request, dataset: str, filename: str = Qu
 
 @router.put("/rank/update-ranking-datapoint", 
             tags=['ranking'], 
-            response_model=StandardSuccessResponseV1[Selection],
+            response_model=StandardSuccessResponseV1[FlaggedSelection],
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
 async def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+
+    flagged_time = datetime.now().isoformat()
 
     # Fetch the content of the specified JSON file from MinIO
     try:
@@ -1531,7 +1423,7 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         content_dict = json.loads(file_content)
         content_dict["flagged"] = update_data.flagged
         content_dict["flagged_by_user"] = update_data.flagged_by_user
-        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        content_dict["flagged_time"] = flagged_time
 
         # Save the modified file back to MinIO
         updated_content = json.dumps(content_dict, indent=2)
@@ -1549,7 +1441,7 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
     update = {"$set": {
         "flagged": update_data.flagged,
         "flagged_by_user": update_data.flagged_by_user,
-        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+        "flagged_time": datetime.now().isoformat()
     }}
     updated_document = request.app.image_pair_ranking_collection.find_one_and_update(
         query, update, return_document=ReturnDocument.AFTER

@@ -14,21 +14,23 @@ from pymongo import ReturnDocument
 router = APIRouter()
 
 
-@router.delete("/dataset/clear-sequential-id")
+@router.delete("/dataset/clear-sequential-id", 
+               tags = ['deprecated3'],
+               description="changed with /datasets/clear-all-sequential-id ")
 def clear_dataset_sequential_id_jobs(request: Request):
     request.app.dataset_sequential_id_collection.delete_many({})
 
     return True
 
 
-@router.get("/dataset/list")
+@router.get("/dataset/list", tags = ['deprecated3'], description= "changed with /datasets/list-datasets " )
 def get_datasets(request: Request):
     objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
 
     return objects
 
 
-@router.get("/dataset/sequential-id/{dataset}")
+@router.get("/dataset/sequential-id/{dataset}",tags = ['deprecated3'], description= "changed with /datasets/get-sequential-ids" )
 def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
 
@@ -61,13 +63,13 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
-@router.delete("/dataset/clear-self-training-sequential-id")
+@router.delete("/dataset/clear-self-training-sequential-id", tags = ['deprecated3'], description= "changed with /datasets/clear-all-self-training-sequential-ids" )
 def clear_self_training_sequential_id_jobs(request: Request):
     request.app.self_training_sequential_id_collection.delete_many({})
 
     return True
 
-@router.get("/dataset/self-training-sequential-id/{dataset}")
+@router.get("/dataset/self-training-sequential-id/{dataset} ", tags = ['deprecated3'], description= " changed with /datasets/get-self-training-sequential-id")
 def get_self_training_sequential_id(request: Request, dataset: str):
     dataset_path = f"{dataset}/data/latent-generator/self_training/"
     # Check and initialize if necessary
@@ -95,7 +97,7 @@ def get_self_training_sequential_id(request: Request, dataset: str):
         raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
 
 # -------------------- Dataset rate -------------------------
-@router.get("/dataset/get-rate")
+@router.get("/dataset/get-rate", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -109,7 +111,7 @@ def get_rate(request: Request, dataset: str):
     return item["dataset_rate"]
 
 
-@router.put("/dataset/set-rate")
+@router.put("/dataset/set-rate", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
@@ -133,7 +135,7 @@ def set_rate(request: Request, dataset, rate=0):
     return True
 
 
-@router.get("/dataset/get-hourly-limit")
+@router.get("/dataset/get-hourly-limit", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -147,7 +149,7 @@ def get_rate(request: Request, dataset: str):
     return item["hourly_limit"]
 
 
-@router.put("/dataset/set-hourly-limit")
+@router.put("/dataset/set-hourly-limit", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_rate(request: Request, dataset, hourly_limit=0):
     date_now = datetime.now()
     # check if exist
@@ -172,7 +174,7 @@ def set_rate(request: Request, dataset, hourly_limit=0):
     return True
 
 
-@router.get("/dataset/get-dataset-config", response_class=PrettyJSONResponse)
+@router.get("/dataset/get-dataset-config, ", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
     item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
@@ -186,7 +188,7 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
     return item
 
 
-@router.get("/dataset/get-all-dataset-config", response_class=PrettyJSONResponse)
+@router.get("/dataset/get-all-dataset-config", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-all-dataset-config" )
 def get_all_dataset_config(request: Request):
     dataset_configs = []
 
@@ -203,7 +205,7 @@ def get_all_dataset_config(request: Request):
     return dataset_configs
 
 
-@router.put("/dataset/set-relevance-model")
+@router.put("/dataset/set-relevance-model", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     date_now = datetime.now()
     # check if dataset exists
@@ -224,7 +226,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     return True
 
 
-@router.put("/dataset/set-ranking-model")
+@router.put("/dataset/set-ranking-model", tags = ['deprecated3'], description= "changed wtih /datasets/settings/set-config")
 def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     date_now = datetime.now()
     # check if dataset exists
@@ -262,7 +264,7 @@ def list_ranking_files(request: Request, dataset: str):
     return json_files
     
 
-@router.get("/datasets/rank/list-v1", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-v1", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
 def list_ranking_files(
     request: Request, 
     dataset: str, 
@@ -316,7 +318,7 @@ def list_ranking_files(
     return filtered_json_files
 
 
-@router.get("/datasets/rank/list-v3", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-v3", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
 def list_ranking_files_v3(
     request: Request,
     dataset: str,
@@ -373,65 +375,6 @@ def list_ranking_files_v3(
     # Return the content of the JSON files
     return filtered_json_contents
 
-@router.get("/datasets/rank/list-v2", tags = ['deprecated'], response_class=PrettyJSONResponse)
-def list_ranking_files(
-    request: Request, 
-    dataset: str, 
-    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
-    start_date: str = None, 
-    end_date: str = None, 
-    list_size: int = Query(100, description="Limit for the number of files to list"),
-    offset: int = Query(0, description="Offset for pagination"),
-    order: str = Query("desc", description="Order of the files, 'asc' or 'desc'")
-):
-    # Convert start_date and end_date strings to datetime objects if they are provided
-    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
-    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
-
-    # Construct the path prefix for ranking
-    path_prefix = f"{dataset}/data/ranking/aggregate"
-
-    # Fetch the list of objects with the given prefix
-    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
-
-    # Filter out non-JSON files and apply date filters
-    filtered_json_files = []
-    for obj in objects:
-        if obj.object_name.endswith('.json'):
-            # Extract date from the filename
-            file_date_str = obj.object_name.split('/')[-1].split('-')[0:3]
-            file_date_str = '-'.join(file_date_str)  # Reformat to 'YYYY-MM-DD'
-            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
-
-            # Apply date filtering
-            if start_date_obj and file_date_obj < start_date_obj:
-                continue
-            if end_date_obj and file_date_obj > end_date_obj:
-                continue
-
-            # Fetch and parse JSON file content
-            file_content = cmd.get_file_content(request.app.minio_client, "datasets", obj.object_name)
-            json_data = json.loads(file_content)
-
-            # Check if the selected_residual for the given model_type is present
-            if model_type in json_data.get('selected_residual', {}):
-                filtered_json_files.append(obj.object_name)
-
-    # Apply ordering, offset, and list size limit
-    if order == "desc":
-        filtered_json_files.sort(reverse=True)
-    else:
-        filtered_json_files.sort()
-
-    start_index = offset
-    end_index = offset + list_size
-    filtered_json_files = filtered_json_files[start_index:end_index]
-
-    if not filtered_json_files:
-        return []
-    
-    return filtered_json_files
-
 
 def read_json_data(request, json_file):
     # Fetch the content of the specified JSON file
@@ -443,7 +386,7 @@ def read_json_data(request, json_file):
     return selected_image_hash, json_file
 
 
-@router.get("/datasets/rank/list-sort-by-score", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-sort-by-score", tags = ['deprecated3'], response_class=PrettyJSONResponse)
 def list_ranking_files_sort_by_score(
     request: Request, 
     dataset: str,
@@ -515,7 +458,7 @@ def list_ranking_files_sort_by_score(
     return sorted_json_files
 
 
-@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse, tags = ['deprecated3'], description= "changed wtih /rank/sort-ranking-data-by-residual-v1")
 def list_ranking_files_sort_by_residual(
     request: Request, 
     dataset: str,
@@ -588,7 +531,7 @@ def list_ranking_files_sort_by_residual(
 
 
 
-@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse)
+@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse,tags = ['deprecated3'], description= "changed wtih /rank/list-relevance-datapoints" )
 def list_relevancy_files(request: Request, dataset: str):
     # Construct the path prefix for relevancy
     path_prefix = f"{dataset}/data/relevancy/aggregate"
@@ -605,47 +548,7 @@ def list_relevancy_files(request: Request, dataset: str):
     return json_files
 
 
-@router.get("/datasets/rank/read",tags = ['deprecated'], response_class=PrettyJSONResponse)
-def read_ranking_file(request: Request, dataset: str,
-                      filename: str = Query(..., description="Filename of the JSON to read")):
-    # Construct the object name for ranking
-    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file
-    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-
-    if data is None:
-        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    # Return the content of the JSON file
-    return json.loads(file_content)
-
-
-@router.get("/datasets/relevancy/read", tags = ['deprecated'], response_class=PrettyJSONResponse)
-def read_relevancy_file(request: Request, dataset: str,
-                        filename: str = Query(..., description="Filename of the JSON to read")):
-    # Construct the object name for relevancy
-    object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file
-    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-
-    if data is None:
-        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    # Return the content of the JSON file
-    return json.loads(file_content)
-
-
-@router.put("/datasets/rank/update_datapoint")
+@router.put("/datasets/rank/update_datapoint", tags = ['deprecated3'], description= "changed wtih /rank/update-ranking-datapoint" )
 def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"
@@ -672,48 +575,6 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
     request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
 
     return {"message": f"File {filename} has been updated."}
-
-@router.put("/datasets/rank/update_datapoint-v1", tags=['deprecated'])
-def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
-    # Construct the object name based on the dataset
-    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file from MinIO
-    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-
-    if data is None:
-        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    # Load the existing content and update the flagged field, flagged_time, and flagged_by_user
-    content_dict = json.loads(file_content)
-    content_dict["flagged"] = update_data.flagged
-    content_dict["flagged_by_user"] = update_data.flagged_by_user
-    content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
-
-    # Save the modified file back to MinIO
-    updated_content = json.dumps(content_dict, indent=2)
-    updated_data = io.BytesIO(updated_content.encode('utf-8'))
-    request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
-
-    # Update the document in MongoDB
-    query = {"file_name": filename}
-    update = {"$set": {
-        "flagged": update_data.flagged,
-        "flagged_by_user": update_data.flagged_by_user,
-        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
-    }}
-    updated_document = request.app.image_pair_ranking_collection.find_one_and_update(
-        query, update, return_document=ReturnDocument.AFTER
-    )
-
-    if updated_document is None:
-        raise HTTPException(status_code=404, detail=f"Document with filename {filename} not found in MongoDB.")
-
-    return {"message": f"File {filename} has been updated in both MinIO and MongoDB."}
 
 
 # New standardized apis

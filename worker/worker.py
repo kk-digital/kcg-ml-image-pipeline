@@ -59,7 +59,7 @@ def warning(thread_state, message):
 def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
-    if generation_task["seed"] == "" or generation_task["seed"] is None:
+    if generation_task.task_input_dict["seed"] == "" or generation_task.task_input_dict["seed"] is None:
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
         generation_task.task_input_dict["seed"] = seed

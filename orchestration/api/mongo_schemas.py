@@ -58,7 +58,22 @@ class Task(BaseModel):
         if isinstance(value, str):
             return cls(**json.loads(value))
         return value
+    
 
+class ABRankTrainingImage(Task):
+    classifier_score: float
+
+class ABRankImagePairResponse_v1(BaseModel):
+    image_1: ABRankTrainingImage
+    image_2: ABRankTrainingImage
+    num_images_above_min_score: float
+    num_image_pair_within_max_diff: float
+
+class ABRankImagePairResponse(BaseModel):
+    image_pair: List[Task]
+    image_score_pair: List[int]
+    num_images_above_min_score: float
+    num_image_pair_within_max_diff: float
 
 class ListTask(BaseModel):
     jobs: List[Task]
@@ -192,13 +207,11 @@ class TrainingTask(BaseModel):
 class FlaggedDataUpdate(BaseModel):
     flagged: bool = Field(..., description="Indicates whether the data is flagged or not")
     flagged_by_user: str = Field(..., description="User who is flagging the data")
-    flagged_time: Optional[str] = None
 
     def to_dict(self):
         return {
             "flagged": self.flagged,
             "flagged_by_user": self.flagged_by_user,
-            "flagged_time": self.flagged_time
         }
 
 
@@ -286,6 +299,12 @@ class ImageHash(BaseModel):
             "image_global_id": self.image_global_id,
         }
     
+class GlobalId(BaseModel):
+    image_global_id: int
+
+class ResponseGlobalId(BaseModel):
+    data: GlobalId
+
 class ImageHashRequest(BaseModel):
     image_hash: str
 
@@ -293,6 +312,12 @@ class ImageHashRequest(BaseModel):
         return {
             "image_hash": self.image_hash,
         }
+    
+class ListImageHash(BaseModel):
+    data: List[ImageHash]
+
+class ListImageHashRequest(BaseModel):
+    image_hash_list: List[str]    
 
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
@@ -333,6 +358,7 @@ class ExternalImageData(BaseModel):
     upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
+    uuid: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -343,10 +369,14 @@ class ExternalImageData(BaseModel):
             "image_format": self.image_format,
             "file_path": self.file_path,
             "source_image_dict": self.source_image_dict,
-            "task_attributes_dict": self.task_attributes_dict
+            "task_attributes_dict": self.task_attributes_dict,
+            "uuid": self.uuid
         }
 
-    
+
+class ListExternalImageData(BaseModel):
+    data: List[ExternalImageData]
+
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
 
@@ -529,6 +559,8 @@ class ListSigmaScoreResponse(BaseModel):
     dataset_name: str
     jobs: List[SigmaScoreResponse]
 
+class JobInfoResponse(BaseModel):
+    job_info: ListSigmaScoreResponse
 
 class RankActiveLearningPolicy(BaseModel):
     rank_active_learning_policy_id: Union[int, None] = None 

@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schema.ab_ranking_schemas import Rankmodel, RankRequest, RankListResponse, ListImageRank, ImageRank, RankCategory, RankCategoryRequest, RankCategoryListResponse, RankCountResponse, RankedSelection
-from .mongo_schemas import Classifier
+from .mongo_schemas import Classifier, ABRankImagePairResponse, ABRankImagePairResponse_v1
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
@@ -25,13 +25,14 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
-        classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
-        if not classifier_info:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="The provided classifier ID does not exist.",
-                http_status_code=400
-            )
+        if rank_model_data.classifier_id is not None:
+            classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
+            if not classifier_info:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="The provided classifier ID does not exist.",
+                    http_status_code=400
+                )
             
 
         # Check for existing rank_model_category_id
@@ -633,14 +634,6 @@ def list_rank_model_models(request: Request):
                                                          )
 
 
-
-@router.delete("/clear-rank-model-categories")
-def clear_all_pending_jobs(request: Request):
-    request.app.rank_model_categories_collection.delete_many({})
-
-    return True
-
-
 @router.get("/ab-rank/get-images-count-by-rank-id", 
             status_code=200,
             tags=["ab-rank"], 
@@ -851,88 +844,187 @@ def update_rank_model_category_deprecated_status(request: Request, rank_model_ca
         http_status_code=200,
     )
 
-@router.delete("/rank-models/remove-all-model-paths", 
-               response_model=StandardSuccessResponseV1[dict],
-               status_code=200,
-               tags=["rank-model-management"],
-               description="Removes the model_path field from all rank models",
-               responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def remove_all_model_paths(request: Request):
+
+@router.get('/rank-training/get-ab-rank-image-pair-v1',
+            status_code=200,
+            tags=["rank-training"],
+            description="Get image pair for ab rank with parameters",
+            response_model=StandardSuccessResponseV1[ABRankImagePairResponse_v1],
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_ab_rank_image_pair_v1(request: Request, rank_model_id:int, min_score:float, max_diff:float, sample_size:int=1000):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        # Remove the model_path field from all documents in the collection
-        update_result = request.app.rank_model_models_collection.update_many(
-            {},  # This empty query matches all documents
-            {"$unset": {"model_path": ""}}  # Remove the model_path field
-        )
-
-        if update_result.modified_count == 0:
+        rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+        if rank_model is None:
             return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="No documents were updated, possibly they already lack a model_path.",
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model not found.",
                 http_status_code=404
             )
+        
+
+        classifier_id = rank_model.get("classifier_id")
+        if classifier_id is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model does not have a classifier_id.",
+                http_status_code=404
+            )
+        
+        while True:
+            filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+                {'$sample': {
+                    'size': sample_size
+                }},
+                {'$match': {
+                    'classifier_id': classifier_id,
+                    'score': {'$gte': min_score},
+                }},
+                {'$project': {
+                    'uuid': 1,
+                    'score': 1
+                }},
+            ]))
+
+            if len(filtered_classfier_scores) < 2:
+                continue
+
+            unique_filtered_classifier_scores = []
+            uuid_set = set()
+
+            for document in filtered_classfier_scores:
+                uuid = document.get('uuid')
+                if uuid not in uuid_set:
+                    uuid_set.add(uuid)
+                    unique_filtered_classifier_scores.append(document)
+            filtered_classfier_scores = unique_filtered_classifier_scores
+
+            scores = [classifier_score['score'] for classifier_score in filtered_classfier_scores]
+            
+            # Sort the scores and filtered_classfier_scores
+            sorted_args = np.argsort(scores)
+            scores = [scores[i] for i in sorted_args]
+            filtered_classfier_scores = [filtered_classfier_scores[i] for i in sorted_args]
+
+            num_filtered_classifier_scores = len(filtered_classfier_scores)
+
+            image_pair_list = []
+            
+            for i in range(num_filtered_classifier_scores):
+                next = bisect.bisect_left(scores, scores[i] + max_diff, i, num_filtered_classifier_scores)
+
+                for j in range(i+1, next):
+                    image_pair_list.append((i, j))
+
+            num_image_pair_within_max_diff = len(image_pair_list)
+
+            if num_image_pair_within_max_diff > 0:
+                break
+
+        image_pair = image_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+
+        image_1 = request.app.completed_jobs_collection.find_one({'uuid': filtered_classfier_scores[image_pair[0]]['uuid']})
+        image_2 = request.app.completed_jobs_collection.find_one({'uuid': filtered_classfier_scores[image_pair[1]]['uuid']})
+        
+        image_1.pop('_id')
+        image_2.pop('_id')
+
+        image_1['classifier_score'] = filtered_classfier_scores[image_pair[0]]['score']
+        image_2['classifier_score'] = filtered_classfier_scores[image_pair[1]]['score']
 
         return response_handler.create_success_response_v1(
-            response_data={"updated_count": update_result.modified_count},
+            response_data={'image_1': image_1,
+                            'image_2': image_2,
+                            'num_images_above_min_score': num_filtered_classifier_scores, 
+                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
         )
-    
+
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"Failed to remove model_path from all documents: {str(e)}",
+            error_string=f'Failed to get image pair for ab rank {e}',
             http_status_code=500
         )
-
+    
+    
 
 @router.get('/ab-rank/get-ab-rank-image-pair',
             status_code=200,
             tags=["ab-rank"],
             description="Get image pair for ab rank with parameters",
-            response_model=StandardSuccessResponseV1[dict],
+            response_model=StandardSuccessResponseV1[ABRankImagePairResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def get_ab_rank_image_pair(request: Request, min_score:float, max_diff:float, sample_size:int=1000):
+async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:float, max_diff:float, sample_size:int=1000):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        selected_completed_jobs_by_randomly = list(request.app.completed_jobs_collection.aggregate([{
-            '$sample': {'size': sample_size},
-        }, {
-            '$project': {
-                '_id': 0,
-            }
-        }]))
-        filtered_jobs_by_min_score = []
-        filtered_job_scores_by_min_score = []
-        for job in selected_completed_jobs_by_randomly:
-            # get score
-            try:                    
-                if job.get('task_attributes_dict') and  \
-                  job['task_attributes_dict'].get('elm-v1') is not None \
-                      and job['task_attributes_dict']['elm-v1'].get('image_clip_h_score') is not None \
-                          and job['task_attributes_dict']['elm-v1']['image_clip_h_score'] > min_score:
-                    filtered_jobs_by_min_score.append(job)
-                    filtered_job_scores_by_min_score.append(job['task_attributes_dict']['elm-v1']['image_clip_h_score'])
-            except Exception as e:
-                print(e)
-
-        num_images_above_min_score = len(filtered_jobs_by_min_score)
-        sorted_args = np.argsort(filtered_job_scores_by_min_score)
-        filtered_jobs_by_min_score = [filtered_jobs_by_min_score[i] for i in sorted_args]
-        filtered_job_scores_by_min_score = [filtered_job_scores_by_min_score[i] for i in sorted_args]
-
-        image_pair_list = []
-        for i in range(num_images_above_min_score):
-            next = bisect.bisect_left(filtered_job_scores_by_min_score, filtered_job_scores_by_min_score[i] + max_diff, i, num_images_above_min_score)
-            for j in range(i+1, next):
-                image_pair_list.append((filtered_jobs_by_min_score[i], filtered_jobs_by_min_score[j]))
-
-        num_image_pair_within_max_diff = len(image_pair_list)
-        image_pair = image_pair_list[np.random.randint(0, num_images_above_min_score)]
+        rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+        if rank_model is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model not found.",
+                http_status_code=404
+            )
+        if rank_model.get("classifier_id") is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model does not have a classifier_id.",
+                http_status_code=404
+            )
         
+        classifier_id = rank_model.get("classifier_id")
+        
+        filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+            {'$match': {
+                'classifier_id': classifier_id,
+                'score': {'$gte': min_score},
+            }},
+            {'$sample': {
+                'size': sample_size
+            }},
+            {'$project': {
+                '_id': 0
+            }},
+        ]))
+
+        scores = [classifier_score['score'] for classifier_score in filtered_classfier_scores]
+        
+        # Sort the scores and filtered_classfier_scores
+        sorted_args = np.argsort(scores)
+        scores = [scores[i] for i in sorted_args]
+        filtered_classfier_scores = [filtered_classfier_scores[i] for i in sorted_args]
+
+        num_filtered_classifier_scores = len(filtered_classfier_scores)
+
+        image_uuid_pair_list = []
+        
+        for i in range(num_filtered_classifier_scores):
+            next = bisect.bisect_left(scores, scores[i] + max_diff, i, num_filtered_classifier_scores)
+
+            for j in range(i+1, next):
+                image_uuid_pair_list.append((filtered_classfier_scores[i]['uuid'], filtered_classfier_scores[j]['uuid']))
+
+        num_image_pair_within_max_diff = len(image_uuid_pair_list)
+        image_uuid_pair = image_uuid_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+
+        image_uuids = image_uuid_pair
+        images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
+
+        image_pair = []
+        image_score_pair = []
+
+        for image in images:
+            image_dict = image.copy()  # Create a copy of the document
+            del image_dict['_id']
+            image_uuid = image_dict['uuid']
+            image_score = request.app.image_classifier_scores_collection.find_one({'uuid': image_uuid})['score']
+            image_pair.append(image_dict)
+            image_score_pair.append(image_score)
+
         return response_handler.create_success_response_v1(
-            response_data={'image_pair': image_pair, 
-                           'num_images_above_min_score': num_images_above_min_score, 
+            response_data={'image_pair': image_pair,
+                           'image_score_pair': image_score_pair,
+                           'num_images_above_min_score': num_filtered_classifier_scores, 
                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
             http_status_code=200
         )
@@ -940,6 +1032,114 @@ async def get_ab_rank_image_pair(request: Request, min_score:float, max_diff:flo
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
-            error_string=f'Failed to get image pair for ab rank',
+            error_string=f'Failed to get image pair for ab rank {e}',
+            http_status_code=500
+        )
+    
+@router.get('/ab-rank/get-ab-rank-image-pair-v1',
+            status_code=200,
+            tags=["ab-rank"],
+            description="Get image pair for ab rank with parameters",
+            response_model=StandardSuccessResponseV1[dict],
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_ab_rank_image_pair(request: Request, rank_model_id: int, min_score: float, max_diff: float, sample_size: int = 1000):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Fetch the rank model
+        rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+        if rank_model is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model not found.",
+                http_status_code=404
+            )
+        if rank_model.get("classifier_id") is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model does not have a classifier_id.",
+                http_status_code=404
+            )
+
+        classifier_id = rank_model.get("classifier_id")
+
+        # Fetch classifier scores
+        filtered_classifier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+            {'$match': {
+                'classifier_id': classifier_id,
+                'score': {'$gte': min_score},
+            }},
+            {'$sample': {
+                'size': sample_size
+            }},
+            {'$project': {
+                '_id': 0
+            }},
+        ]))
+
+        if len(filtered_classifier_scores) < 2:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Not enough images found with the given parameters.",
+                http_status_code=404
+            )
+
+        scores = [classifier_score['score'] for classifier_score in filtered_classifier_scores]
+
+        # Sort the scores and filtered_classifier_scores
+        sorted_indices = np.argsort(scores)
+        scores = [scores[i] for i in sorted_indices]
+        filtered_classifier_scores = [filtered_classifier_scores[i] for i in sorted_indices]
+
+        image_uuid_pair_list = []
+
+        for i in range(len(filtered_classifier_scores)):
+            for j in range(i + 1, len(filtered_classifier_scores)):
+                if abs(scores[j] - scores[i]) <= max_diff:
+                    image_uuid_pair_list.append((filtered_classifier_scores[i]['uuid'], filtered_classifier_scores[j]['uuid']))
+                else:
+                    break
+
+        if not image_uuid_pair_list:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No image pairs found within the given score difference.",
+                http_status_code=404
+            )
+
+        num_image_pair_within_max_diff = len(image_uuid_pair_list)
+        image_uuid_pair = image_uuid_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+
+        image_uuids = list(image_uuid_pair)
+        images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
+
+        if len(images) != 2:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Error in fetching image pairs.",
+                http_status_code=404
+            )
+
+        image_pair = []
+        for image in images:
+            image_dict = image.copy()  # Create a copy of the document
+            del image_dict['_id']
+            image_uuid = image_dict['uuid']
+            image_score = request.app.image_classifier_scores_collection.find_one({'uuid': image_uuid})['score']
+            image_dict['image_classifier_score'] = image_score
+            image_pair.append(image_dict)
+
+        return response_handler.create_success_response_v1(
+            response_data={
+                'image_pair': image_pair,
+                'num_images_above_min_score': len(filtered_classifier_scores),
+                'num_image_pair_within_max_diff': num_image_pair_within_max_diff
+            },
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to get image pair for ab rank: {e}',
             http_status_code=500
         )

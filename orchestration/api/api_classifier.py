@@ -257,4 +257,3 @@ async def list_classifiers(request: Request):
         print(f"Error: {str(e)}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
-    

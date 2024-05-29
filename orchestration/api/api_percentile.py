@@ -6,7 +6,8 @@ from typing import List
 router = APIRouter()
 
 
-@router.post("/percentile/set-image-rank-percentile", description="Set image rank percentile")
+@router.post("/percentile/set-image-rank-percentile", tags = ['deprecated3'], description= "changed with /image-scores/percentiles/set-image-rank-percentile"
+)
 def set_image_rank_percentile(request: Request, ranking_percentile: RankingPercentile):
     # check if exists
     query = {"image_hash": ranking_percentile.image_hash,
@@ -20,7 +21,8 @@ def set_image_rank_percentile(request: Request, ranking_percentile: RankingPerce
     return True
 
 
-@router.get("/percentile/get-image-rank-percentile-by-hash", description="Get image rank percentile by hash")
+@router.get("/percentile/get-image-rank-percentile-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/percentiles/get-image-rank-percentile"
+)
 def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
     query = {"image_hash": image_hash,
@@ -37,7 +39,8 @@ def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_i
 
 
 @router.get("/percentile/get-image-rank-percentiles-by-model-id",
-            description="Get image rank percentiles by model id. Returns as descending order of percentiles")
+            tags = ['deprecated3'], description= "changed with /image-scores/percentiles/list-image-rank-percentiles-by-model-id"
+)
 def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -54,7 +57,8 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     return percentile_data
 
 
-@router.delete("/percentile/delete-image-rank-percentiles-by-model-id", description="Delete all image rank percentiles by model id.")
+@router.delete("/percentile/delete-image-rank-percentiles-by-model-id",tags = ['deprecated3'], description= "remove scores according model id"
+)
 def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     # check if exist
     query = {"model_id": model_id}
@@ -153,34 +157,3 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     except Exception as e:
         return api_response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500)
 
-
-@router.delete("/image-scores/percentiles/delete-all-image-rank-percentiles-by-model-id",
-               tags=["image scores"],
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([404, 422]),
-               description="Delete all image rank percentiles by model id.")
-@router.delete("/percentile/image-rank-percentiles-by-model-id",
-               tags=["deprecated2"],
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([404, 422]),
-               description="deprecated: use /image-scores/percentiles/delete-all-image-rank-percentiles-by-model-id")
-async def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
-    response_handler = ApiResponseHandlerV1(request)
-    query = {"model_id": model_id}
-    
-    # Perform the deletion operation
-    res = request.app.image_percentiles_collection.delete_many(query)
-    
-    # Prepare the response based on whether any documents were deleted
-    was_present = res.deleted_count > 0
-    
-    if was_present:
-        return response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )

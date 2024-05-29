@@ -262,10 +262,30 @@ def startup_db_client():
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
 
+    app.irrelevant_images_collection = app.mongodb_db["irrelevant_images"]
 
     # ranking data points
 
     app.ranking_datapoints_collection = app.mongodb_db["ranking_datapoints"]
+
+    pair_ranking_hash_index = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING),
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index, 'pair_ranking_hash_index')
+
+    pair_ranking_hash_index_1 = [
+
+        ('image_1_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index_1, 'pair_ranking_hash_index_1')
+
+    pair_ranking_hash_index_2 = [
+
+        ('image_2_metadata.file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ranking_datapoints_collection, pair_ranking_hash_index_2, 'pair_ranking_hash_index_2')
 
     # rank active learning policy
 
@@ -345,6 +365,12 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection, classifier_task_score_index, 'classifier_task_score_index')
 
+    classifier_score_index = [
+    ('classifier_id', pymongo.ASCENDING),
+    ('score', pymongo.DESCENDING) 
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection, classifier_score_index, 'classifier_score_index')
+
     # sigma scores
     app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
 
@@ -411,6 +437,8 @@ def startup_db_client():
         ('image_2_metadata.file_hash', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_2, 'pair_rank_hash_index_2')
+
+
 
     print("Connected to the MongoDB database!")
 
