@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -970,8 +970,8 @@ def list_selection_data_with_scores(
 
 @router.get("/rank-training/get_random_images_by_classifier_score", 
             tags=['rank-training'], 
-            description="List rank selection datapoints with detailed scores",
-            response_model=StandardSuccessResponseV1[ScoreImageTask],
+            description="Returns random images filtering by rank scores",
+            response_model=StandardSuccessResponseV1[ListScoreImageTask],
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def get_random_image_date_range(
     request: Request,
@@ -1012,17 +1012,17 @@ def get_random_image_date_range(
         if rank is None:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Rank model with this id doesn't exist",
+                error_string="Rank model with this id doesn't exist",
                 http_status_code=404
-        )
+            )
 
         classifier_id = rank.get("classifier_id")
         if classifier_id is None:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"This Rank has no relevance classifier model assigned to it",
+                error_string="This Rank has no relevance classifier model assigned to it",
                 http_status_code=404
-        )
+            )
 
         classifier_query = {'classifier_id': classifier_id}
         if min_score is not None:
@@ -1032,9 +1032,9 @@ def get_random_image_date_range(
         if classifier_scores is None:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"The relevance classifier model has no scores",
+                error_string="The relevance classifier model has no scores",
                 http_status_code=404
-        )
+            )
 
         uuids = [score['uuid'] for score in classifier_scores]
         query['uuid'] = {'$in': uuids}
@@ -1043,27 +1043,36 @@ def get_random_image_date_range(
     if size:
         aggregation_pipeline.append({"$sample": {"size": size}})
 
-    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-    documents = list(documents)
+    documents = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
 
-    # Map uuid to their corresponding scores
-    classifier_query = {'classifier_id': classifier_id}
-    classifier_scores_map = {
-        score['uuid']: score['score']
-        for score in request.app.image_classifier_scores_collection.find(classifier_query)
-    }
+    # Retrieve the UUIDs of the selected documents
+    document_uuids = [doc['uuid'] for doc in documents]
 
-    # Add classifier score to each document
+    # Fetch classifier scores only for the selected documents
+    classifier_scores = list(request.app.image_classifier_scores_collection.find({
+        'classifier_id': classifier_id,
+        'uuid': {'$in': document_uuids}
+    }))
+
+    # Map UUIDs to their corresponding scores
+    classifier_scores_for_uuid = {score['uuid']: score['score'] for score in classifier_scores}
+
+    # Prepare image scores array
+    image_scores = []
+    for document in documents:
+        uuid = document.get('uuid')
+        score = classifier_scores_for_uuid.get(uuid, None)
+        if score is not None:
+            image_scores.append(score)
+
+    # Prepare response without including classifier_score in the document data
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
-        uuid = document.get('uuid')
-        score = classifier_scores_map.get(uuid, None)  # Ensure score is None if not found
-        document['classifier_score'] = score  # Add classifier score as a top-level field
 
     return api_response_handler.create_success_response_v1(
-                response_data=documents,
-                http_status_code=200
-            )     
+        response_data={"images": documents, "image_scores": image_scores},
+        http_status_code=200
+    )
 
 @router.post("/rank-training/calculate-delta-scores", status_code=200)
 async def calculate_delta_scores(request: Request):
