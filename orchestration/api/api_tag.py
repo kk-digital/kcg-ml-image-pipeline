@@ -249,11 +249,10 @@ def remove_image_tag(
     
     # If no document was found and deleted, use response_handler to raise an HTTPException
     if result.deleted_count == 0:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="Tag or image hash not found",
-            http_status_code=404
-        )
+        return response_handler.create_success_delete_response_v1(
+                response_data={"wasPresent": False},
+                http_status_code=200
+            )
 
     # Return standard success response with wasPresent: true using response_handler
     return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
@@ -672,7 +671,7 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "generated-image"})
         
         # Process the results
         tags_list = []
@@ -828,7 +827,7 @@ def get_tagged_images(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id}
+        query = {"tag_id": tag_id, "image_source": "generated_image"}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -997,7 +996,7 @@ def get_image_count_by_tag(
     response_handler = ApiResponseHandlerV1(request)
 
     # Assuming each image document has an 'tags' array field
-    query = {"tag_id": tag_id}
+    query = {"tag_id": tag_id, "image_source": "generated-image"}
     count = request.app.image_tags_collection.count_documents(query)
     
     if count == 0:
@@ -1286,56 +1285,26 @@ async def list_classifiers(request: Request):
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
-@router.get("/external-images/get-tagged-external-images-by-image-type",
-            status_code=200,
-            tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ListExternalImageTag],
-            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def get_tagged_images_by_type(request: Request, image_type: str):
-    response_handler = ApiResponseHandlerV1(request)
-    try:
-        tagged_images = list(request.app.image_tags_collection.find({"image_type": image_type}))
-
-        if not tagged_images:
-            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No tagged images found for the given image type", http_status_code=400)
-
-        tagged_images_data = []
-        for tag in tagged_images:
-            tagged_images_data.append({
-                "tag_id": tag["tag_id"],
-                "file_path": tag["file_path"],
-                "image_hash": tag["image_hash"],
-                "tag_type": tag["tag_type"],
-                "image_type": tag["image_type"],
-                "user_who_created": tag["user_who_created"],
-                "tag_count": tag["tag_count"],
-                "creation_time": tag["creation_time"]
-            })
-
-        return response_handler.create_success_response_v1(response_data=tagged_images_data, http_status_code=200)
-
-    except Exception as e:
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
-
-
 @router.put("/tags/update-image-source",
             tags=["tags"],
             status_code=200,
-            description="Update image source for non-external images",
+            description="Update image source for images based on file path",
             response_model=StandardSuccessResponseV1,
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def update_image_source(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Find documents that need updating
-        documents = request.app.image_tags_collection.find({"file_path": {"$not": {"$regex": "external-images"}}})
+        # Update documents where dataset is external-images
+        external_images_query = {"file_path": {"$regex": "external-images"}}
+        external_update = {"$set": {"image_source": "external-image"}}
+        request.app.image_tags_collection.update_many(external_images_query, external_update)
 
-        for document in documents:
-            # Add the new field "image_source": "generated_image"
-            update = {"$set": {"image_source": "generated_image"}}
-            request.app.image_tags_collection.update_one({"_id": document["_id"]}, update)
-        
+        # Update documents where dataset is not external-images
+        generated_images_query = {"file_path": {"$not": {"$regex": "external-images"}}}
+        generated_update = {"$set": {"image_source": "generated_image"}}
+        request.app.image_tags_collection.update_many(generated_images_query, generated_update)
+
         return response_handler.create_success_response_v1(
             response_data={"message": "Image source field updated successfully"},
             http_status_code=200
@@ -1345,4 +1314,4 @@ async def update_image_source(request: Request):
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f"An error occurred: {str(e)}",
             http_status_code=500
-        )        
+        )

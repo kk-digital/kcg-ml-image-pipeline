@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Body, Request, HTTPException, Query
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag
 from typing import List
@@ -381,7 +381,7 @@ def get_external_images(request: Request):
 @router.post("/external-images/add-tag-to-external-image",
              status_code=201,
              tags=["external-images"],  
-             response_model=StandardSuccessResponseV1[ExternalImageTag], 
+             response_model=StandardSuccessResponseV1[ImageTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: int, user_who_created: str):
     response_handler = ApiResponseHandlerV1(request)
@@ -449,7 +449,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
 @router.delete("/external-images/remove-tag-from-external-image",
                status_code=200,
                tags=["external-images"],
-               response_model=StandardSuccessResponseV1,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
     response_handler = ApiResponseHandlerV1(request)
@@ -616,20 +616,29 @@ def get_tag_list_for_external_image(request: Request, file_hash: str):
 
 
 
-@router.get("/external-images/count-by-tag",
+@router.get("/external-images/get-images-count-by-tag-id",
             status_code=200,
             tags=["external-images"],
-            response_model=StandardSuccessResponseV1[int],
+            description="Get count of external images with a specific tag",
+            response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def get_count_by_tag(request: Request, tag_id: int):
+def get_images_count_by_tag_id(request: Request, tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
-    try:
-        count = request.app.image_tags_collection.count_documents({"tag_id": tag_id})
+    try :
+        # Build the query to include the image_source as "external-image"
+        query = {"tag_id": tag_id, "image_source": "external-image"}
+        count = request.app.image_tags_collection.count_documents(query)
 
-        if count == 0:
-            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No images found for the given tag", http_status_code=400)
-
-        return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
+        # Return the count even if it is zero
+        return response_handler.create_success_response_v1(
+            response_data={"tag_id": tag_id, "count": count},
+            http_status_code=200
+        )
 
     except Exception as e:
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error",
+            http_status_code=500
+        )
+
