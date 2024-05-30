@@ -174,19 +174,34 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
     
         existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
         if not existing_tag:
-            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="Tag does not exist!", http_status_code=400)
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string="Tag does not exist!", 
+                http_status_code=400
+            )
 
         image = request.app.completed_jobs_collection.find_one({'task_output_file_dict.output_file_hash': file_hash})
         if not image:
-            return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="No image found with the given hash", http_status_code=400)
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string="No image found with the given hash", 
+                http_status_code=400
+            )
 
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
         
         # Check if the tag is already associated with the image
-        existing_image_tag = request.app.image_tags_collection.find_one({"tag_id": tag_id, "image_hash": file_hash})
+        existing_image_tag = request.app.image_tags_collection.find_one({
+            "tag_id": tag_id, 
+            "image_hash": file_hash, 
+            "image_source": "generated_image"
+        })
         if existing_image_tag:
-            # Return an error response indicating that the tag has already been added to the image
-            return response_handler.create_error_response_v1(error_code=ErrorCode.INVALID_PARAMS, error_string="This tag has already been added to the image", http_status_code=400)
+            # Return a success response indicating that the tag has already been added to the image
+            return response_handler.create_success_response_v1(
+                response_data=existing_image_tag, 
+                http_status_code=200
+            )
 
         # Add new tag to image
         image_tag_data = {
@@ -194,17 +209,25 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             "file_path": file_path,  
             "image_hash": file_hash,
             "tag_type": tag_type,
+            "image_source": "generated_image",
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
-           
         }
         request.app.image_tags_collection.insert_one(image_tag_data)
 
-        return response_handler.create_success_response_v1(response_data={"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_type": tag_type, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response_v1(
+            response_data=image_tag_data, 
+            http_status_code=200
+        )
 
     except Exception as e:
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error", 
+            http_status_code=500
+        )
+
 
 
 @router.delete("/tags/remove-tag-from-image/{tag_id}", 
@@ -220,8 +243,8 @@ def remove_image_tag(
 ):
     response_handler = ApiResponseHandlerV1(request)
 
-    # The query now checks for the specific tag_id within the array of tags
-    query = {"image_hash": image_hash, "tag_id": tag_id}
+    # The query now checks for the specific tag_id within the array of tags and image_source
+    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": "generated_image"}
     result = request.app.image_tags_collection.delete_one(query)
     
     # If no document was found and deleted, use response_handler to raise an HTTPException
@@ -234,6 +257,7 @@ def remove_image_tag(
 
     # Return standard success response with wasPresent: true using response_handler
     return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
+
 
 
 @router.get("/tags/{tag_id}/images", 
@@ -1292,3 +1316,33 @@ def get_tagged_images_by_type(request: Request, image_type: str):
 
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+
+@router.put("/tags/update-image-source",
+            tags=["tags"],
+            status_code=200,
+            description="Update image source for non-external images",
+            response_model=StandardSuccessResponseV1,
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def update_image_source(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Find documents that need updating
+        documents = request.app.image_tags_collection.find({"file_path": {"$not": {"$regex": "external-images"}}})
+
+        for document in documents:
+            # Add the new field "image_source": "generated_image"
+            update = {"$set": {"image_source": "generated_image"}}
+            request.app.image_tags_collection.update_one({"_id": document["_id"]}, update)
+        
+        return response_handler.create_success_response_v1(
+            response_data={"message": "Image source field updated successfully"},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
+            http_status_code=500
+        )        

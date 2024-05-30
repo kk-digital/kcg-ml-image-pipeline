@@ -214,6 +214,11 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_tags_collection ,tagged_images_hash_index, 'tagged_images_hash_index')
 
+    tagged_images_source_index=[
+    ('image_source', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_tags_collection ,tagged_images_source_index, 'tagged_images_source_index')
+
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
     # pseudo tags
