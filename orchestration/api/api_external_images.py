@@ -1,8 +1,9 @@
 
 from fastapi import APIRouter, Body, Request, HTTPException, Query
+from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
-from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag
+from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime
 from pymongo import UpdateOne
@@ -642,3 +643,77 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
             http_status_code=500
         )
 
+
+@router.get("/external-images/list-images-v1",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[ListImageTag],
+            description="List external images with optional filtering and pagination",
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def list_external_images_v1(
+    request: Request,
+    limit: int = Query(20, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for the results to be returned"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    response_handler = ApiResponseHandlerV1(request)
+
+    try:
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+
+        # Build the query
+        query = {}
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": validated_end_date}
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Query the external_images_collection using the constructed query
+        images_cursor = request.app.external_images_collection.find(query).sort("creation_time", sort_order).skip(offset).limit(limit)
+
+        # Collect the metadata for the images that match the query
+        images_metadata = []
+        for image in images_cursor:
+            image_meta_data = {
+                'tag_id': image.get('tag_id'),
+                'file_path': image.get('file_path'),
+                'image_hash': image.get('image_hash'),
+                'tag_type': image.get('tag_type'),
+                'user_who_created': image.get('user_who_created'),
+                'creation_time': image.get('creation_time')
+            }
+            images_metadata.append(image_meta_data)
+
+        return response_handler.create_success_response_v1(
+            response_data=images_metadata,
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
