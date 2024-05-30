@@ -1315,26 +1315,3 @@ async def update_image_source(request: Request):
             error_string=f"An error occurred: {str(e)}",
             http_status_code=500
         )
-
-
-@router.get("/list-images-tagged",
-            tags=["deprecated2"],  
-            responses=ApiResponseHandlerV1.listErrors([404, 422]))
-def get_image_rank_scores_by_model_id(request: Request, tag_id: int):
-    api_response_handler = ApiResponseHandlerV1(request)
-    
-    # check if exist
-    query = {"tag_id": tag_id}
-    items = list(request.app.image_tags_collection.find(query))
-    
-    score_data = []
-    for item in items:
-        # remove the auto generated '_id' field
-        item.pop('_id', None)
-        score_data.append(item)
-    
-    # Return a standardized success response with the score data
-    return api_response_handler.create_success_response_v1(
-        response_data= score_data,
-        http_status_code=200
-    )
