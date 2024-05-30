@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -316,7 +316,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 
 @router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
             description="Gets random image pairs from the rank active learning queue",
-            response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -352,44 +352,29 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
         classifier_id = None
         if rank_model_id is not None:
             rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
-            if rank is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Rank model with this id doesn't exist")
-            classifier_id = rank.get("classifier_id")
-            if classifier_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="This Rank has no relevance classifier model assigned to it")
+            if rank:
+                classifier_id = rank.get("classifier_id")
 
         if classifier_id is not None:
-            classifier_query = {'classifier_id': classifier_id}
-
-            # Map uuid to their corresponding scores
-            classifier_scores_map = {
-                score['job_uuid']: score['score']
-                for score in request.app.image_classifier_scores_collection.find(classifier_query)
-            }
-
-            # Add classifier score to each pair
             for pair in random_pairs:
                 images_data = pair['images_data']
                 if len(images_data) == 2:
                     job_uuid_1 = images_data[0].get('job_uuid_1')
                     job_uuid_2 = images_data[1].get('job_uuid_2')
-                    score_1 = classifier_scores_map.get(job_uuid_1, None)
-                    score_2 = classifier_scores_map.get(job_uuid_2, None)
-                    pair['score_1'] = score_1
-                    pair['score_2'] = score_2
+                    score_1 = request.app.image_classifier_scores_collection.find_one(
+                        {'classifier_id': classifier_id, 'job_uuid': job_uuid_1}, {'score': 1, '_id': 0}
+                    )
+                    score_2 = request.app.image_classifier_scores_collection.find_one(
+                        {'classifier_id': classifier_id, 'job_uuid': job_uuid_2}, {'score': 1, '_id': 0}
+                    )
+                    pair['score_1'] = score_1['score'] if score_1 else None
+                    pair['score_2'] = score_2['score'] if score_2 else None
                 else:
                     pair['score_1'] = None
                     pair['score_2'] = None
-
-        # Ensure score fields are present even if scores do not exist
-        for pair in random_pairs:
-            if 'score_1' not in pair:
+        else:
+            for pair in random_pairs:
                 pair['score_1'] = None
-            if 'score_2' not in pair:
                 pair['score_2'] = None
 
         return api_response_handler.create_success_response_v1(
@@ -405,7 +390,6 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
             error_string=str(e),
             http_status_code=500
         )
-
 
 
 
@@ -761,7 +745,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         return api_response_handler.create_error_response_v1(
-            error_code=404,
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
             error_string=f"Job with UUID {job_uuid} not found in the completed jobs collection",
             http_status_code=404
         )
@@ -769,7 +753,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     rank = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_id})
     if not rank:
         return api_response_handler.create_error_response_v1(
-            error_code=404,
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
             error_string=f"Rank model not found in the rank models collection",
             http_status_code=404
         )
@@ -1089,60 +1073,82 @@ def get_random_image_date_range(
         http_status_code=200
     )
 
-@router.post("/rank-training/calculate-delta-scores", status_code=200)
+@router.post("/rank-training/calculate-delta-scores", 
+             status_code=200,
+             description="Calculate and update delta scores for ranking datapoints",
+             response_model=StandardSuccessResponseV1[str],
+             tags=["Rank Training"],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def calculate_delta_scores(request: Request):
-    start_time = time.time()
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    # Define the model types for which you want to calculate delta_scores
-    model_types = ["linear", "elm-v1"]
+    try:
+        start_time = time.time()
 
-    # Access collections
-    ranking_collection = request.app.ranking_datapoints_collection
-    jobs_collection = request.app.completed_jobs_collection
+        # Define the model types for which you want to calculate delta_scores
+        model_types = ["linear", "elm-v1"]
 
-    processed_count = 0
-    skipped_count = 0
+        # Access collections
+        ranking_collection = request.app.ranking_datapoints_collection
+        jobs_collection = request.app.completed_jobs_collection
 
-    # Fetch all documents from ranking_collection
-    for doc in ranking_collection.find({}):
+        processed_count = 0
+        skipped_count = 0
 
-        # Skip documents where delta_score already exists for all model_types
-        if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
-            print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
-            skipped_count += 1
-            continue
+        # Fetch all documents from ranking_collection
+        for doc in ranking_collection.find({}):
 
-        selected_image_index = doc["selected_image_index"]
-        selected_image_hash = doc["selected_image_hash"]
-        unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
+            # Skip documents where delta_score already exists for all model_types
+            if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
+                skipped_count += 1
+                continue
 
-        for model_type in model_types:
-            # Proceed only if the delta_score for this model_type does not exist
-            if f"delta_score.{model_type}" not in doc:
-                print(f"Processing document {doc['_id']} for model type '{model_type}'.")
-                selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
-                unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+            selected_image_index = doc["selected_image_index"]
+            selected_image_hash = doc["selected_image_hash"]
+            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
-                if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
-                    if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
-                        selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
-                        unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+            for model_type in model_types:
+                # Proceed only if the delta_score for this model_type does not exist
+                if f"delta_score.{model_type}" not in doc:
+                    selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+                    unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-                        if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
-                            delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
+                    if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+                        if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
+                            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+                            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-                            # Update the document in ranking_collection with the new delta_score under the specific model_type
-                            update_field = f"delta_score.{model_type}"
-                            ranking_collection.update_one(
-                                {"_id": doc["_id"]},
-                                {"$set": {update_field: delta_score}}
-                            )
-                            processed_count += 1
+                            if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                                delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
 
-    end_time = time.time()
-    total_time = end_time - start_time
+                                # Update the document in ranking_collection with the new delta_score under the specific model_type
+                                update_field = f"delta_score.{model_type}"
+                                ranking_collection.update_one(
+                                    {"_id": doc["_id"]},
+                                    {"$set": {update_field: delta_score}}
+                                )
+                                processed_count += 1
 
-    return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}            
+        end_time = time.time()
+        total_time = end_time - start_time
+
+        return response_handler.create_success_response_v1(
+            response_data={
+                "message": "Delta scores calculation and update complete.",
+                "processed_count": processed_count,
+                "skipped_count": skipped_count,
+                "total_time": f"{total_time:.2f} seconds"
+            },
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
+            http_status_code=500
+        )
+         
 
 
 @router.get("/rank-training/get-if-image-is-irrelevant",
