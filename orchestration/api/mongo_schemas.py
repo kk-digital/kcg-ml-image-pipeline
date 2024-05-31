@@ -598,3 +598,30 @@ class Dataset(BaseModel):
         }    
 class ListDataset(BaseModel):
     datasets: List[Dataset]   
+
+
+class SimilarityScoreTask(BaseModel):
+    task_type: str
+    uuid: str  # required, should be passed by generator
+    model_name: Union[str, None] = None
+    model_file_name: Union[str, None] = None
+    model_file_path: Union[str, None] = None
+    model_hash: Union[str, None] = None
+    task_creation_time: Union[datetime, None] = None
+    task_start_time: Union[datetime, None] = None
+    task_completion_time: Union[datetime, None] = None
+    task_error_str: Union[str, None] = None
+    task_input_dict: dict  # required
+    task_input_file_dict: Union[dict, None] = None
+    task_output_file_dict: Union[dict, None] = None
+    task_attributes_dict: Union[dict, None] = {}
+    prompt_generation_data: Union[dict, None] = {}
+    ranking_count: int
+    safe_to_delete: bool
+    tag_count: int
+    similarity_score: float
+
+class ListSimilarityScoreTask(BaseModel):
+    images: List[SimilarityScoreTask]
+
+
