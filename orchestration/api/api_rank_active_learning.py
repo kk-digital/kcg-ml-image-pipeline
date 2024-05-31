@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
@@ -1174,5 +1174,61 @@ def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), ran
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f'Failed to check if image is irrelevant: {str(e)}',
+            http_status_code=500
+        )
+
+@router.get("/rank-training/get-datapoints-count-per-day",
+            description="Get number of selection datapoints per day within the date range",
+            response_model=StandardSuccessResponseV1[ListGenerationsCountPerDayResponse],
+            tags=["rank"],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_datapoints_count_per_day(
+    request: Request,
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert the date strings to datetime objects
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+        # Initialize the result dictionary
+        num_by_dataset_and_day = {}
+
+        # Iterate through each day within the date range
+        current_date = start_date_dt
+        while current_date <= end_date_dt:
+            # Construct the query for the current day
+            query_date = current_date.strftime("%Y-%m-%d")
+            num_by_rank = {}
+            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets/ranks")
+            for ranks in rank_folders:
+                # Construct the MinIO path for selection datapoints
+                datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
+
+                # List objects in the datapoints path
+                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path)
+                
+                # Filter objects that match the current date
+                num_datapoints = len([obj.object_name for obj in objects])
+
+                # Store the result for the current day and dataset
+                num_by_rank[ranks] = num_datapoints
+
+            # Store the result for the current day in the dictionary
+            num_by_dataset_and_day[current_date.strftime("%Y-%m-%d")] = num_by_rank
+
+            # Move to the next day
+            current_date += timedelta(days=1)
+
+        return response_handler.create_success_response_v1(
+            response_data={"results": num_by_dataset_and_day},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
             http_status_code=500
         )
