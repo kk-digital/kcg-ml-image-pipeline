@@ -302,8 +302,6 @@ class ImageHash(BaseModel):
 class GlobalId(BaseModel):
     image_global_id: int
 
-class ResponseGlobalId(BaseModel):
-    data: GlobalId
 
 class ImageHashRequest(BaseModel):
     image_hash: str
@@ -358,7 +356,6 @@ class ExternalImageData(BaseModel):
     upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
-    uuid: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -370,12 +367,22 @@ class ExternalImageData(BaseModel):
             "file_path": self.file_path,
             "source_image_dict": self.source_image_dict,
             "task_attributes_dict": self.task_attributes_dict,
-            "uuid": self.uuid
         }
 
 
+class ExternalImageDataV1(BaseModel):
+    image_hash: str
+    dataset:str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
+    upload_date: Union[str, None] = None
+    source_image_dict: dict
+    task_attributes_dict: dict
+    uuid: str
+
 class ListExternalImageData(BaseModel):
-    data: List[ExternalImageData]
+    data: List[ExternalImageDataV1]
 
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]

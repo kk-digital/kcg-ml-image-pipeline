@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime
@@ -12,10 +12,10 @@ import uuid
 router = APIRouter()
 
 @router.post("/external-images/add-external-image", 
-            description="Add an external image data",
+            description="Add an external image data with a randomly generated UUID by uuid4",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ListExternalImageData],  
-            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+            response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
@@ -65,17 +65,14 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-
-        image_data.uuid = str(uuid.uuid4())
-
         for image_data in image_data_list:
-            
             existed = request.app.external_images_collection.find_one({
                 "image_hash": image_data.image_hash
             })
 
             if existed is None:
                 image_data.upload_date = str(datetime.now())
+                image_data.uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
                 request.app.external_images_collection.insert_one(image_data.to_dict())
             else:
                 request.app.external_images_collection.update_one({
@@ -89,7 +86,6 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                         "file_path": image_data.file_path,
                         "source_image_dict": image_data.source_image_dict,
                         "task_attributes_dict": image_data.task_attributes_dict,
-                        "uuid": image_data.uuid
                     }
                 })
 
@@ -106,8 +102,8 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
         )
     
 @router.get("/external-images/get-external-image-list", 
-            description="get list of external image data by image hash list",
-            tags=["external-images"],  
+            description="changed with /external-images/get-external-image-list-v1",
+            tags=["deprecated3"],  
             response_model=StandardSuccessResponseV1[ListExternalImageData],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_external_image_data_list(request: Request, image_hash_list: List[str]):
@@ -169,17 +165,13 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
 @router.get("/external-images/get-all-external-image-list", 
             description="Get all external image data. If the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ListExternalImageData],  
-            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-async def get_all_external_image_data_list(request: Request, 
-                                           dataset: str=None,
-                                           size: int=None):
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_all_external_image_data_list(request: Request, size: int = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        query={}
-        if dataset:
-            query['dataset']= dataset
-        
+        query = {}
+
         aggregation_pipeline = [{"$match": query}]
 
         if size:
@@ -203,6 +195,7 @@ async def get_all_external_image_data_list(request: Request,
         )
 
 
+
 @router.delete("/external-images/delete-external-image", 
             description="Delete an external image data",
             tags=["external-images"],  
@@ -217,15 +210,15 @@ async def delete_external_image_data(request: Request, image_hash: str):
         })
         
         if result.deleted_count == 0:
-            return api_response_handler.create_success_response_v1(
-                response_data={"wasPresent": False}, 
+            return api_response_handler.create_success_delete_response_v1(
+                response_data=False, 
                 http_status_code=200
             )
         
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": True}, 
-            http_status_code=200
-        )
+        return api_response_handler.create_success_delete_response_v1(
+                response_data=True, 
+                http_status_code=200
+            )
     
     except Exception as e:
         return api_response_handler.create_error_response_v1(
@@ -270,11 +263,11 @@ async def delete_external_image_data_list(request: Request, image_hash_list:List
 @router.put("/external-images/add-task-attributes-v1",
               description="Add or update the task attributes of an external image, No old attibute will be deleted, this function only adds and overwrites",
               tags=["external-images"],  
-              response_model=StandardSuccessResponseV1[ListExternalImageData],  
+              response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
               responses=ApiResponseHandlerV1.listErrors([404,422, 500]))    
 @router.patch("/external-images/add-task-attributes",
-              description="Add or update the task attributes of an external image",
-              tags=["external-images"],  
+              description="changed with /external-images/add-task-attributes-v1",
+              tags=["deprecated3"],  
               response_model=StandardSuccessResponseV1[ListExternalImageData],  
               responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_task_attributes(request: Request, image_hash: str, data_dict: dict = Body(...)):
@@ -354,29 +347,6 @@ def update_external_images(request: Request):
         response_data={'updated_count': updated_count},
         http_status_code=200
     ) 
-
-@router.get("/external-images/list-images",
-            status_code=200,
-            tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List],  
-            responses=ApiResponseHandlerV1.listErrors([404, 422]))
-def get_external_images(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    
-    # Fetch all items from the collection, sorted by score in descending order
-    items = list(request.app.external_images_collection.find())
-    
-    images = []
-    for item in items:
-        # Remove the auto-generated '_id' field
-        item.pop('_id', None)
-        images.append(item)
-    
-    # Return a standardized success response with the images data
-    return api_response_handler.create_success_response_v1(
-        response_data={'images': images},
-        http_status_code=200
-    )
 
 
 @router.post("/external-images/add-tag-to-external-image",
