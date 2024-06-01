@@ -21,7 +21,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 
     try:
 
-        image_data.uuid = str(uuid.uuid4())
+        uuid = str(uuid.uuid4())
 
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
@@ -42,7 +42,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
                     "file_path": image_data.file_path,
                     "source_image_dict": image_data.source_image_dict,
                     "task_attributes_dict": image_data.task_attributes_dict,
-                    "uuid": image_data.uuid
+                    "uuid": uuid
                 }
             })
         return api_response_handler.create_success_response_v1(
@@ -72,7 +72,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
 
             if existed is None:
                 image_data.upload_date = str(datetime.now())
-                image_data.uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
+                uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
                 request.app.external_images_collection.insert_one(image_data.to_dict())
             else:
                 request.app.external_images_collection.update_one({
@@ -86,6 +86,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                         "file_path": image_data.file_path,
                         "source_image_dict": image_data.source_image_dict,
                         "task_attributes_dict": image_data.task_attributes_dict,
+                        "uuid": uuid
                     }
                 })
 
