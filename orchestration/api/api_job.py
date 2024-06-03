@@ -1733,8 +1733,8 @@ async def get_completed_job_by_hash(request: Request, image_hash: str):
 @router.get("/job/get-completed-job-by-uuid", 
             response_model=StandardSuccessResponseV1[Task],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves a job by its UUID.",
+            tags=["deprecated3"],
+            description="the replacement is '/queue/image-generation/get-completed-jobs-data-by-uuid/{uuid}'",
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_job_by_uuid(request: Request, uuid: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
