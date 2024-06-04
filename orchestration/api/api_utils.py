@@ -23,8 +23,25 @@ class IrrelevantResponse(BaseModel):
     file_hash: str
     rank_model_id: int
 
+class GenerationsCountPerDayResponse(BaseModel):
+    date: str
+    counts: Dict[str, int] 
+
+class ListGenerationsCountPerDayResponse(BaseModel):
+    results: Dict[str, GenerationsCountPerDayResponse]    
+
+class JobStatsResponse(BaseModel):
+    total: int
+    pending_count: int
+    progress_count: int
+    completed_count: int
+    failed_count: int    
+
 class DeletedCount(BaseModel):
     deleted_count: int    
+
+class BoolIrrelevantResponse(BaseModel):
+    irrelevant: bool    
 
 class ListIrrelevantResponse(BaseModel):
     images: List[IrrelevantResponse]    

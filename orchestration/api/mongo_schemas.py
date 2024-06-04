@@ -302,8 +302,6 @@ class ImageHash(BaseModel):
 class GlobalId(BaseModel):
     image_global_id: int
 
-class ResponseGlobalId(BaseModel):
-    data: GlobalId
 
 class ImageHashRequest(BaseModel):
     image_hash: str
@@ -358,7 +356,6 @@ class ExternalImageData(BaseModel):
     upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
-    uuid: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -370,12 +367,22 @@ class ExternalImageData(BaseModel):
             "file_path": self.file_path,
             "source_image_dict": self.source_image_dict,
             "task_attributes_dict": self.task_attributes_dict,
-            "uuid": self.uuid
         }
 
 
+class ExternalImageDataV1(BaseModel):
+    image_hash: str
+    dataset:str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
+    upload_date: Union[str, None] = None
+    source_image_dict: dict
+    task_attributes_dict: dict
+    uuid: str
+
 class ListExternalImageData(BaseModel):
-    data: List[ExternalImageData]
+    data: List[ExternalImageDataV1]
 
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
@@ -598,3 +605,30 @@ class Dataset(BaseModel):
         }    
 class ListDataset(BaseModel):
     datasets: List[Dataset]   
+
+
+class SimilarityScoreTask(BaseModel):
+    task_type: str
+    uuid: str  # required, should be passed by generator
+    model_name: Union[str, None] = None
+    model_file_name: Union[str, None] = None
+    model_file_path: Union[str, None] = None
+    model_hash: Union[str, None] = None
+    task_creation_time: Union[datetime, None] = None
+    task_start_time: Union[datetime, None] = None
+    task_completion_time: Union[datetime, None] = None
+    task_error_str: Union[str, None] = None
+    task_input_dict: dict  # required
+    task_input_file_dict: Union[dict, None] = None
+    task_output_file_dict: Union[dict, None] = None
+    task_attributes_dict: Union[dict, None] = {}
+    prompt_generation_data: Union[dict, None] = {}
+    ranking_count: int
+    safe_to_delete: bool
+    tag_count: int
+    similarity_score: float
+
+class ListSimilarityScoreTask(BaseModel):
+    images: List[SimilarityScoreTask]
+
+

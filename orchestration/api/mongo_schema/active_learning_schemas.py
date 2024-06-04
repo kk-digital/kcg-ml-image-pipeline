@@ -222,3 +222,7 @@ class ScoreImageTask(BaseModel):
     safe_to_delete: bool
     tag_count: int
     classifier_score: Optional[float] = None 
+
+class ListScoreImageTask(BaseModel):
+    images: List[ScoreImageTask]
+    image_scores: List[float]

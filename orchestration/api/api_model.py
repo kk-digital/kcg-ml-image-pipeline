@@ -28,7 +28,9 @@ def get_next_model_id_sequence(request: Request):
     return counter_seq
 
 
-@router.get("/models/rank-relevancy/list-models", response_class=PrettyJSONResponse)
+@router.get("/models/rank-relevancy/list-models", 
+            tags = ['deprecated3'],
+            description="changed with /models/rank-relevancy/list-models-v1")
 def get_relevancy_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
@@ -73,7 +75,10 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
 
     return models_list
 
-@router.get("/models/rank-embedding/list-models", response_class=PrettyJSONResponse)
+@router.get("/models/rank-embedding/list-models", 
+            response_class=PrettyJSONResponse,
+            tags = ['deprecated3'],
+            description="changed with /models/rank-embedding/list-models-v2")
 def get_ranking_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
@@ -121,7 +126,9 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
 
     
 
-@router.post("/models/add", description="Add a model to model collection")
+@router.post("/models/add", 
+             description="changed with /models/add-model ",
+             tags = ["deprecated3"])
 def add_model(request: Request, model: RankingModel):
     # check if exist
     query = {"model_file_hash": model.model_file_hash}
@@ -136,7 +143,9 @@ def add_model(request: Request, model: RankingModel):
     return item["model_id"]
 
 
-@router.get("/models/get-id", description="Get model id")
+@router.get("/models/get-id", 
+            description="changed with /models/get-id-v1",
+            tags = ["deprecated3"])
 def get_model_id(request: Request, model_hash: str):
     # check if exist
     query = {"model_file_hash": model_hash}
@@ -180,7 +189,10 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
     return Response(content=content, media_type=content_type)
 
 
-@router.get("/models/list-model-types", response_class=PrettyJSONResponse)
+@router.get("/models/list-model-types", 
+            response_class=PrettyJSONResponse,
+            tags = ['deprecated3'],
+            description="changed with /models/list-model-types-and-scores")
 async def list_model_types(request: Request, dataset: str):
     response_handler = ApiResponseHandler(request)
     bucket_name = "datasets"

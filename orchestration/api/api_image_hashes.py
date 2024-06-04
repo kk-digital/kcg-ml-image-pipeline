@@ -1,8 +1,9 @@
 import bson.int64
 from fastapi import APIRouter, Request, Response
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponseV1, ApiResponseHandlerV1, WasPresentResponse
-from .mongo_schemas import ImageHashRequest, ImageHash, ListImageHash, ResponseGlobalId
+from .mongo_schemas import ImageHashRequest, ImageHash, ListImageHash, GlobalId
 from decimal import Decimal
+from typing import List
 from bson.decimal128 import Decimal128
 router = APIRouter()
 
@@ -14,8 +15,8 @@ next_image_global_id = 0
              response_model=StandardSuccessResponseV1[ImageHash],
              responses=ApiResponseHandlerV1.listErrors([422,500]))
 @router.post("/image-hashes/add_image_hash",
-             tags=["image-hashes"], 
-             description= "add image hash",
+             tags=["deprecated3"], 
+             description= "changed with /image-hashes/add-image-hash-v1 ",
              response_model=StandardSuccessResponseV1[ImageHash],
              responses=ApiResponseHandlerV1.listErrors([422,500]))
 async def add_image_hash(request: Request, image_hash_request: ImageHashRequest):
@@ -46,15 +47,11 @@ async def add_image_hash(request: Request, image_hash_request: ImageHashRequest)
             http_status_code=500
         )
     
-@router.put("/image-hashes/update-all-image-hashes-v1",
-             tags=["image-hashes"], 
-             description="Updates the image_hashes_collection collection so that it includes all the hashes from the completed_jobs_collection collection",
-             response_model=StandardSuccessResponseV1[ListImageHash],
-             responses=ApiResponseHandlerV1.listErrors([500]))
+
 @router.get("/image-hashes/update_all_image_hashes",
              tags=["image-hashes"], 
              description="Updates the image_hashes_collection collection so that it includes all the hashes from the completed_jobs_collection collection",
-             response_model=StandardSuccessResponseV1[ListImageHash],
+             response_model=StandardSuccessResponseV1[List[ImageHash]],
              responses=ApiResponseHandlerV1.listErrors([500]))
 async def update_all_image_hashes(request: Request):
 
@@ -93,9 +90,10 @@ async def update_all_image_hashes(request: Request):
             http_status_code=500
         )
     
-@router.get("/image-hashes/update-all-image-hashes-v1",
+
+@router.put("/image-hashes/update-all-image-hashes-v1",
              tags=["image-hashes"], 
-             description="update all images hashes",
+             description="Updates the image_hashes_collection collection so that it includes all the hashes from the completed_jobs_collection collection",
              response_model=StandardSuccessResponseV1[ListImageHash],
              responses=ApiResponseHandlerV1.listErrors([500]))
 async def update_all_image_hashes_v1(request: Request):
@@ -167,7 +165,7 @@ async def get_all_image_hashes_with_global_id(request: Request):
     
 @router.get("/image-hashes/get-all-image-hashes-v1",
             tags=["image-hashes"],
-            description="get all image hash tags",
+            description="Gets all image hashes",
             response_model=StandardSuccessResponseV1[ListImageHash],
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_all_image_hashes_with_global_id_v1(request: Request):
@@ -245,7 +243,7 @@ async def get_image_hash_by_global_id_v1(request: Request, image_global_id: int)
 
         # Return the fetched data with a success response
         return response_handler.create_success_response_v1(
-            response_data={"data": image_hash_data["image_hash"]}, 
+            response_data={"image_hash": image_hash_data["image_hash"]}, 
             http_status_code=200
         )
 
@@ -290,7 +288,7 @@ async def get_image_hash_by_global_id(request: Request, image_hash: str):
 @router.get("/image-hashes/get-image-global-id-by-image-hash-v1",
             tags = ["image-hashes"],
             description="get image global id with image hash  which is unique and type is int64",
-            response_model=StandardSuccessResponseV1[ResponseGlobalId],
+            response_model=StandardSuccessResponseV1[GlobalId],
             responses=ApiResponseHandlerV1.listErrors([422,500]))
 async def get_image_hash_by_global_id_v1(request: Request, image_hash: str):
 
@@ -306,7 +304,7 @@ async def get_image_hash_by_global_id_v1(request: Request, image_hash: str):
 
         # Return the fetched data with a success response
         return response_handler.create_success_response_v1(
-            response_data={"data": image_hash_data["image_global_id"]}, 
+            response_data={"image_global_id": image_hash_data["image_global_id"]}, 
             http_status_code=200
         )
 
