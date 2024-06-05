@@ -195,6 +195,39 @@ async def get_all_external_image_data_list(request: Request, size: int = None):
             http_status_code=500
         )
 
+@router.get("/external-images/get-all-external-image-list-v1", 
+            description="Get all external image data for a specific dataset. If the 'size' parameter is set, a random sample of that size will be returned.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_all_external_image_data_list(request: Request, dataset: str, size: int = None):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {"dataset": dataset}
+
+        aggregation_pipeline = [{"$match": query}]
+
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"data": image_data_list},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 
 
 @router.delete("/external-images/delete-external-image", 
