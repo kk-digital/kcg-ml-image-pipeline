@@ -7,6 +7,7 @@ from minio.error import S3Error
 from PIL import Image
 import io
 import hashlib
+from tqdm import tqdm
 
 # MinIO and MongoDB configurations
 MINIO_ENDPOINT = '192.168.3.5:9000'
@@ -50,7 +51,9 @@ def generate_image_hash(image_data):
 def migrate_images():
     try:
         objects = minio_client.list_objects(MINIO_BUCKET_NAME, prefix=f"external/{DATASET_TO_MIGRATE}/", recursive=True)
-        for obj in objects:
+        object_list = list(objects)
+        
+        for obj in tqdm(object_list, desc="Migrating images"):
             if obj.is_dir:
                 continue
             
