@@ -35,7 +35,7 @@ def get_job(request: Request, task_type= None, model_type=""):
     job = request.app.pending_inpainting_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
-        raise HTTPException(status_code=204)
+        raise HTTPException(status_code=404)
 
     # delete from pending
     request.app.pending_inpainting_jobs_collection.delete_one({"uuid": job["uuid"]})
@@ -281,7 +281,7 @@ def update_job_completed(request: Request, task: Task):
 
 
 
-@router.get("/queue/inpainting-generation/get-job-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[Task], responses=ApiResponseHandlerV1.listErrors([204, 422, 500]))
+@router.get("/queue/inpainting-generation/get-job-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[Task], responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_job(request: Request, task_type: Optional[str] = None, model_type: Optional[str] = ""):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -298,7 +298,7 @@ async def get_job(request: Request, task_type: Optional[str] = None, model_type:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="No job found",
-                http_status_code=204
+                http_status_code=404
             )
 
         # Delete from pending
