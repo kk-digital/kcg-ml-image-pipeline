@@ -19,7 +19,7 @@ MONGODB_URI = 'mongodb://192.168.3.1:32017/'
 MONGODB_DB_NAME = 'orchestration-job-db'
 MONGODB_COLLECTION_NAME = 'external_images'
 # Dataset to migrate
-DATASET_TO_MIGRATE = 'metroid-fusion-dataset'
+DATASET_TO_MIGRATE = 'pinterest-pixel-art-2023-07-01-v3'
 
 # Initialize MinIO client
 minio_client = Minio(
