@@ -50,7 +50,7 @@ def generate_image_hash(image_data):
 
 def migrate_images():
     try:
-        objects = minio_client.list_objects(MINIO_BUCKET_NAME, prefix=f"external/{DATASET_TO_MIGRATE}/", recursive=True)
+        objects = minio_client.list_objects("external", prefix=f"{DATASET_TO_MIGRATE}", recursive=True)
         object_list = list(objects)
         
         for obj in tqdm(object_list, desc="Migrating images"):
@@ -58,7 +58,7 @@ def migrate_images():
                 continue
             
             file_path = obj.object_name
-            image_response = minio_client.get_object(MINIO_BUCKET_NAME, file_path)
+            image_response = minio_client.get_object("external", file_path)
             image_data = image_response.read()
             image_hash = generate_image_hash(image_data)
             image_metadata = get_image_metadata(file_path)
