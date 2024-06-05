@@ -164,14 +164,16 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
         )
         
 @router.get("/external-images/get-all-external-image-list", 
-            description="Get all external image data. If the 'size' parameter is set, a random sample of that size will be returned.",
+            description="Get all external image data. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_all_external_image_data_list(request: Request, size: int = None):
+async def get_all_external_image_data_list(request: Request, dataset: str=None, size: int = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        query = {}
+        query={}
+        if dataset:
+            query['dataset']= dataset
 
         aggregation_pipeline = [{"$match": query}]
 
@@ -194,7 +196,6 @@ async def get_all_external_image_data_list(request: Request, size: int = None):
             error_string=str(e),
             http_status_code=500
         )
-
 
 
 @router.delete("/external-images/delete-external-image", 

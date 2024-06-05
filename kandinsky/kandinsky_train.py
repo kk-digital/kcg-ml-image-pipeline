@@ -228,6 +228,9 @@ while step < max_train_steps:
     latents = latent_batches[batch_iter * train_batch_size: (batch_iter + 1) * train_batch_size]
     image_embeds = image_embeds_batches[batch_iter * train_batch_size: (batch_iter + 1) * train_batch_size]
 
+    print("latent shape:", latents.shape)
+    print("clip shape:", image_embeds.shape)
+
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
     bsz = latents.shape[0]

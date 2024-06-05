@@ -1,8 +1,10 @@
 import argparse
 from datetime import datetime
 import io
+import math
 import os
 import sys
+import imageio
 import pandas as pd
 import torch
 import msgpack
@@ -49,7 +51,7 @@ def parse_args():
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--classifier-weight', type=float, default=0.5)
         parser.add_argument('--ranking-weight', type=float, default=0.5)
-        parser.add_argument('--graph-tree', action='store_true', default=False)
+        parser.add_argument('--graph-tree', type=str, default=None)
 
         return parser.parse_args()
 
@@ -109,19 +111,19 @@ class RapidlyExploringTreeSearch:
             self.defect_model.load_model()
 
         # load all topic classifiers
-        tags= request.http_get_tag_list()
-        tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
-        print(tag_names)
+        if self.graph_tree=="topic":
+            tags= request.http_get_tag_list()
+            tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
 
-        self.classifier_models=[]
-        for tag in tag_names:
-            classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag)
-            model_loaded= classifier_model.load_model()
-            if model_loaded:
-                self.classifier_models.append({
-                    "model": classifier_model,
-                    "tag_name": tag
-                })
+            self.classifier_models=[]
+            for tag in tag_names:
+                classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag)
+                model_loaded= classifier_model.load_model()
+                if model_loaded:
+                    self.classifier_models.append({
+                        "model": classifier_model,
+                        "tag_name": tag
+                    })
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
@@ -236,14 +238,21 @@ class RapidlyExploringTreeSearch:
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
-        # rank by distance
+        # rank by distance and quality
+        quality_ranks= self.min_max_normalize_scores(ranking_scores)
         distances = self.compute_distances(faiss_index, nodes)
-        distance_scores = torch.tensor(distances.squeeze())
+        distances = torch.tensor(distances.squeeze()).to(device= self.device)
+        distance_ranks= self.min_max_normalize_scores(distances)
 
-        return distance_scores, classifier_scores, ranking_scores
+        ranks= quality_ranks + distance_ranks
+
+        return ranks, classifier_scores, ranking_scores
 
     def rank_points_by_quality(self, nodes):
         # calculate ranking and classifier scores
+        classifier_scores= None
+        ranking_scores= None
+        
         if self.classifier_weight!=0:
             classifier_scores = self.classifiy_points(nodes).squeeze(1)
             # increase classifier scores with a threshold
@@ -331,8 +340,13 @@ class RapidlyExploringTreeSearch:
         pbar.close()
 
         # graph tree
-        if self.graph_tree:
-            labels= self.label_nodes(all_nodes)
+        if self.graph_tree=="topic":
+            labels= self.label_nodes_by_topic(all_nodes)
+            self.graph_datapoints(all_nodes, labels)
+        
+        # graph tree
+        elif self.graph_tree=="quality":
+            labels= self.label_nodes_by_quality(all_nodes, all_ranking_scores)
             self.graph_datapoints(all_nodes, labels)
         
         # After the final iteration, choose the top n highest scoring points overall
@@ -357,7 +371,35 @@ class RapidlyExploringTreeSearch:
 
         return selected_points
     
-    def label_nodes(self, tree):
+    def label_nodes_by_quality(self, tree, ranking_scores):
+        if ranking_scores is None:
+            raise Exception("Ranking weight was set to 0, no quality scores wee calculated")
+
+        min_score = torch.min(ranking_scores).item()
+        max_score = torch.max(ranking_scores).item()
+        
+        # Create bins from floor(min_score) to ceil(max_score) with steps of 1
+        bins = list(range(math.floor(min_score), math.ceil(max_score) + 1))
+        
+        labels = []
+        for score in ranking_scores:
+            # Determine the bin by finding where the score fits between the bins
+            for i in range(len(bins) - 1):
+                if bins[i] <= score < bins[i + 1]:
+                    label = f"[{bins[i]}, {bins[i+1]})"
+                    break
+            else:
+                # This handles the case where the score is exactly equal to max_score
+                if score == max_score:
+                    label = f"[{bins[-2]}, {bins[-1]}]"
+                else:
+                    label = f"[{bins[-1]}, >)"
+                    
+            labels.append(label)
+
+        return labels
+
+    def label_nodes_by_topic(self, tree):
         labels = []
         num_nodes= len(tree)
         threshold= 0.4
@@ -385,38 +427,66 @@ class RapidlyExploringTreeSearch:
         return labels
         
     def graph_datapoints(self, tree, labels):
-        minio_path=f"{self.dataset}/output/tree_search/graph.png"
+        minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
-        tree= torch.stack(tree).cpu().numpy()
+
+        tree.append(self.clip_min.squeeze(0))
+        tree.append(self.clip_max.squeeze(0))
+
+        tree = torch.stack(tree).cpu().numpy()
         umap_embeddings = reducer.fit_transform(tree)
 
-        # Convert labels to categorical type for color mapping
+        min_x, min_y= np.min(umap_embeddings[:,0], axis=0) , np.min(umap_embeddings[:,1], axis=0)
+        max_x, max_y= np.max(umap_embeddings[:,0], axis=0) , np.max(umap_embeddings[:,1], axis=0)
+
+        # Calculate unique labels and color map outside the loop
         unique_labels = np.unique(labels)
         label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
-        color_labels = [label_to_color[label] for label in labels]
-
-        # Generate a color map with a distinct color for each unique label
         colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
-        plt.figure(figsize=(10, 8))
-        scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+        # Prepare a list to hold frames
+        frames = []
+        nodes_per_frame= 1000
 
-        # Generate custom artist/legend pairs
-        legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
-                                    markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
-                        for idx, label in enumerate(unique_labels)]
-        plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
-        
-        plt.title('UMAP Projection of CLIP Vectors, Clustered by topic')
-        plt.xlabel('UMAP Dimension 1')
-        plt.ylabel('UMAP Dimension 2')
+        for gen_idx in tqdm(range(1, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
+             # Flatten generations into one array
+            current_generation = umap_embeddings[:gen_idx]
 
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
+            # Prepare labels for plotting
+            current_labels = labels[:gen_idx]
+            color_labels = [label_to_color[label] for label in current_labels]
 
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
-        # Remove the temporary file
+            plt.figure(figsize=(10, 8))
+            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis')
+            
+            legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
+                                        markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
+                            for idx, label in enumerate(unique_labels)]
+            
+            if self.graph_tree=="topic":
+                plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
+            if self.graph_tree=="quality":
+                plt.legend(handles=legend_elements, loc='best', title='Score Bins')
+            
+            plt.title(f'UMAP Tree search projection on a 2d space')
+            plt.xlim(min_x, max_x)
+            plt.ylim(min_y, max_y)
+            plt.xlabel('UMAP Dimension 1')
+            plt.ylabel('UMAP Dimension 2')
+
+            # Save plot to buffer
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            frame = imageio.imread(buffer)
+            frames.append(frame)
+            plt.close()
+
+        # Save all frames as a GIF
+        imageio.mimsave("graph.gif", frames, fps=10)
+
+        # Optionally upload to MinIO or similar service
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, io.BytesIO(open("graph.gif", 'rb').read()))
     
     def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
