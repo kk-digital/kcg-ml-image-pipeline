@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -316,7 +316,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 
 @router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
             description="Gets random image pairs from the rank active learning queue",
-            response_model=StandardSuccessResponseV1[ListRankActiveLearningPair],
+            response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -352,44 +352,29 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
         classifier_id = None
         if rank_model_id is not None:
             rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
-            if rank is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Rank model with this id doesn't exist")
-            classifier_id = rank.get("classifier_id")
-            if classifier_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="This Rank has no relevance classifier model assigned to it")
+            if rank:
+                classifier_id = rank.get("classifier_id")
 
         if classifier_id is not None:
-            classifier_query = {'classifier_id': classifier_id}
-
-            # Map uuid to their corresponding scores
-            classifier_scores_map = {
-                score['job_uuid']: score['score']
-                for score in request.app.image_classifier_scores_collection.find(classifier_query)
-            }
-
-            # Add classifier score to each pair
             for pair in random_pairs:
                 images_data = pair['images_data']
                 if len(images_data) == 2:
                     job_uuid_1 = images_data[0].get('job_uuid_1')
                     job_uuid_2 = images_data[1].get('job_uuid_2')
-                    score_1 = classifier_scores_map.get(job_uuid_1, None)
-                    score_2 = classifier_scores_map.get(job_uuid_2, None)
-                    pair['score_1'] = score_1
-                    pair['score_2'] = score_2
+                    score_1 = request.app.image_classifier_scores_collection.find_one(
+                        {'classifier_id': classifier_id, 'job_uuid': job_uuid_1}, {'score': 1, '_id': 0}
+                    )
+                    score_2 = request.app.image_classifier_scores_collection.find_one(
+                        {'classifier_id': classifier_id, 'job_uuid': job_uuid_2}, {'score': 1, '_id': 0}
+                    )
+                    pair['score_1'] = score_1['score'] if score_1 else None
+                    pair['score_2'] = score_2['score'] if score_2 else None
                 else:
                     pair['score_1'] = None
                     pair['score_2'] = None
-
-        # Ensure score fields are present even if scores do not exist
-        for pair in random_pairs:
-            if 'score_1' not in pair:
+        else:
+            for pair in random_pairs:
                 pair['score_1'] = None
-            if 'score_2' not in pair:
                 pair['score_2'] = None
 
         return api_response_handler.create_success_response_v1(
@@ -405,7 +390,6 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
             error_string=str(e),
             http_status_code=500
         )
-
 
 
 
@@ -724,9 +708,17 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
         for chunk in data.stream(32 * 1024):
             file_content += chunk.decode('utf-8')
 
+        json_content = json.loads(file_content)
+
+        # Ensure all fields are present, set default values if not
+        for datapoint in json_content.get('datapoints', []):
+            datapoint.setdefault('flagged', None)
+            datapoint.setdefault('flagged_by_user', None)
+            datapoint.setdefault('flagged_time', None)
+
         # Successfully return the content of the JSON file
         return response_handler.create_success_response_v1(
-            response_data={"json_content":json.loads(file_content)},
+            response_data={"json_content": json_content},
             http_status_code=200
         )
     except Exception as e:
@@ -735,14 +727,16 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal Server Error",
             http_status_code=500,
-        )    
+        )
+  
+
 
 
 @router.post("/rank-training/add-irrelevant-image",
              description="Adds an image UUID to the irrelevant images collection",
              status_code=200,
              response_model=StandardSuccessResponseV1[IrrelevantResponse],
-             tags=["Rank Active Learning"],
+             tags=["rank-training"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -751,16 +745,25 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         return api_response_handler.create_error_response_v1(
-            error_code=404,
-            error_string=f"Job with UUID {job_uuid} not found in the complseted jobs collection",
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Job with UUID {job_uuid} not found in the completed jobs collection",
             http_status_code=404
         )
-    rank = request.app.rank_model_models_collection.fine_one({"rank_model_id": rank_model_id})
+
+    rank = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_id})
     if not rank:
         return api_response_handler.create_error_response_v1(
-            error_code=404,
-            error_string=f"rank model not found in the rank models collection",
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Rank model not found in the rank models collection",
             http_status_code=404
+        )
+
+    # Check if the image is already marked as irrelevant
+    existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
+    if existing_entry:
+        return api_response_handler.create_success_response_v1(
+            response_data="Image already marked as irrelevant",
+            http_status_code=200
         )
 
     # Extract the relevant details
@@ -771,16 +774,23 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     }
 
     # Insert the UUID data into the irrelevant_images_collection
-    request.app.irrelevant_images_collection.insert_one(image_data)
-    
+    inserted_id = request.app.irrelevant_images_collection.insert_one(image_data).inserted_id
+    inserted_image_data = request.app.irrelevant_images_collection.find_one({"_id": inserted_id})
+
+    # Remove the '_id' field from the response data
+    if '_id' in inserted_image_data:
+        inserted_image_data.pop('_id')
+
     return api_response_handler.create_success_response_v1(
-        response_data=image_data,
+        response_data=inserted_image_data,
         http_status_code=200
-    )    
+    )
+
+
 
 @router.get("/rank-training/list-irrelevant-images", 
             description="list irrelevant images",
-            tags=["Rank Active Learning"],
+            tags=["rank-training"],
             status_code=200,
             response_model=StandardSuccessResponseV1[ListIrrelevantResponse],
             responses=ApiResponseHandlerV1.listErrors([500]))
@@ -795,7 +805,7 @@ def list_irrelevant_images(request: Request):
             doc.pop('_id', None)  
 
         return response_handler.create_success_response_v1(
-            response_data={"rank_model_categories": image_cursor}, 
+            response_data={"images": image_cursor}, 
             http_status_code=200,
             )
 
@@ -807,11 +817,11 @@ def list_irrelevant_images(request: Request):
                                                          )
 
 
-@router.post("/rank-training/unset-irrelevant-image",
+@router.delete("/rank-training/remove-irrelevant-image",
              description="Removes an image UUID from the irrelevant images collection",
              status_code=200,
              response_model=StandardSuccessResponseV1[WasPresentResponse],
-             tags=["Rank Active Learning"],
+             tags=["rank-training"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -942,10 +952,10 @@ def list_selection_data_with_scores(
             http_status_code=500,
         )  
 
-@router.get("/rank-training/get_random_images_by_classifier_score", 
+@router.get("/rank-training/get-random-images-by-classifier-score", 
             tags=['rank-training'], 
-            description="List rank selection datapoints with detailed scores",
-            response_model=StandardSuccessResponseV1[ScoreImageTask],
+            description="Returns random images filtering by rank scores",
+            response_model=StandardSuccessResponseV1[ListScoreImageTask],
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def get_random_image_date_range(
     request: Request,
@@ -981,115 +991,244 @@ def get_random_image_date_range(
 
     # If rank_id is provided, adjust the query to consider classifier scores
     classifier_id = None
+    uuids = []
     if rank_id is not None:
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Rank model with this id doesn't exist",
+                error_string="Rank model with this id doesn't exist",
                 http_status_code=404
-        )
+            )
 
         classifier_id = rank.get("classifier_id")
         if classifier_id is None:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"This Rank has no relevance classifier model assigned to it",
+                error_string="This Rank has no relevance classifier model assigned to it",
                 http_status_code=404
-        )
+            )
 
         classifier_query = {'classifier_id': classifier_id}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
 
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query, {"uuid": 1})
+        for score in classifier_scores:
+            uuids.append(score['uuid'])
+
+        if not uuids:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"The relevance classifier model has no scores",
+                error_string="The relevance classifier model has no scores",
                 http_status_code=404
-        )
+            )
 
-        uuids = [score['uuid'] for score in classifier_scores]
-        query['uuid'] = {'$in': uuids}
+    # Pagination for handling large number of UUIDs
+    batch_size = 5000  # Adjust as needed to fit within the document size limit
+    all_documents = []
+    total_docs_added = 0  # Track the number of documents added
+    for i in range(0, len(uuids), batch_size):
+        batch_uuids = uuids[i:i + batch_size]
+        batch_query = query.copy()
+        batch_query['uuid'] = {'$in': batch_uuids}
+        aggregation_pipeline = [{"$match": batch_query}]
+        if size:
+            remaining_size = size - total_docs_added
+            aggregation_pipeline.append({"$sample": {"size": remaining_size}})
+        
+        documents = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+        all_documents.extend(documents)
+        total_docs_added += len(documents)
 
-    aggregation_pipeline = [{"$match": query}]
-    if size:
-        aggregation_pipeline.append({"$sample": {"size": size}})
+        if total_docs_added >= size:
+            break
 
-    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-    documents = list(documents)
+    # Retrieve the UUIDs of the selected documents
+    document_uuids = [doc['uuid'] for doc in all_documents]
 
-    # Map uuid to their corresponding scores
-    classifier_query = {'classifier_id': classifier_id}
-    classifier_scores_map = {
-        score['uuid']: score['score']
-        for score in request.app.image_classifier_scores_collection.find(classifier_query)
-    }
+    # Fetch classifier scores only for the selected documents
+    classifier_scores = list(request.app.image_classifier_scores_collection.find({
+        'classifier_id': classifier_id,
+        'uuid': {'$in': document_uuids}
+    }))
 
-    # Add classifier score to each document
-    for document in documents:
-        document.pop('_id', None)  # Remove the auto-generated field
+    # Map UUIDs to their corresponding scores
+    classifier_scores_map = {score['uuid']: score['score'] for score in classifier_scores}
+
+    # Prepare image scores array
+    image_scores = []
+    for document in all_documents:
         uuid = document.get('uuid')
-        score = classifier_scores_map.get(uuid, None)  # Ensure score is None if not found
-        document['classifier_score'] = score  # Add classifier score as a top-level field
+        score = classifier_scores_map.get(uuid, None)
+        if score is not None:
+            image_scores.append(score)
+
+    # Prepare response without including classifier_score in the document data
+    for document in all_documents:
+        document.pop('_id', None)  # Remove the auto-generated field
 
     return api_response_handler.create_success_response_v1(
-                response_data=documents,
-                http_status_code=200
-            )     
+        response_data={"images": all_documents, "image_scores": image_scores},
+        http_status_code=200
+    )
 
-@router.post("/rank-training/calculate-delta-scores", status_code=200)
+@router.post("/rank-training/calculate-delta-scores", 
+             status_code=200,
+             description="Calculate and update delta scores for ranking datapoints",
+             response_model=StandardSuccessResponseV1[str],
+             tags=["Rank Training"],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def calculate_delta_scores(request: Request):
-    start_time = time.time()
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    # Define the model types for which you want to calculate delta_scores
-    model_types = ["linear", "elm-v1"]
+    try:
+        start_time = time.time()
 
-    # Access collections
-    ranking_collection = request.app.ranking_datapoints_collection
-    jobs_collection = request.app.completed_jobs_collection
+        # Define the model types for which you want to calculate delta_scores
+        model_types = ["linear", "elm-v1"]
 
-    processed_count = 0
-    skipped_count = 0
+        # Access collections
+        ranking_collection = request.app.ranking_datapoints_collection
+        jobs_collection = request.app.completed_jobs_collection
 
-    # Fetch all documents from ranking_collection
-    for doc in ranking_collection.find({}):
+        processed_count = 0
+        skipped_count = 0
 
-        # Skip documents where delta_score already exists for all model_types
-        if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
-            print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
-            skipped_count += 1
-            continue
+        # Fetch all documents from ranking_collection
+        for doc in ranking_collection.find({}):
 
-        selected_image_index = doc["selected_image_index"]
-        selected_image_hash = doc["selected_image_hash"]
-        unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
+            # Skip documents where delta_score already exists for all model_types
+            if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
+                skipped_count += 1
+                continue
 
-        for model_type in model_types:
-            # Proceed only if the delta_score for this model_type does not exist
-            if f"delta_score.{model_type}" not in doc:
-                print(f"Processing document {doc['_id']} for model type '{model_type}'.")
-                selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
-                unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+            selected_image_index = doc["selected_image_index"]
+            selected_image_hash = doc["selected_image_hash"]
+            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
-                if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
-                    if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
-                        selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
-                        unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+            for model_type in model_types:
+                # Proceed only if the delta_score for this model_type does not exist
+                if f"delta_score.{model_type}" not in doc:
+                    selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+                    unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-                        if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
-                            delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
+                    if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+                        if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
+                            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+                            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-                            # Update the document in ranking_collection with the new delta_score under the specific model_type
-                            update_field = f"delta_score.{model_type}"
-                            ranking_collection.update_one(
-                                {"_id": doc["_id"]},
-                                {"$set": {update_field: delta_score}}
-                            )
-                            processed_count += 1
+                            if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                                delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
 
-    end_time = time.time()
-    total_time = end_time - start_time
+                                # Update the document in ranking_collection with the new delta_score under the specific model_type
+                                update_field = f"delta_score.{model_type}"
+                                ranking_collection.update_one(
+                                    {"_id": doc["_id"]},
+                                    {"$set": {update_field: delta_score}}
+                                )
+                                processed_count += 1
 
-    return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}            
+        end_time = time.time()
+        total_time = end_time - start_time
+
+        return response_handler.create_success_response_v1(
+            response_data={
+                "message": "Delta scores calculation and update complete.",
+                "processed_count": processed_count,
+                "skipped_count": skipped_count,
+                "total_time": f"{total_time:.2f} seconds"
+            },
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
+            http_status_code=500
+        )
+         
+
+
+@router.get("/rank-training/get-if-image-is-irrelevant",
+            description="Checks if an image is marked as irrelevant for a specific rank model",
+            status_code=200,
+            response_model=StandardSuccessResponseV1[BoolIrrelevantResponse],
+            tags=["rank-training"],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    try:
+        # Check if the image is marked as irrelevant for the given rank model
+        is_irrelevant = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id}) is not None
+
+        # Return the result
+        return api_response_handler.create_success_response_v1(
+            response_data={"irrelevant": is_irrelevant},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to check if image is irrelevant: {str(e)}',
+            http_status_code=500
+        )
+
+@router.get("/rank-training/get-datapoints-count-per-day",
+            description="Get number of selection datapoints per day within the date range",
+            response_model=StandardSuccessResponseV1[ListGenerationsCountPerDayResponse],
+            tags=["rank"],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_datapoints_count_per_day(
+    request: Request,
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert the date strings to datetime objects
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+        # Initialize the result dictionary
+        num_by_dataset_and_day = {}
+
+        # Iterate through each day within the date range
+        current_date = start_date_dt
+        while current_date <= end_date_dt:
+            # Construct the query for the current day
+            query_date = current_date.strftime("%Y-%m-%d")
+            num_by_rank = {}
+            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets/ranks")
+            for ranks in rank_folders:
+                # Construct the MinIO path for selection datapoints
+                datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
+
+                # List objects in the datapoints path
+                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path)
+                
+                # Filter objects that match the current date
+                num_datapoints = len([obj.object_name for obj in objects])
+
+                # Store the result for the current day and dataset
+                num_by_rank[ranks] = num_datapoints
+
+            # Store the result for the current day in the dictionary
+            num_by_dataset_and_day[current_date.strftime("%Y-%m-%d")] = num_by_rank
+
+            # Move to the next day
+            current_date += timedelta(days=1)
+
+        return response_handler.create_success_response_v1(
+            response_data={"results": num_by_dataset_and_day},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
+            http_status_code=500
+        )

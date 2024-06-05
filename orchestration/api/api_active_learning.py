@@ -168,7 +168,10 @@ def count_queue_pairs(request: Request, dataset: Optional[str] = None, active_le
     return count
 
 
-@router.get("/active-learning/uncertainty-sampling-pair-v1", response_class=PrettyJSONResponse)
+@router.get("/active-learning/uncertainty-sampling-pair-v1", 
+            response_class=PrettyJSONResponse,
+            tags= ['deprecated3'],
+            description="it is not used any more, so there is no replacement.")
 def get_ranking_comparison(
     request: Request,
     dataset: str,  
@@ -248,7 +251,10 @@ def get_ranking_comparison(
     return {"images": images}
 
 
-@router.get("/active-learning/uncertainty-sampling-pair-v2", response_class=PrettyJSONResponse)
+@router.get("/active-learning/uncertainty-sampling-pair-v2", 
+            response_class=PrettyJSONResponse,
+            tags= ['deprecated3'],
+            description="it is not used any more, so there is no replacement.")
 def get_ranking_comparison(
     request: Request,
     dataset: str,  

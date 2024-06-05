@@ -153,7 +153,7 @@ def image_list_sorted_by_score(
             response_model=StandardSuccessResponse[ImageData],
             status_code=200,
             tags = ['deprecated3'], 
-            description= "changed wtih /image-by-rank/image-list-sorted-by-score-v1",
+            description= "changed wtih image-by-rank/image-list-sorted-v1",
             responses=ApiResponseHandler.listErrors([500]),
             )
 def image_list_sorted_by_score_v1(
@@ -223,7 +223,7 @@ def image_list_sorted_by_score_v1(
             response_model=StandardSuccessResponse[ImageData],
             status_code=200,
             tags = ['deprecated3'], 
-            description= "changed wtih /image-by-rank/image-list-sorted-by-score-v1",
+            description= "changed wtih /image-by-rank/image-list-sampled-sorted-v1",
             responses=ApiResponseHandler.listErrors([500]),
         )
 def image_list_sampled_sorted(
@@ -292,7 +292,10 @@ def image_list_sampled_sorted(
         return api_handler.create_error_response(ErrorCode.OTHER_ERROR, str(exc), 500)
     
 
-@router.get("/image_by_rank/image-list-sorted-by-percentile", response_class=PrettyJSONResponse)
+@router.get("/image_by_rank/image-list-sorted-by-percentile", 
+            description="changed with /image-by-rank/image-list-sorted-by-percentile-v1",
+            tags = ["deprecated3"],
+            response_class=PrettyJSONResponse)
 def image_list_sorted_by_percentile(
     request: Request,
     dataset: str = Query(...),

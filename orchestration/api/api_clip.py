@@ -1,7 +1,7 @@
 from fastapi import Request, APIRouter, HTTPException, Response, File, UploadFile
 import requests
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1, GetKandinskyClipResponse, UrlResponse
-from orchestration.api.mongo_schemas import  PhraseModel
+from orchestration.api.mongo_schemas import  PhraseModel, ListSimilarityScoreTask
 from typing import Optional
 from typing import List
 import json
@@ -46,7 +46,7 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     response = None
     try:
-        response = requests.put(url)
+        response = requests.post(url)
         if response.status_code == 200:
             return response.status_code, response.json()
         else:
@@ -63,7 +63,7 @@ def http_clip_server_add_phrase(phrase: str):
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
-    url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
+    url = CLIP_SERVER_ADDRESS + "/get-clip-vector?phrase=" + phrase
     response = None
     try:
         response = requests.get(url)
@@ -136,89 +136,11 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str], phra
 # ----------------------------------------------------------------------------
 
 
-@router.put("/clip/add-phrase-depracated",
-            response_class=PrettyJSONResponse,
-            tags=["deprecated"],
-            description="Adds a phrase to the clip server, DEPRECATED: the name was changed to v1/clip/phrases, changes may have been introduced")
-def add_phrase(request: Request,
-               phrase : str):
-
-    return http_clip_server_add_phrase(phrase)
-
-
-@router.post("/v1/clip/phrases",
-             description="Adds a phrase to the clip server.",
-             tags=["deprecated"],
-             response_model=StandardSuccessResponse[None],
-             status_code=201,
-             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
-@router.post("/clip/phrases",
-             description="Adds a phrase to the clip server. DEPRECATED: the name was changed to v1/clip/phrases, no other changes were introduced",
-             tags=["deprecated"],
-             response_model=StandardSuccessResponse[None],
-             status_code=201,
-             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
-def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
-    response_handler = ApiResponseHandler(request)
-
-    try:
-        if not phrase_data.phrase:
-            return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
-
-        status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  
-
-        # Check for successful status code
-        if 200 <= status_code < 300:
-            # Always set clip_vector to None
-            return response_handler.create_success_response(None, http_status_code=201, headers={"Cache-Control": "no-store"})
-        else:
-            # Handle unsuccessful response
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
-
-    except Exception as e:
-        traceback.print_exc()  # Log the full stack trace
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-@router.get("/clip/clip-vector",
-            response_class=PrettyJSONResponse,
-            tags=["deprecated"],
-            description="Gets a clip vector of a specific phrase, DEPRECATED: the name was changed to v1/clip/vectors/{phrase}, changes may have been introduced")
-def add_phrase(request: Request,
-               phrase : str):
-
-    return http_clip_server_clip_vector_from_phrase(phrase)
-
-@router.get("/v1/clip/vectors/{phrase}", tags=["deprecated"], 
-            response_model=StandardSuccessResponse[GetClipPhraseResponse], 
-            status_code = 200, 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]), 
-            summary="Get Clip Vector for a Phrase", 
-            description="Retrieves the clip vector for a given phrase.")
-@router.get("/clip/vectors/{phrase}", tags=["deprecated"], 
-            response_model=StandardSuccessResponse[GetClipPhraseResponse], 
-            status_code = 200, 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]), 
-            summary="Get Clip Vector for a Phrase", 
-            description="Retrieves the clip vector for a given phrase.DEPRECATED: the name was changed to v1/clip/vectors/{phrase}, no other changes were introduced")
-def get_clip_vector(request: Request,  phrase: str):
-    response_handler = ApiResponseHandler(request)
-    try:
-        vector = http_clip_server_clip_vector_from_phrase(phrase)
-        
-        if vector is None:
-            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
-
-        return response_handler.create_success_response(vector, http_status_code=200, headers={"Cache-Control": "no-store"})
-
-    except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 @router.get("/clip/random-image-similarity-threshold",
             response_class=PrettyJSONResponse,
-            description="Gets a random image from a dataset with a cosine similarity threshold")
+            tags = ["deprecated3"],
+            description="changed with /clip/get-random-images-with-clip-search ")
 def random_image_similarity_threshold(request: Request,
                                     dataset : str,
                                     phrase : str,
@@ -268,7 +190,8 @@ def random_image_similarity_threshold(request: Request,
 
 @router.get("/clip/random-image-list-similarity-threshold",
             response_class=PrettyJSONResponse,
-            description="Gets a random image from a dataset with a cosine similarity threshold")
+            tags = ["deprecated3"],
+            description="changed with /clip/get-random-images-with-clip-search ")
 def random_image_list_similarity_threshold(request: Request,
                           dataset: str,
                           phrase: str,
@@ -330,7 +253,9 @@ def random_image_list_similarity_threshold(request: Request,
 
     return result_jobs
 
-@router.get("/image/get_random_image_similarity_by_date_range", response_class=PrettyJSONResponse)
+@router.get("/image/get_random_image_similarity_by_date_range", 
+            tags = ["deprecated3"],
+            description="changed with /clip/get-random-images-with-clip-search ")
 def get_random_image_similarity_date_range(
     request: Request,
     dataset: str = None,
@@ -424,48 +349,6 @@ def get_random_image_similarity_date_range(
     return {
         "images": filtered_images
     }
-
-@router.get("/check-clip-server-status",
-            tags=["deprecated"],
-            description="Checks the status of the CLIP server,DEPRECATED: the name was changed to v1/clip/server-status, changes may have been introduced ")
-def check_clip_server_status():
-    try:
-        # Send a simple GET request to the clip server
-        response = requests.get(CLIP_SERVER_ADDRESS )
-
-        # Check if the response status code is 200 (OK)
-        if response.status_code == 200:
-            return {"status": "online", "message": "Clip server is online."}
-        else:
-            return {"status": "offline", "message": "Clip server is offline. Received unexpected response."}
-
-    except requests.exceptions.RequestException as e:
-        # Handle any exceptions that occur during the request
-        print(f"Error checking clip server status: {e}")
-        return {"status": "offline", "message": "Clip server is offline or unreachable."}
-
-@router.get("/v1/clip/server-status", 
-            tags=["deprecated"], 
-            response_model=StandardSuccessResponse[RechableResponse],
-            status_code=202, responses=ApiResponseHandler.listErrors([503]), 
-            description="Checks the status of the CLIP server.")
-@router.get("/clip/server-status", 
-            tags=["deprecated"], 
-            response_model=StandardSuccessResponse[RechableResponse],
-            status_code=202, responses=ApiResponseHandler.listErrors([503]), 
-            description="Checks the status of the CLIP server.DEPRECATED: the name was changed to v1/clip/server-status, no other changes were introduced")
-def check_clip_server_status(request: Request):
-    response_handler = ApiResponseHandler(request)
-    try:
-        # Update the URL to include '/docs'
-        response = requests.get(CLIP_SERVER_ADDRESS + "/docs")
-        reachable = response.status_code == 200
-        return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
-    except requests.exceptions.RequestException as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
-
-
-
 
 
 
@@ -677,3 +560,77 @@ async def upload_images(request: Request,
         response_data=uploaded_files_paths,
         http_status_code=201
     )         
+
+@router.get("/clip/get-random-images-with-clip-search",
+            tags=["clip"],
+            description="Gets as many random images as set in the size param, scores each image with clip according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
+            response_model=StandardSuccessResponseV1[ListSimilarityScoreTask],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_random_image_similarity_date_range(
+    request: Request,
+    dataset: str = Query(..., description="Dataset to filter images"),
+    phrase: str = Query(..., description="Phrase to compare similarity with"),
+    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    start_date: str = None,
+    end_date: str = None,
+    size: int = Query(..., description="Number of random images to return"),
+    prompt_generation_policy: Optional[str] = Query(None, description="Optional prompt generation policy")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        query = {
+            'task_input_dict.dataset': dataset
+        }
+
+        if start_date and end_date:
+            query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['task_creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['task_creation_time'] = {'$lte': end_date}
+
+        # Include prompt_generation_policy in the query if provided
+        if prompt_generation_policy:
+            query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        jobs = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+
+        image_path_list = []
+        for job in jobs:
+            job.pop('_id', None)  # Remove the auto-generated field
+            output_file_dictionary = job["task_output_file_dict"]
+            image_path = output_file_dictionary['output_file_path'].replace("datasets/", "")
+            image_path_list.append(image_path)
+
+        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+
+        if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        similarity_score_list = similarity_score_list['similarity_list']
+
+        if len(jobs) != len(similarity_score_list):
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        filtered_images = []
+        for i in range(len(jobs)):
+            image_similarity_score = similarity_score_list[i]
+            job = jobs[i]
+
+            if image_similarity_score >= similarity_threshold:
+                job["similarity_score"] = image_similarity_score
+                filtered_images.append(job)
+
+        return response_handler.create_success_response_v1(response_data={"images": filtered_images}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )

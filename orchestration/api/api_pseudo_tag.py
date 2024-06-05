@@ -260,7 +260,7 @@ async def set_image_pseudotag_score(request: Request, pseudo_tag: ImagePseudoTag
 
         
         query = {
-            "job_uuid": pseudo_tag.job_uuid,
+            "uuid": pseudo_tag.job_uuid,
             "tag_id": tag_id
         }
 
@@ -578,7 +578,7 @@ async def get_scores_by_image_hash(
 
     # Prepare and return the data for the response
     return response_handler.create_success_response_v1(
-        response_data=scores_data,
+        response_data={"scores": scores_data},
         http_status_code=200
     )
 

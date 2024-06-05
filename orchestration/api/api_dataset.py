@@ -174,7 +174,7 @@ def set_rate(request: Request, dataset, hourly_limit=0):
     return True
 
 
-@router.get("/dataset/get-dataset-config, ", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
+@router.get("/dataset/get-dataset-config", tags = ['deprecated3'], description= "changed wtih /datasets/settings/get-dataset-config")
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
     item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
@@ -264,7 +264,7 @@ def list_ranking_files(request: Request, dataset: str):
     return json_files
     
 
-@router.get("/datasets/rank/list-v1", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
+@router.get("/datasets/rank/list-v1", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints or /rank/sort-ranking-data-by-date-v2")
 def list_ranking_files(
     request: Request, 
     dataset: str, 
@@ -318,7 +318,7 @@ def list_ranking_files(
     return filtered_json_files
 
 
-@router.get("/datasets/rank/list-v3", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints")
+@router.get("/datasets/rank/list-v3", tags = ['deprecated3'], description= "changed wtih /rank/list-ranking-datapoints or /rank/sort-ranking-data-by-date-v2")
 def list_ranking_files_v3(
     request: Request,
     dataset: str,
@@ -386,7 +386,7 @@ def read_json_data(request, json_file):
     return selected_image_hash, json_file
 
 
-@router.get("/datasets/rank/list-sort-by-score", tags = ['deprecated3'], response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-sort-by-score", tags = ['deprecated3'], description="Deprecated without a direct alternative. Inform in the chat if you are using this endpoint")
 def list_ranking_files_sort_by_score(
     request: Request, 
     dataset: str,

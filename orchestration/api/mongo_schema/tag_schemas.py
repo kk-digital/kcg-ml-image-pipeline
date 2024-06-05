@@ -97,6 +97,9 @@ class ImageTag(BaseModel):
             "creation_time": self.creation_time
         }
     
+class ListImageTag(BaseModel):
+    images: List[ImageTag]    
+    
 class ExternalImageTag(BaseModel):
     tag_id: Optional[int] = None
     file_path: str
