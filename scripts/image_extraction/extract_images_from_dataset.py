@@ -33,7 +33,6 @@ def parse_args():
     parser.add_argument('--min-quality-sigma', type=float, default=0.5, help='Minimum quality threshold')
     parser.add_argument('--min-classifier-score', type=float, default=0.5, help='Minimum classifier score threshold')
     parser.add_argument('--defect-threshold', type=float, default=0.7, help='Minimum defect threshold')
-    parser.add_argument('--defect-threshold', type=float, default=0.7, help='Minimum defect threshold')
     parser.add_argument('--target-size', type=int, default=512, help='Target size of image extraction')
     parser.add_argument('--batch-size', type=int, default=10000, help='batch size for extraction')
     parser.add_argument('--file-batch-size', type=int, default=10000, help='Batch size for numpy file storage')
