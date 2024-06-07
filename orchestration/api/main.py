@@ -42,6 +42,7 @@ from orchestration.api.api_rank_active_learning_policy import router as rank_act
 from orchestration.api.api_image_hashes import router as image_hashes_router
 from orchestration.api.api_external_images import router as external_images_router
 from orchestration.api.api_extracts import router as extracts_router
+from orchestration.api.api_ingress_videos import router as ingress_videos_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -88,6 +89,7 @@ app.include_router(rank_active_learning_policy_router)
 app.include_router(image_hashes_router)
 app.include_router(external_images_router)
 app.include_router(extracts_router)
+app.include_router(ingress_videos_router)
 
 
 
@@ -232,6 +234,7 @@ def startup_db_client():
     # external image collection
     app.external_images_collection = app.mongodb_db["external_images"]
     app.extracts_collection = app.mongodb_db["extracts"]
+    app.ingress_video_collection = app.mongodb_db["ingress_videos"]
 
     pseudo_tag_uuid_index=[
     ('uuid', pymongo.ASCENDING)
@@ -446,6 +449,13 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_pair_ranking_collection, pair_rank_hash_index_2, 'pair_rank_hash_index_2')
 
+    # create index for ingress_video_collection
+    ingress_video_hash_index = [
+
+        ('file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.ingress_video_collection, ingress_video_hash_index,
+    'ingress_video_hash_index')
 
 
     print("Connected to the MongoDB database!")
