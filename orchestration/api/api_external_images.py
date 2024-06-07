@@ -721,3 +721,32 @@ def list_external_images_v1(
             error_string=str(e),
             http_status_code=500
         )
+        
+@router.get("/external-images/get-unique-datasets", 
+            description="Get all unique dataset names in the external images collection.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[str],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_unique_datasets(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Use aggregation pipeline to get unique dataset names
+        aggregation_pipeline = [
+            {"$group": {"_id": "$dataset"}},
+            {"$project": {"_id": 0, "dataset": "$_id"}}
+        ]
+
+        datasets_cursor = request.app.external_images_collection.aggregate(aggregation_pipeline)
+        datasets = [doc["dataset"] for doc in datasets_cursor]
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"datasets": datasets},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )        
