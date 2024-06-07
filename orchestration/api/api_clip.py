@@ -63,7 +63,7 @@ def http_clip_server_add_phrase(phrase: str):
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
-    url = CLIP_SERVER_ADDRESS + "/get-clip-vector?phrase=" + phrase
+    url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
     response = None
     try:
         response = requests.get(url)

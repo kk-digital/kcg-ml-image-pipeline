@@ -7,7 +7,9 @@ from dateutil.parser import parse
 router = APIRouter()
 
 # get job stats by job type
-@router.get("/job_stats/stats_by_job_type")
+@router.get("/job_stats/stats_by_job_type",
+            tags=['deprecated3'],
+            description="changed with /queue/image-generation/get-job-counts-by-type")
 def get_job_stats_by_job_type(request: Request, job_type: str = Query(...)):
     pending_count = request.app.pending_jobs_collection.count_documents({
         'task_type': job_type
@@ -65,7 +67,7 @@ async def get_job_stats_by_job_type(request: Request, job_type: str = Query(...,
         )    
 
 # get job stats by dataset
-@router.get("/job_stats/stats_by_dataset")
+@router.get("/job_stats/stats_by_dataset", tags = ['deprecated3'], description="changed with /queue/image-generation/get-job-counts-by-dataset")
 def get_job_stats_by_job_type(request: Request, dataset: str = Query(...)):
     pending_count = request.app.pending_jobs_collection.count_documents({
         "task_input_dict.dataset": dataset
@@ -133,7 +135,7 @@ async def get_job_counts_by_dataset(request: Request, dataset: str = Query(..., 
         )
 
 
-@router.get("/job_stats/get_generated_images_per_day")
+@router.get("/job_stats/get_generated_images_per_day", tags = ['deprecated3'], description="changed with /queue/image-generation/get-generations-count-per-day")
 def get_number_generated_images_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
     start_date = parse(start_date)
@@ -239,7 +241,7 @@ async def get_generations_count_per_day(
         )    
 
 
-@router.get("/job_stats/get_selection_datapoints_per_day")
+@router.get("/job_stats/get_selection_datapoints_per_day", tags = ['deprecated3'], description="changed with /rank/get-datapoints-count-per-day")
 def get_number_selection_datapoints_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
