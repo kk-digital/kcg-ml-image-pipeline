@@ -231,7 +231,8 @@ class ImageExtractionPipeline:
 
                 # store data
                 source_image_data= external_images[index]
-                extract_data.append({
+                
+                data={
                     "image_hash" : hashlib.md5(image_data.getvalue()).hexdigest(),
                     "image_uuid": str(uuid.uuid4()),
                     "image": image,
@@ -240,10 +241,12 @@ class ImageExtractionPipeline:
                     "source_image_hash": source_image_data["image_hash"],
                     "source_image_uuid": source_image_data["uuid"],
                     "dataset": source_image_data["dataset"]
-                })
+                }
+
+                extract_data.append(data)
 
                 # spawn upload data thread
-                thread = threading.Thread(target=upload_extract_data, args=(self.minio_client, extract_data,))
+                thread = threading.Thread(target=upload_extract_data, args=(self.minio_client, data,))
                 thread.start()
 
                 self.clip_vectors.append(clip_vector)
