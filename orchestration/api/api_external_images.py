@@ -5,8 +5,9 @@ from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCod
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import UpdateOne
+from utility.minio import cmd
 import uuid
 
 router = APIRouter()
@@ -19,43 +20,54 @@ router = APIRouter()
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
+
     try:
 
-        uuid = str(uuid.uuid4())
-
+        objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+        dataset_path = f'{image_data.dataset}'
+        
+        if dataset_path not in objects:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{image_data.dataset}' does not exist.",
+                http_status_code=422,
+            )
+    
+        # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
         })
 
-        if existed is None:
-            image_data.upload_date = str(datetime.now())
-            request.app.external_images_collection.insert_one(image_data.to_dict())
-        else:
-            request.app.external_images_collection.update_one({
-                "image_hash": image_data.image_hash
-            }, {
-                "$set": {
-                    "upload_date": str(datetime.now()),
-                    "dataset": image_data.dataset,
-                    "image_resolution": image_data.image_resolution.to_dict(),
-                    "image_format": image_data.image_format,
-                    "file_path": image_data.file_path,
-                    "source_image_dict": image_data.source_image_dict,
-                    "task_attributes_dict": image_data.task_attributes_dict,
-                    "uuid": uuid
-                }
-            })
+        if existed:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Image data with this hash already exists.",
+                http_status_code=422
+            )
+
+        # Add a new UUID and upload date to the image data
+        image_data_dict = image_data.to_dict()
+        image_data_dict['uuid'] = str(uuid.uuid4())
+        image_data_dict['upload_date'] = str(datetime.now())
+        
+        # Insert the new image data into the collection
+        request.app.external_images_collection.insert_one(image_data_dict)
+
+        image_data_dict.pop('_id', None)
+        
         return api_response_handler.create_success_response_v1(
-            response_data={"data": image_data.to_dict()},
-            http_status_code=200  
+            response_data=image_data_dict,
+            http_status_code=200
         )
-    
+
     except Exception as e:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
             http_status_code=500
         )
+
+
 
 @router.post("/external-images/add-external-image-list", 
             description="Add list of external image data",
@@ -70,29 +82,29 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 "image_hash": image_data.image_hash
             })
 
-            if existed is None:
-                image_data.upload_date = str(datetime.now())
-                uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
-                request.app.external_images_collection.insert_one(image_data.to_dict())
+            if existed:
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Image data with this hash already exists.",
+                    http_status_code=422
+                )
             else:
-                request.app.external_images_collection.update_one({
-                    "image_hash": image_data.image_hash
-                }, {
-                    "$set": {
-                        "upload_date": str(datetime.now()),
-                        "dataset": image_data.dataset,
-                        "image_resolution": image_data.image_resolution.to_dict(),
-                        "image_format": image_data.image_format,
-                        "file_path": image_data.file_path,
-                        "source_image_dict": image_data.source_image_dict,
-                        "task_attributes_dict": image_data.task_attributes_dict,
-                        "uuid": uuid
-                    }
-                })
+                # Add a new UUID and upload date to the image data
+                image_data_dict = image_data.to_dict()
+                image_data_dict['uuid'] = str(uuid.uuid4())
+                image_data_dict['upload_date'] = str(datetime.now())
+
+                # Insert the new image data into the collection
+                request.app.external_images_collection.insert_one(image_data_dict)
+
+        # Remove the _id field from the response data
+        response_data = [image_data_dict for image_data_dict in image_data_list]
+        for data in response_data:
+            data.pop('_id', None)
 
         return api_response_handler.create_success_response_v1(
-            response_data={"data": [image_data.to_dict() for image_data in image_data_list]},
-            http_status_code=200  
+            response_data={"data": response_data},
+            http_status_code=200
         )
     
     except Exception as e:
@@ -101,6 +113,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
             error_string=str(e),
             http_status_code=500
         )
+
     
 @router.get("/external-images/get-external-image-list", 
             description="changed with /external-images/get-external-image-list-v1",
@@ -651,7 +664,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 @router.get("/external-images/list-images-v1",
             status_code=200,
             tags=["external-images"],
-            response_model=StandardSuccessResponseV1[ListImageTag],
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],
             description="List external images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_external_images_v1(
@@ -660,11 +673,28 @@ def list_external_images_v1(
     offset: int = Query(0, description="Offset for the results to be returned"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
     end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
-    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
 ):
     response_handler = ApiResponseHandlerV1(request)
 
     try:
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+
+            # Convert threshold_time to a string in ISO format
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds') 
+        else:
+            threshold_time_str = None
+
         # Validate start_date and end_date
         if start_date:
             validated_start_date = validate_date_format(start_date)
@@ -691,6 +721,8 @@ def list_external_images_v1(
             query["creation_time"] = {"$gte": validated_start_date}
         elif end_date:
             query["creation_time"] = {"$lte": validated_end_date}
+        elif threshold_time_str:
+            query["creation_time"] = {"$gte": threshold_time_str}
 
         # Decide the sort order
         sort_order = -1 if order == "desc" else 1
@@ -701,15 +733,8 @@ def list_external_images_v1(
         # Collect the metadata for the images that match the query
         images_metadata = []
         for image in images_cursor:
-            image_meta_data = {
-                'tag_id': image.get('tag_id'),
-                'file_path': image.get('file_path'),
-                'image_hash': image.get('image_hash'),
-                'tag_type': image.get('tag_type'),
-                'user_who_created': image.get('user_who_created'),
-                'creation_time': image.get('creation_time')
-            }
-            images_metadata.append(image_meta_data)
+            image.pop('_id', None)  # Remove the auto-generated field
+            images_metadata.append(image)
 
         return response_handler.create_success_response_v1(
             response_data=images_metadata,
