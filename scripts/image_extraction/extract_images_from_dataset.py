@@ -232,7 +232,7 @@ class ImageExtractionPipeline:
                 # store data
                 source_image_data= external_images[index]
                 extract_data.append({
-                    "image_hash" : hashlib.md5(image_data).hexdigest(),
+                    "image_hash" : hashlib.md5(image_data.getvalue()).hexdigest(),
                     "image_uuid": str(uuid.uuid4()),
                     "image": image,
                     "clip_vector": clip_vector,
