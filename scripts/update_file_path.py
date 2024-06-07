@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from tqdm import tqdm
 
 # MongoDB configuration
 MONGODB_URI = 'mongodb://192.168.3.1:32017/'
@@ -16,10 +17,10 @@ def update_file_paths():
         query = {"file_path": {"$regex": "^pinterest-pixel-art-2023-07-01-v3/"}}
         
         # Find the documents that match the query
-        documents = collection.find(query)
+        documents = list(collection.find(query))
 
         # Update each document
-        for doc in documents:
+        for doc in tqdm(documents, desc="Updating file paths"):
             old_file_path = doc['file_path']
             new_file_path = f"external/{old_file_path}"
             collection.update_one(
