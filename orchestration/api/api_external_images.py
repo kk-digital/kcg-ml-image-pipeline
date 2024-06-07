@@ -70,9 +70,10 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 "image_hash": image_data.image_hash
             })
 
+            uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
             if existed is None:
+                image_data.uuid = uuid
                 image_data.upload_date = str(datetime.now())
-                uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
                 request.app.external_images_collection.insert_one(image_data.to_dict())
             else:
                 request.app.external_images_collection.update_one({
