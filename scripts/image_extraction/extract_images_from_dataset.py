@@ -220,7 +220,7 @@ class ImageExtractionPipeline:
             image_data = extract["image_data"]
 
             # get the clip vector from the image
-            clip_vector= self.clip.get_image_features(image)
+            clip_vector= self.clip.get_image_features(image).to(torch_dtype=torch.float32)
             # filter the image if it's not useful
             if not self.is_filtered(clip_vector):
                 # calculate vae latent
