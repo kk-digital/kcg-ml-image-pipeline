@@ -70,37 +70,41 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     sequential_ids = request.http_get_sequential_id(dataset, 1)
     file_path= f"{dataset}/{sequential_ids[0]+'.jpg'}"
 
-    # upload the image
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format='jpg')
-    img_byte_arr = img_byte_arr.getvalue()
-    cmd.upload_data(minio_client, "extracts", file_path, img_byte_arr)
-    
-    # upload latent
-    save_latent_to_minio(minio_client, "extracts", image_uuid, image_hash, vae_latent, file_path)
+    try:    
+        # upload the image
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='jpg')
+        img_byte_arr = img_byte_arr.getvalue()
+        cmd.upload_data(minio_client, "extracts", file_path, img_byte_arr)
+        
+        # upload latent
+        save_latent_to_minio(minio_client, "extracts", image_uuid, image_hash, vae_latent, file_path)
 
-    # upload clip vector
-    clip_feature_dict = {"clip-feature-vector": clip_vector}
-    clip_feature_msgpack = msgpack.packb(clip_feature_dict)
+        # upload clip vector
+        clip_feature_dict = {"clip-feature-vector": clip_vector}
+        clip_feature_msgpack = msgpack.packb(clip_feature_dict)
 
-    clip_feature_msgpack_buffer = BytesIO()
-    clip_feature_msgpack_buffer.write(clip_feature_msgpack)
-    clip_feature_msgpack_buffer.seek(0)
+        clip_feature_msgpack_buffer = BytesIO()
+        clip_feature_msgpack_buffer.write(clip_feature_msgpack)
+        clip_feature_msgpack_buffer.seek(0)
 
-    # Upload the clip vector data
-    cmd.upload_data(minio_client, "extracts", file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
+        # Upload the clip vector data
+        cmd.upload_data(minio_client, "extracts", file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
 
-    # upload the image to mongoDB
-    extract_data={
-        "uuid": image_uuid,
-        "image_hash": image_hash,
-        "dataset": dataset,
-        "file_path": file_path,
-        "source_image_uuid": source_image_uuid,
-        "source_image_hash": source_image_hash,
-    }
+        # upload the image to mongoDB
+        extract_data={
+            "uuid": image_uuid,
+            "image_hash": image_hash,
+            "dataset": dataset,
+            "file_path": file_path,
+            "source_image_uuid": source_image_uuid,
+            "source_image_hash": source_image_hash,
+        }
 
-    external_images_request.http_add_extract(extract_data)
+        external_images_request.http_add_extract(extract_data)
+        
+    except Exception as e:
+        print(e)
      
 
 
