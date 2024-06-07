@@ -229,6 +229,9 @@ class ImageExtractionPipeline:
                 pixel_values = torch.from_numpy(pixel_values).unsqueeze(0).to(device=self.device)  # Add batch dimension
                 vae_latent = self.vae.encode(pixel_values).latents
 
+                pixel_values.cpu()
+                del pixel_values
+
                 # store data
                 source_image_data= external_images[index]
                 
