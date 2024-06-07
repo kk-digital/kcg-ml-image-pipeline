@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ScoreImageTask, ListScoreImageTask, ListRankActiveLearningPairWithScore
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -16,6 +16,7 @@ from pymongo import ReturnDocument
 import json
 from collections import OrderedDict
 import io
+import random
 import time
 
 router = APIRouter()
@@ -315,7 +316,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         )
 
 @router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
-            description="Gets random image pairs from the rank active learning queue",
+            description="It returns the classifier score of each image as a number or null (if no score is found for the image)",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
             status_code=200,
             tags=["Rank Active Learning"],  
@@ -684,7 +685,7 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
 
 @router.get("/rank-training/read-ranking-datapoint", 
             tags=['rank-training'], 
-            description = "read ranking datapoints",
+            description="read ranking datapoints",
             response_model=StandardSuccessResponseV1[JsonMinioResponse], 
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def read_ranking_datapoints(request: Request, rank_model_id: int, filename: str = Query(..., description="Filename of the JSON to read")):
@@ -709,12 +710,12 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
             file_content += chunk.decode('utf-8')
 
         json_content = json.loads(file_content)
+    
 
         # Ensure all fields are present, set default values if not
-        for datapoint in json_content.get('datapoints', []):
-            datapoint.setdefault('flagged', None)
-            datapoint.setdefault('flagged_by_user', None)
-            datapoint.setdefault('flagged_time', None)
+        json_content.setdefault('flagged', None)
+        json_content.setdefault('flagged_by_user', None)
+        json_content.setdefault('flagged_time', None)
 
         # Successfully return the content of the JSON file
         return response_handler.create_success_response_v1(
@@ -729,8 +730,6 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
             http_status_code=500,
         )
   
-
-
 
 @router.post("/rank-training/add-irrelevant-image",
              description="Adds an image UUID to the irrelevant images collection",
@@ -762,7 +761,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
     if existing_entry:
         return api_response_handler.create_success_response_v1(
-            response_data="Image already marked as irrelevant",
+            response_data=existing_entry,
             http_status_code=200
         )
 
@@ -952,6 +951,7 @@ def list_selection_data_with_scores(
             http_status_code=500,
         )  
 
+
 @router.get("/rank-training/get-random-images-by-classifier-score", 
             tags=['rank-training'], 
             description="Returns random images filtering by rank scores",
@@ -1024,6 +1024,9 @@ def get_random_image_date_range(
                 http_status_code=404
             )
 
+    # Shuffle the UUIDs array
+    random.shuffle(uuids)
+
     # Pagination for handling large number of UUIDs
     batch_size = 5000  # Adjust as needed to fit within the document size limit
     all_documents = []
@@ -1073,9 +1076,10 @@ def get_random_image_date_range(
         http_status_code=200
     )
 
+
 @router.post("/rank-training/calculate-delta-scores", 
              status_code=200,
-             description="Calculate and update delta scores for ranking datapoints",
+             description="only calculates the scores that are missing in the datapoint and skips the ones that have already been calculated. ",
              response_model=StandardSuccessResponseV1[str],
              tags=["Rank Training"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
