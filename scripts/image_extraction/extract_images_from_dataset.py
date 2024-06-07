@@ -26,9 +26,17 @@ from kandinsky.model_paths import DECODER_MODEL_PATH
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
-    parser.add_argument('--minio-access-key', required=False, help='Minio access key')
-    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--minio-addr', help='Minio server address', default="192.168.3.5:9000")
+    parser.add_argument('--minio-access-key', help='Minio access key')
+    parser.add_argument('--minio-secret-key', help='Minio secret key')
+    parser.add_argument('--dataset', type=str, help='Dataset to extract from')
+    parser.add_argument('--min-quality-sigma', type=float, default=0.5, help='Minimum quality threshold')
+    parser.add_argument('--min-classifier-score', type=float, default=0.5, help='Minimum classifier score threshold')
+    parser.add_argument('--defect-threshold', type=float, default=0.7, help='Minimum defect threshold')
+    parser.add_argument('--defect-threshold', type=float, default=0.7, help='Minimum defect threshold')
+    parser.add_argument('--target-size', type=int, default=512, help='Target size of image extraction')
+    parser.add_argument('--batch-size', type=int, default=10000, help='batch size for extraction')
+    parser.add_argument('--file-batch-size', type=int, default=10000, help='Batch size for numpy file storage')
 
     return parser.parse_args()
 
@@ -258,9 +266,7 @@ class ImageExtractionPipeline:
 
         return extract_data
 
-    def extract_images(self, 
-                       target_size: int = 512,
-                       batch_size: int = 10000):
+    def extract_images(self):
         print("loading external dataset images..........")
         try:
             external_images= external_images_request.http_get_external_image_list_without_extracts(dataset=self.dataset)
@@ -270,24 +276,24 @@ class ImageExtractionPipeline:
         total_images= len(external_images)
         processed_images= 0
         print("Extracting images.......")
-        for batch_iter in range(0, total_images, batch_size):
+        for batch_iter in range(0, total_images, self.batch_size):
             print(f"processing batch {batch_iter}")
             # getting start and end index for the batch
-            start_index= batch_iter * batch_size
-            end_index = min((batch_iter + 1) * batch_size, total_images)
+            start_index= batch_iter * self.batch_size
+            end_index = min((batch_iter + 1) * self.batch_size, total_images)
 
             # getting the batch
             images_batch= external_images[start_index:end_index]
 
             # extracting the 512*512 image patches
-            extracts= extract_square_images(self.minio_client, images_batch, target_size)
+            extracts= extract_square_images(self.minio_client, images_batch, self.target_size)
 
             # filter the extracts by quality
             extract_data= self.filter_extracts(external_images= images_batch,
                                                extracted_images= extracts)
             
             processed_images+= len(extract_data)
-            print(f"{len(extract_data)} images filtered from {batch_size} images")
+            print(f"{len(extract_data)} images filtered from {self.batch_size} images")
             print(f"total extracted images: {processed_images}")
 
     def save_latents_and_vectors(self):
@@ -314,5 +320,25 @@ class ImageExtractionPipeline:
 
         print(f"Saved CLIP vectors to {clip_vector_path}")
         print(f"Saved VAE latents to {vae_latent_path}")
+
+def main():
+    args= parse_args()
+
+    # initialize image extraction pipeline
+    pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        dataset=args.dataset,
+                                        min_quality_sigma= args.min_quality_sigma,
+                                        min_classifier_score= args.min_classifier_score,
+                                        defect_threshold= args.defect_threshold,
+                                        target_size= args.target_size,
+                                        batch_size= args.batch_size,
+                                        file_batch_size= args.file_batch_size) 
+    
+    # run image extraction
+    pipeline.extract_images()
+
+if __name__ == "__main__":
+    main()
          
 
