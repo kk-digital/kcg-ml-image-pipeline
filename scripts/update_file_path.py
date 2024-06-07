@@ -14,7 +14,7 @@ collection = mongodb[MONGODB_COLLECTION_NAME]
 def update_file_paths():
     try:
         # Query to find documents with the specific dataset in the file_path
-        query = {"file_path": {"$regex": "^pinterest-pixel-art-2023-07-01-v3/"}}
+        query = {"file_path": {"$regex": "^metroid-fusion-dataset/"}}
         
         # Find the documents that match the query
         documents = list(collection.find(query))
