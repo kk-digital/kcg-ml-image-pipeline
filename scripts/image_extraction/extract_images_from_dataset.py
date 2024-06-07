@@ -98,7 +98,7 @@ class ImageExtractionPipeline:
             # load topic and defect models
             print("loading the classifier models")
             tags= request.http_get_tag_list()
-            tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
+            tag_names= [tag['tag_string'] for tag in tags]
 
             for tag in tag_names:
                 classifier_model= self.get_classifier_model(tag)
