@@ -333,7 +333,9 @@ def main():
                                         target_size= args.target_size,
                                         batch_size= args.batch_size,
                                         file_batch_size= args.file_batch_size) 
-    
+    # load all necessary models
+    pipeline.load_models()
+
     # run image extraction
     pipeline.extract_images()
 
