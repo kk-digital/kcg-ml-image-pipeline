@@ -346,7 +346,33 @@ class ImageResolution(BaseModel):
             "width": self.width,
             "height": self.height
         }
+
+class ExtractImageData(BaseModel):
+    uuid: str
+    image_hash: str
+    dataset:str
+    file_path: str
+    upload_date: Union[str, None] = None
+    source_image_uuid: str
+    source_image_hash: str
+    task_attributes_dict: Union[dict, None] = None
     
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "image_hash": self.image_hash,
+            "dataset": self.dataset,
+            "file_path": self.file_path,
+            "upload_date": self.upload_date,
+            "source_image_uuid": self.source_image_uuid,
+            "source_image_hash": self.source_image_hash,
+            "task_attributes_dict": self.task_attributes_dict,
+        }
+
+class ListExtractImageData(BaseModel):
+    data: List[ExtractImageData] 
+
 class ExternalImageData(BaseModel):
     image_hash: str
     dataset:str

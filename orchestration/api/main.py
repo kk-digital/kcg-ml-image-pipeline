@@ -41,6 +41,7 @@ from orchestration.api.api_rank_active_learning import router as rank_router
 from orchestration.api.api_rank_active_learning_policy import router as rank_active_learning_policy_router
 from orchestration.api.api_image_hashes import router as image_hashes_router
 from orchestration.api.api_external_images import router as external_images_router
+from orchestration.api.api_extracts import router as extracts_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -86,16 +87,17 @@ app.include_router(rank_router)
 app.include_router(rank_active_learning_policy_router)
 app.include_router(image_hashes_router)
 app.include_router(external_images_router)
+app.include_router(extracts_router)
 
 
 
-def get_minio_client(minio_access_key, minio_secret_key):
+def get_minio_client(minio_ip_addr, minio_access_key, minio_secret_key):
     # check first if minio client is available
     minio_client = None
     while minio_client is None:
         # check minio server
-        if cmd.is_minio_server_accessible():
-            minio_client = cmd.connect_to_minio_client(access_key=minio_access_key, secret_key=minio_secret_key)
+        if cmd.is_minio_server_accessible(address= minio_ip_addr):
+            minio_client = cmd.connect_to_minio_client(minio_ip_addr= minio_ip_addr, access_key=minio_access_key, secret_key=minio_secret_key)
             return minio_client
 
 
@@ -229,6 +231,7 @@ def startup_db_client():
 
     # external image collection
     app.external_images_collection = app.mongodb_db["external_images"]
+    app.extracts_collection = app.mongodb_db["extracts"]
 
     pseudo_tag_uuid_index=[
     ('uuid', pymongo.ASCENDING)
@@ -448,7 +451,8 @@ def startup_db_client():
     print("Connected to the MongoDB database!")
 
     # get minio client
-    app.minio_client = get_minio_client(minio_access_key=config["MINIO_ACCESS_KEY"],
+    app.minio_client = get_minio_client(minio_ip_addr=config["MINIO_ADDRESS"],
+                                        minio_access_key=config["MINIO_ACCESS_KEY"],
                                         minio_secret_key=config["MINIO_SECRET_KEY"])
 
 
