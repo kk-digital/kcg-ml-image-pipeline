@@ -1184,7 +1184,7 @@ def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), ran
 @router.get("/rank-training/get-datapoints-count-per-day",
             description="Get number of selection datapoints per day within the date range",
             response_model=StandardSuccessResponseV1[ListGenerationsCountPerDayResponse],
-            tags=["rank"],
+            tags=["rank-training"],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_datapoints_count_per_day(
     request: Request,
@@ -1206,7 +1206,7 @@ async def get_datapoints_count_per_day(
             # Construct the query for the current day
             query_date = current_date.strftime("%Y-%m-%d")
             num_by_rank = {}
-            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets/ranks")
+            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets")
             for ranks in rank_folders:
                 # Construct the MinIO path for selection datapoints
                 datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
