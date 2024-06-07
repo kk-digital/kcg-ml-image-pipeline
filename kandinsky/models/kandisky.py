@@ -218,6 +218,7 @@ class KandinskyPipeline:
         self,
         init_img,
         image_embeds,
+        init_vae=None,
         negative_image_embeds=None,
         seed=None
     ):
@@ -234,6 +235,7 @@ class KandinskyPipeline:
                 images, latents = self.decoder(
                     image=init_img,
                     image_embeds=image_embeds,
+                    initial_latents= init_vae,
                     negative_image_embeds= negative_image_embeds, 
                     guidance_scale=self.decoder_guidance_scale,
                     num_inference_steps=self.decoder_steps,
@@ -246,6 +248,7 @@ class KandinskyPipeline:
                 images, latents = self.decoder(
                     image=init_img,
                     image_embeds=image_embeds,
+                    initial_latents= init_vae,
                     negative_image_embeds= negative_image_embeds, 
                     guidance_scale=self.decoder_guidance_scale,
                     num_inference_steps=self.decoder_steps,

@@ -164,14 +164,16 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
         )
         
 @router.get("/external-images/get-all-external-image-list", 
-            description="Get all external image data. If the 'size' parameter is set, a random sample of that size will be returned.",
+            description="Get all external image data. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_all_external_image_data_list(request: Request, size: int = None):
+async def get_all_external_image_data_list(request: Request, dataset: str=None, size: int = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        query = {}
+        query={}
+        if dataset:
+            query['dataset']= dataset
 
         aggregation_pipeline = [{"$match": query}]
 
@@ -194,6 +196,7 @@ async def get_all_external_image_data_list(request: Request, size: int = None):
             error_string=str(e),
             http_status_code=500
         )
+
 
 @router.get("/external-images/get-all-external-image-list-v1", 
             description="Get all external image data for a specific dataset. If the 'size' parameter is set, a random sample of that size will be returned.",
@@ -229,6 +232,52 @@ async def get_all_external_image_data_list(request: Request, dataset: str, size:
 
 
 
+@router.get("/external-images/get-external-image-list-without-extracts", 
+            description="Get only external images that don't have any images extracted from them. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_external_image_list_without_extracts(request: Request, dataset: str=None, size: int = None):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {}
+        if dataset:
+            query['dataset'] = dataset
+
+        # Aggregation pipeline to find images without corresponding extracts
+        aggregation_pipeline = [
+            {"$match": query},
+            {
+                "$lookup": {
+                    "from": "extracts_collection",
+                    "localField": "image_hash",  # Adjust field name as necessary
+                    "foreignField": "source_image_hash",  # Adjust field name as necessary
+                    "as": "extracts"
+                }
+            },
+            {"$match": {"extracts": {"$size": 0}}},  # Filter to include only those without extracts
+        ]
+
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"data": image_data_list},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
 
 @router.delete("/external-images/delete-external-image", 
             description="Delete an external image data",
