@@ -1303,10 +1303,6 @@ async def update_image_source(request: Request):
         external_update = {"$set": {"image_source": "external_image"}}
         request.app.image_tags_collection.update_many(external_images_query, external_update)
 
-        # Update documents where dataset is not external-images
-        generated_images_query = {"file_path": {"$not": {"$regex": "external"}}}
-        generated_update = {"$set": {"image_source": "generated_image"}}
-        request.app.image_tags_collection.update_many(generated_images_query, generated_update)
 
         return response_handler.create_success_response_v1(
             response_data={"message": "Image source field updated successfully"},
@@ -1333,7 +1329,7 @@ async def count_image_source(request: Request):
         generated_image_count = request.app.image_tags_collection.count_documents({"image_source": "generated_image"})
         
         # Count documents with image_source "external_image"
-        external_image_count = request.app.image_tags_collection.count_documents({"image_source": "external-image"})
+        external_image_count = request.app.image_tags_collection.count_documents({"image_source": "external_image"})
 
         return response_handler.create_success_response_v1(
             response_data={
