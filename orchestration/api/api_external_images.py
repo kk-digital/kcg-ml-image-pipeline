@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pymongo import UpdateOne
 from utility.minio import cmd
 import uuid
+from .api_clip import http_clip_server_get_cosine_similarity_list
 
 router = APIRouter()
 
@@ -480,6 +481,8 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "image_source": "external-image"
         })
         if existing_image_tag:
+            # Remove the '_id' field before returning the response
+            existing_image_tag.pop('_id', None)
             # Return a success response indicating that the tag has already been added to the image
             return response_handler.create_success_response_v1(
                 response_data=existing_image_tag, 
@@ -497,7 +500,13 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
         }
-        request.app.image_tags_collection.insert_one(image_tag_data)
+        result = request.app.image_tags_collection.insert_one(image_tag_data)
+        
+        # Add the generated _id to the image_tag_data
+        image_tag_data['_id'] = str(result.inserted_id)
+
+        # Remove the '_id' field before returning the response
+        image_tag_data.pop('_id', None)
 
         return response_handler.create_success_response_v1(
             response_data=image_tag_data, 
@@ -507,7 +516,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
@@ -529,7 +538,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         })
         if not existing_image_tag:
             return response_handler.create_success_delete_response_v1(
-                response_data={"wasPresent": False},
+                False,
                 http_status_code=200
             )
 
@@ -541,14 +550,14 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         })
 
         return response_handler.create_success_delete_response_v1(
-            response_data={"wasPresent": True},
+            True,
             http_status_code=200
         )
 
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
@@ -718,6 +727,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_external_images_v1(
     request: Request,
+    dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
     limit: int = Query(20, description="Limit on the number of results returned"),
     offset: int = Query(0, description="Offset for the results to be returned"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
@@ -740,7 +750,7 @@ def list_external_images_v1(
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
 
             # Convert threshold_time to a string in ISO format
-            threshold_time_str = threshold_time.isoformat(timespec='milliseconds') 
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
         else:
             threshold_time_str = None
 
@@ -773,6 +783,10 @@ def list_external_images_v1(
         elif threshold_time_str:
             query["creation_time"] = {"$gte": threshold_time_str}
 
+        # Add dataset filter if specified
+        if dataset:
+            query["dataset"] = dataset
+
         # Decide the sort order
         sort_order = -1 if order == "desc" else 1
 
@@ -795,6 +809,7 @@ def list_external_images_v1(
             error_string=str(e),
             http_status_code=500
         )
+
         
 @router.get("/external-images/get-unique-datasets", 
             description="Get all unique dataset names in the external images collection.",
@@ -824,3 +839,93 @@ async def get_unique_datasets(request: Request):
             error_string=str(e),
             http_status_code=500
         )        
+
+
+@router.get("/external-images/get-image-details-by-hash/{image_hash}", 
+            response_model=StandardSuccessResponseV1[ExternalImageData],
+            status_code=200,
+            tags=["external-images"],
+            description="Retrieves the details of an external image by image hash. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_image_details_by_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Create a projection for the MongoDB query
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    # Find the image by hash
+    image_data = request.app.external_images_collection.find_one({"image_hash": image_hash}, projection)
+    if image_data:
+        return response_handler.create_success_response_v1(response_data=image_data, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Image not found",
+            http_status_code=404
+        )
+
+
+@router.get("/external-images/get-random-images-with-clip-search",
+            tags=["external-images"],
+            description="Gets as many random external images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
+            response_model=StandardSuccessResponseV1[List],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_random_external_image_similarity(
+    request: Request,
+    phrase: str = Query(..., description="Phrase to compare similarity with"),
+    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    size: int = Query(..., description="Number of random images to return")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        query = {}
+
+        if start_date and end_date:
+            query['creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['creation_time'] = {'$lte': end_date}
+
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        images = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        image_path_list = []
+        for image in images:
+            image.pop('_id', None)  # Remove the auto-generated field
+            image_path_list.append(image['file_path'])
+
+        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+
+        if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        similarity_score_list = similarity_score_list['similarity_list']
+
+        if len(images) != len(similarity_score_list):
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        filtered_images = []
+        for i in range(len(images)):
+            image_similarity_score = similarity_score_list[i]
+            image = images[i]
+
+            if image_similarity_score >= similarity_threshold:
+                image["similarity_score"] = image_similarity_score
+                filtered_images.append(image)
+
+        return response_handler.create_success_response_v1(response_data={"images": filtered_images}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
