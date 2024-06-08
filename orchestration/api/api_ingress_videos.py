@@ -31,7 +31,7 @@ def minio_path_with_seq_id(dataset_name, middle_path, seq_id):
 
 def get_minio_video_path(seq_id, dataset_name, format):
 
-    folder_id = (seq_id // 1000)
+    folder_id = (seq_id // 1000) + 1
     file_id = (seq_id % 1000)
     
     folder_name = f"{folder_id:04d}"
