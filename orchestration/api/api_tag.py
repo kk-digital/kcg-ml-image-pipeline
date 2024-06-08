@@ -1301,11 +1301,14 @@ async def update_image_source(request: Request):
         # Update documents where dataset is external-images
         external_images_query = {"file_path": {"$regex": "external"}}
         external_update = {"$set": {"image_source": "external_image"}}
-        request.app.image_tags_collection.update_many(external_images_query, external_update)
+        result = request.app.image_tags_collection.update_many(external_images_query, external_update)
 
+        # Print and return the count of updated documents
+        updated_count = result.modified_count
+        print(f"Updated {updated_count} documents with image source 'external_image'")
 
         return response_handler.create_success_response_v1(
-            response_data={"message": "Image source field updated successfully"},
+            response_data={"message": f"Image source field updated successfully. Updated {updated_count} documents."},
             http_status_code=200
         )
     except Exception as e:
@@ -1314,6 +1317,7 @@ async def update_image_source(request: Request):
             error_string=f"An error occurred: {str(e)}",
             http_status_code=500
         )
+
 
 @router.get("/tags/count-image-source",
             tags=["tags"],
