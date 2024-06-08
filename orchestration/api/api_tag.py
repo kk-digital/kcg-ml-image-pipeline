@@ -1333,7 +1333,7 @@ async def count_image_source(request: Request):
         generated_image_count = request.app.image_tags_collection.count_documents({"image_source": "generated_image"})
         
         # Count documents with image_source "external_image"
-        external_image_count = request.app.image_tags_collection.count_documents({"image_source": "external_image"})
+        external_image_count = request.app.image_tags_collection.count_documents({"image_source": "external-image"})
 
         return response_handler.create_success_response_v1(
             response_data={
