@@ -250,12 +250,15 @@ def remove_image_tag(
     # If no document was found and deleted, use response_handler to raise an HTTPException
     if result.deleted_count == 0:
         return response_handler.create_success_delete_response_v1(
-                response_data={"wasPresent": False},
+                False,
                 http_status_code=200
             )
 
     # Return standard success response with wasPresent: true using response_handler
-    return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
+    return response_handler.create_success_delete_response_v1(
+                True,
+                http_status_code=200
+            )
 
 
 
@@ -671,7 +674,7 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "generated-image"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "generated_image"})
         
         # Process the results
         tags_list = []
@@ -996,7 +999,7 @@ def get_image_count_by_tag(
     response_handler = ApiResponseHandlerV1(request)
 
     # Assuming each image document has an 'tags' array field
-    query = {"tag_id": tag_id, "image_source": "generated-image"}
+    query = {"tag_id": tag_id, "image_source": "generated_image"}
     count = request.app.image_tags_collection.count_documents(query)
     
     if count == 0:
@@ -1296,17 +1299,47 @@ async def update_image_source(request: Request):
 
     try:
         # Update documents where dataset is external-images
-        external_images_query = {"file_path": {"$regex": "external-images"}}
-        external_update = {"$set": {"image_source": "external-image"}}
+        external_images_query = {"file_path": {"$regex": "external"}}
+        external_update = {"$set": {"image_source": "external_image"}}
         request.app.image_tags_collection.update_many(external_images_query, external_update)
 
         # Update documents where dataset is not external-images
-        generated_images_query = {"file_path": {"$not": {"$regex": "external-images"}}}
+        generated_images_query = {"file_path": {"$not": {"$regex": "external"}}}
         generated_update = {"$set": {"image_source": "generated_image"}}
         request.app.image_tags_collection.update_many(generated_images_query, generated_update)
 
         return response_handler.create_success_response_v1(
             response_data={"message": "Image source field updated successfully"},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"An error occurred: {str(e)}",
+            http_status_code=500
+        )
+
+@router.get("/tags/count-image-source",
+            tags=["tags"],
+            status_code=200,
+            description="Count documents based on image source",
+            response_model=StandardSuccessResponseV1[Dict[str, int]],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def count_image_source(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Count documents with image_source "generated_image"
+        generated_image_count = request.app.image_tags_collection.count_documents({"image_source": "generated_image"})
+        
+        # Count documents with image_source "external_image"
+        external_image_count = request.app.image_tags_collection.count_documents({"image_source": "external_image"})
+
+        return response_handler.create_success_response_v1(
+            response_data={
+                "generated_image": generated_image_count,
+                "external_image": external_image_count
+            },
             http_status_code=200
         )
     except Exception as e:

@@ -478,7 +478,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
         if existing_image_tag:
             # Remove the '_id' field before returning the response
@@ -495,7 +495,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "file_path": file_path,  
             "image_hash": image_hash,
             "tag_type": tag_type,
-            "image_source": "external-image",
+            "image_source": "external_image",
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
@@ -534,7 +534,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
         if not existing_image_tag:
             return response_handler.create_success_delete_response_v1(
@@ -546,7 +546,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         request.app.image_tags_collection.delete_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
 
         return response_handler.create_success_delete_response_v1(
@@ -597,7 +597,7 @@ def get_external_images_by_tag_id(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "external-image"}
+        query = {"tag_id": tag_id, "image_source": "external_image"}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -649,7 +649,7 @@ def get_tag_list_for_external_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "external-image"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "external_image"})
         
         # Process the results
         tags_list = []
@@ -702,7 +702,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
     try :
         # Build the query to include the image_source as "external-image"
-        query = {"tag_id": tag_id, "image_source": "external-image"}
+        query = {"tag_id": tag_id, "image_source": "external_image"}
         count = request.app.image_tags_collection.count_documents(query)
 
         # Return the count even if it is zero
