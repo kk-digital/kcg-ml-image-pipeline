@@ -374,6 +374,7 @@ class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
 class ExternalImageData(BaseModel):
+    uuid: str
     image_hash: str
     dataset:str
     image_resolution: ImageResolution
@@ -385,6 +386,7 @@ class ExternalImageData(BaseModel):
 
     def to_dict(self):
         return {
+            "uuid": self.uuid,
             "dataset": self.dataset,
             "upload_date": self.upload_date,
             "image_hash": self.image_hash,

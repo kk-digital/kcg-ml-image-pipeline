@@ -70,9 +70,9 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 "image_hash": image_data.image_hash
             })
 
-            uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
+            image_uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
             if existed is None:
-                image_data.uuid = uuid
+                image_data.uuid = image_uuid
                 image_data.upload_date = str(datetime.now())
                 request.app.external_images_collection.insert_one(image_data.to_dict())
             else:
@@ -87,7 +87,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                         "file_path": image_data.file_path,
                         "source_image_dict": image_data.source_image_dict,
                         "task_attributes_dict": image_data.task_attributes_dict,
-                        "uuid": uuid
+                        "uuid": image_uuid
                     }
                 })
 
@@ -97,6 +97,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
         )
     
     except Exception as e:
+        print(e)
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
@@ -154,7 +155,7 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": list_external_images},
-            http_status_code=200  
+            http_status_code=200
         )
     
     except Exception as e:
