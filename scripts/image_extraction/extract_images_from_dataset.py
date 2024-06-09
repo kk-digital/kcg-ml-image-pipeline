@@ -19,7 +19,7 @@ from utility.minio import cmd
 from utility.http import request
 from utility.http import external_images_request
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
-from scripts.image_extraction.utils import extract_square_images, upload_extract_data
+from scripts.image_extraction.utils import extract_square_images, save_latents_and_vectors, upload_extract_data
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from kandinsky.model_paths import DECODER_MODEL_PATH
 
@@ -258,7 +258,8 @@ class ImageExtractionPipeline:
                 # check if batch size was reached
                 if len(self.clip_vectors) >= self.file_batch_size:
                     # save numpy files
-                    thread = threading.Thread(target=self.save_latents_and_vectors)
+                    self.batch_num +=1
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.batch_num, self.clip_vectors, self.vae_latents,))
                     thread.start()
             
             index+=1
@@ -266,7 +267,8 @@ class ImageExtractionPipeline:
         # save any extra vectors to numpy files
         if len(self.clip_vectors) > 0:
             # save numpy files
-            thread = threading.Thread(target=self.save_latents_and_vectors)
+            self.batch_num +=1
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.batch_num, self.clip_vectors, self.vae_latents,))
             thread.start()
 
         return extract_data
@@ -300,31 +302,6 @@ class ImageExtractionPipeline:
             processed_images+= len(extract_data)
             print(f"{len(extract_data)} images filtered from {self.batch_size} images")
             print(f"total extracted images: {processed_images}")
-
-    def save_latents_and_vectors(self):
-        self.batch_num +=1
-        output_folder= f"external/latents/{str(self.batch_num).zfill(4)}"
-        
-        # Stack tensors directly in PyTorch
-        clip_vectors_tensor = torch.stack(self.clip_vectors)
-        vae_latents_tensor = torch.stack(self.vae_latents)
-
-        # reinitialize state
-        self.clip_vectors = []
-        self.vae_latents = []
-
-        # Convert stacked tensors to numpy arrays
-        clip_vectors_np = clip_vectors_tensor.numpy()
-        vae_latents_np = vae_latents_tensor.numpy()
-
-        # Save to numpy files
-        clip_vector_path= output_folder + "_clip-h.npy"
-        vae_latent_path= output_folder + "_vae_latents.npy"
-        np.save(clip_vector_path, clip_vectors_np)
-        np.save(vae_latent_path, vae_latents_np)
-
-        print(f"Saved CLIP vectors to {clip_vector_path}")
-        print(f"Saved VAE latents to {vae_latent_path}")
 
 def main():
     args= parse_args()
