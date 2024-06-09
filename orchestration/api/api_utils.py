@@ -23,12 +23,9 @@ class IrrelevantResponse(BaseModel):
     file_hash: str
     rank_model_id: int
 
-class GenerationsCountPerDayResponse(BaseModel):
-    date: str
-    counts: Dict[str, int] 
 
 class ListGenerationsCountPerDayResponse(BaseModel):
-    results: Dict[str, GenerationsCountPerDayResponse]    
+    results: dict
 
 class JobStatsResponse(BaseModel):
     total: int

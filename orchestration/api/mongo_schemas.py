@@ -379,7 +379,6 @@ class ExternalImageData(BaseModel):
     image_resolution: ImageResolution
     image_format: str
     file_path: str
-    upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
 

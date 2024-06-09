@@ -5,9 +5,11 @@ from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCod
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import UpdateOne
+from utility.minio import cmd
 import uuid
+from .api_clip import http_clip_server_get_cosine_similarity_list
 
 router = APIRouter()
 
@@ -19,43 +21,54 @@ router = APIRouter()
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
+
     try:
 
-        uuid = str(uuid.uuid4())
-
+        objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+        dataset_path = f'{image_data.dataset}'
+        
+        if dataset_path not in objects:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{image_data.dataset}' does not exist.",
+                http_status_code=422,
+            )
+    
+        # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
         })
 
-        if existed is None:
-            image_data.upload_date = str(datetime.now())
-            request.app.external_images_collection.insert_one(image_data.to_dict())
-        else:
-            request.app.external_images_collection.update_one({
-                "image_hash": image_data.image_hash
-            }, {
-                "$set": {
-                    "upload_date": str(datetime.now()),
-                    "dataset": image_data.dataset,
-                    "image_resolution": image_data.image_resolution.to_dict(),
-                    "image_format": image_data.image_format,
-                    "file_path": image_data.file_path,
-                    "source_image_dict": image_data.source_image_dict,
-                    "task_attributes_dict": image_data.task_attributes_dict,
-                    "uuid": uuid
-                }
-            })
+        if existed:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Image data with this hash already exists.",
+                http_status_code=422
+            )
+
+        # Add a new UUID and upload date to the image data
+        image_data_dict = image_data.to_dict()
+        image_data_dict['uuid'] = str(uuid.uuid4())
+        image_data_dict['upload_date'] = str(datetime.now())
+        
+        # Insert the new image data into the collection
+        request.app.external_images_collection.insert_one(image_data_dict)
+
+        image_data_dict.pop('_id', None)
+        
         return api_response_handler.create_success_response_v1(
-            response_data={"data": image_data.to_dict()},
-            http_status_code=200  
+            response_data=image_data_dict,
+            http_status_code=200
         )
-    
+
     except Exception as e:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
             http_status_code=500
         )
+
+
 
 @router.post("/external-images/add-external-image-list", 
             description="Add list of external image data",
@@ -70,29 +83,29 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 "image_hash": image_data.image_hash
             })
 
-            if existed is None:
-                image_data.upload_date = str(datetime.now())
-                uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
-                request.app.external_images_collection.insert_one(image_data.to_dict())
+            if existed:
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Image data with this hash already exists.",
+                    http_status_code=422
+                )
             else:
-                request.app.external_images_collection.update_one({
-                    "image_hash": image_data.image_hash
-                }, {
-                    "$set": {
-                        "upload_date": str(datetime.now()),
-                        "dataset": image_data.dataset,
-                        "image_resolution": image_data.image_resolution.to_dict(),
-                        "image_format": image_data.image_format,
-                        "file_path": image_data.file_path,
-                        "source_image_dict": image_data.source_image_dict,
-                        "task_attributes_dict": image_data.task_attributes_dict,
-                        "uuid": uuid
-                    }
-                })
+                # Add a new UUID and upload date to the image data
+                image_data_dict = image_data.to_dict()
+                image_data_dict['uuid'] = str(uuid.uuid4())
+                image_data_dict['upload_date'] = str(datetime.now())
+
+                # Insert the new image data into the collection
+                request.app.external_images_collection.insert_one(image_data_dict)
+
+        # Remove the _id field from the response data
+        response_data = [image_data_dict for image_data_dict in image_data_list]
+        for data in response_data:
+            data.pop('_id', None)
 
         return api_response_handler.create_success_response_v1(
-            response_data={"data": [image_data.to_dict() for image_data in image_data_list]},
-            http_status_code=200  
+            response_data={"data": response_data},
+            http_status_code=200
         )
     
     except Exception as e:
@@ -101,6 +114,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
             error_string=str(e),
             http_status_code=500
         )
+
     
 @router.get("/external-images/get-external-image-list", 
             description="changed with /external-images/get-external-image-list-v1",
@@ -197,6 +211,41 @@ async def get_all_external_image_data_list(request: Request, dataset: str=None, 
             http_status_code=500
         )
 
+
+@router.get("/external-images/get-all-external-image-list-v1", 
+            description="Get all external image data for a specific dataset. If the 'size' parameter is set, a random sample of that size will be returned.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_all_external_image_data_list(request: Request, dataset: str, size: int = None):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {"dataset": dataset}
+
+        aggregation_pipeline = [{"$match": query}]
+
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"data": image_data_list},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+
 @router.get("/external-images/get-external-image-list-without-extracts", 
             description="Get only external images that don't have any images extracted from them. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
@@ -225,6 +274,7 @@ async def get_external_image_list_without_extracts(request: Request, dataset: st
 
         if size:
             aggregation_pipeline.append({"$sample": {"size": size}})
+
 
         image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
 
@@ -428,9 +478,11 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
         if existing_image_tag:
+            # Remove the '_id' field before returning the response
+            existing_image_tag.pop('_id', None)
             # Return a success response indicating that the tag has already been added to the image
             return response_handler.create_success_response_v1(
                 response_data=existing_image_tag, 
@@ -443,12 +495,18 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "file_path": file_path,  
             "image_hash": image_hash,
             "tag_type": tag_type,
-            "image_source": "external-image",
+            "image_source": "external_image",
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
         }
-        request.app.image_tags_collection.insert_one(image_tag_data)
+        result = request.app.image_tags_collection.insert_one(image_tag_data)
+        
+        # Add the generated _id to the image_tag_data
+        image_tag_data['_id'] = str(result.inserted_id)
+
+        # Remove the '_id' field before returning the response
+        image_tag_data.pop('_id', None)
 
         return response_handler.create_success_response_v1(
             response_data=image_tag_data, 
@@ -458,7 +516,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
@@ -476,11 +534,11 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
         if not existing_image_tag:
             return response_handler.create_success_delete_response_v1(
-                response_data={"wasPresent": False},
+                False,
                 http_status_code=200
             )
 
@@ -488,18 +546,18 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         request.app.image_tags_collection.delete_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "external-image"
+            "image_source": "external_image"
         })
 
         return response_handler.create_success_delete_response_v1(
-            response_data={"wasPresent": True},
+            True,
             http_status_code=200
         )
 
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
@@ -539,7 +597,7 @@ def get_external_images_by_tag_id(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "external-image"}
+        query = {"tag_id": tag_id, "image_source": "external_image"}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -591,7 +649,7 @@ def get_tag_list_for_external_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "external-image"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "external_image"})
         
         # Process the results
         tags_list = []
@@ -644,7 +702,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
     try :
         # Build the query to include the image_source as "external-image"
-        query = {"tag_id": tag_id, "image_source": "external-image"}
+        query = {"tag_id": tag_id, "image_source": "external_image"}
         count = request.app.image_tags_collection.count_documents(query)
 
         # Return the count even if it is zero
@@ -664,20 +722,38 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 @router.get("/external-images/list-images-v1",
             status_code=200,
             tags=["external-images"],
-            response_model=StandardSuccessResponseV1[ListImageTag],
+            response_model=StandardSuccessResponseV1[List[ExternalImageData]],
             description="List external images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_external_images_v1(
     request: Request,
+    dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
     limit: int = Query(20, description="Limit on the number of results returned"),
     offset: int = Query(0, description="Offset for the results to be returned"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
     end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
-    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
 ):
     response_handler = ApiResponseHandlerV1(request)
 
     try:
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+
+            # Convert threshold_time to a string in ISO format
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
+        else:
+            threshold_time_str = None
+
         # Validate start_date and end_date
         if start_date:
             validated_start_date = validate_date_format(start_date)
@@ -704,6 +780,12 @@ def list_external_images_v1(
             query["creation_time"] = {"$gte": validated_start_date}
         elif end_date:
             query["creation_time"] = {"$lte": validated_end_date}
+        elif threshold_time_str:
+            query["creation_time"] = {"$gte": threshold_time_str}
+
+        # Add dataset filter if specified
+        if dataset:
+            query["dataset"] = dataset
 
         # Decide the sort order
         sort_order = -1 if order == "desc" else 1
@@ -714,20 +796,133 @@ def list_external_images_v1(
         # Collect the metadata for the images that match the query
         images_metadata = []
         for image in images_cursor:
-            image_meta_data = {
-                'tag_id': image.get('tag_id'),
-                'file_path': image.get('file_path'),
-                'image_hash': image.get('image_hash'),
-                'tag_type': image.get('tag_type'),
-                'user_who_created': image.get('user_who_created'),
-                'creation_time': image.get('creation_time')
-            }
-            images_metadata.append(image_meta_data)
+            image.pop('_id', None)  # Remove the auto-generated field
+            images_metadata.append(image)
 
         return response_handler.create_success_response_v1(
             response_data=images_metadata,
             http_status_code=200
         )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+        
+@router.get("/external-images/get-unique-datasets", 
+            description="Get all unique dataset names in the external images collection.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[str],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_unique_datasets(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Use aggregation pipeline to get unique dataset names
+        aggregation_pipeline = [
+            {"$group": {"_id": "$dataset"}},
+            {"$project": {"_id": 0, "dataset": "$_id"}}
+        ]
+
+        datasets_cursor = request.app.external_images_collection.aggregate(aggregation_pipeline)
+        datasets = [doc["dataset"] for doc in datasets_cursor]
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"datasets": datasets},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )        
+
+
+@router.get("/external-images/get-image-details-by-hash/{image_hash}", 
+            response_model=StandardSuccessResponseV1[ExternalImageData],
+            status_code=200,
+            tags=["external-images"],
+            description="Retrieves the details of an external image by image hash. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_image_details_by_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Create a projection for the MongoDB query
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    # Find the image by hash
+    image_data = request.app.external_images_collection.find_one({"image_hash": image_hash}, projection)
+    if image_data:
+        return response_handler.create_success_response_v1(response_data=image_data, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Image not found",
+            http_status_code=404
+        )
+
+
+@router.get("/external-images/get-random-images-with-clip-search",
+            tags=["external-images"],
+            description="Gets as many random external images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
+            response_model=StandardSuccessResponseV1[List],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_random_external_image_similarity(
+    request: Request,
+    phrase: str = Query(..., description="Phrase to compare similarity with"),
+    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    size: int = Query(..., description="Number of random images to return")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        query = {}
+
+        if start_date and end_date:
+            query['creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['creation_time'] = {'$lte': end_date}
+
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        images = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        image_path_list = []
+        for image in images:
+            image.pop('_id', None)  # Remove the auto-generated field
+            image_path_list.append(image['file_path'])
+
+        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+
+        if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        similarity_score_list = similarity_score_list['similarity_list']
+
+        if len(images) != len(similarity_score_list):
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        filtered_images = []
+        for i in range(len(images)):
+            image_similarity_score = similarity_score_list[i]
+            image = images[i]
+
+            if image_similarity_score >= similarity_threshold:
+                image["similarity_score"] = image_similarity_score
+                filtered_images.append(image)
+
+        return response_handler.create_success_response_v1(response_data={"images": filtered_images}, http_status_code=200)
+
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
