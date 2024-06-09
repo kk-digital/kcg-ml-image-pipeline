@@ -108,8 +108,8 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     except Exception as e:
         print(e)
 
-def save_latents_and_vectors(batch_num, clip_vectors, vae_latents):
-        output_folder= f"external/latents/{str(batch_num).zfill(4)}"
+def save_latents_and_vectors(minio_client, batch_num, clip_vectors, vae_latents):
+        output_folder= f"latents/{str(batch_num).zfill(4)}"
         
         # Stack tensors directly in PyTorch
         clip_vectors_tensor = torch.stack(clip_vectors)
@@ -123,11 +123,20 @@ def save_latents_and_vectors(batch_num, clip_vectors, vae_latents):
         clip_vectors_np = clip_vectors_tensor.cpu().numpy()
         vae_latents_np = vae_latents_tensor.cpu().numpy()
 
+        # Save numpy arrays to in-memory bytes buffer
+        clip_vector_buffer = BytesIO()
+        np.save(clip_vector_buffer, clip_vectors_np)
+        clip_vector_buffer.seek(0)  # Reset buffer position to the beginning
+
+        vae_latent_buffer = BytesIO()
+        np.save(vae_latent_buffer, vae_latents_np)
+        vae_latent_buffer.seek(0)  # Reset buffer position to the beginning
+
         # Save to numpy files
         clip_vector_path= output_folder + "_clip-h.npy"
         vae_latent_path= output_folder + "_vae_latents.npy"
-        np.save(clip_vector_path, clip_vectors_np)
-        np.save(vae_latent_path, vae_latents_np)
+        cmd.upload_data(minio_client, "external", clip_vector_path, clip_vector_buffer)
+        cmd.upload_data(minio_client, "external", vae_latent_path, clip_vector_buffer)
 
         print(f"Saved CLIP vectors to {clip_vector_path}")
         print(f"Saved VAE latents to {vae_latent_path}")
