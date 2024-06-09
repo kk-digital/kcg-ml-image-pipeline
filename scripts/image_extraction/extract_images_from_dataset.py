@@ -263,7 +263,7 @@ class ImageExtractionPipeline:
                 if len(self.clip_vectors) >= self.file_batch_size:
                     # save numpy files
                     self.batch_num +=1
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.batch_num, self.clip_vectors, self.vae_latents,))
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
                     thread.start()
             
             index+=1
@@ -272,7 +272,7 @@ class ImageExtractionPipeline:
         if len(self.clip_vectors) > 0:
             # save numpy files
             self.batch_num +=1
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.batch_num, self.clip_vectors, self.vae_latents,))
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
             thread.start()
 
         return extract_data
