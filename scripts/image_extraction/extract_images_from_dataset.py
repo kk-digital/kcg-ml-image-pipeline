@@ -220,17 +220,21 @@ class ImageExtractionPipeline:
             image_data = extract["image_data"]
 
             # get the clip vector from the image
-            clip_vector= self.clip.get_image_features(image).to(dtype=torch.float32)
+            with torch.no_grad():
+                clip_vector= self.clip.get_image_features(image).to(dtype=torch.float32)
             # filter the image if it's not useful
             if not self.is_filtered(clip_vector):
                 # calculate vae latent
                 pixel_values = np.array(image).astype(np.float32) / 127.5 - 1  # Normalize
                 pixel_values = np.transpose(pixel_values, [2, 0, 1])  # Correct channel order: [C, H, W]
                 pixel_values = torch.from_numpy(pixel_values).unsqueeze(0).to(device=self.device)  # Add batch dimension
-                vae_latent = self.vae.encode(pixel_values).latents
+
+                with torch.no_grad():
+                    vae_latent = self.vae.encode(pixel_values).latents
 
                 pixel_values.cpu()
                 del pixel_values
+                torch.cuda.empty_cache()
 
                 # store data
                 source_image_data= external_images[index]
