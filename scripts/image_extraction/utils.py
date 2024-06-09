@@ -4,6 +4,8 @@ import os
 import sys
 from minio import Minio
 from PIL import Image
+import numpy as np
+import torch
 from tqdm import tqdm
 import msgpack
 from torchvision.transforms.v2 import functional as VF
@@ -105,6 +107,30 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         
     except Exception as e:
         print(e)
+
+def save_latents_and_vectors(batch_num, clip_vectors, vae_latents):
+        output_folder= f"external/latents/{str(batch_num).zfill(4)}"
+        
+        # Stack tensors directly in PyTorch
+        clip_vectors_tensor = torch.stack(clip_vectors)
+        vae_latents_tensor = torch.stack(vae_latents)
+
+        # reinitialize state
+        clip_vectors = []
+        vae_latents = []
+
+        # Convert stacked tensors to numpy arrays
+        clip_vectors_np = clip_vectors_tensor.numpy()
+        vae_latents_np = vae_latents_tensor.numpy()
+
+        # Save to numpy files
+        clip_vector_path= output_folder + "_clip-h.npy"
+        vae_latent_path= output_folder + "_vae_latents.npy"
+        np.save(clip_vector_path, clip_vectors_np)
+        np.save(vae_latent_path, vae_latents_np)
+
+        print(f"Saved CLIP vectors to {clip_vector_path}")
+        print(f"Saved VAE latents to {vae_latent_path}")
      
 
 
