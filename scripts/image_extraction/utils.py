@@ -120,8 +120,8 @@ def save_latents_and_vectors(batch_num, clip_vectors, vae_latents):
         vae_latents = []
 
         # Convert stacked tensors to numpy arrays
-        clip_vectors_np = clip_vectors_tensor.numpy()
-        vae_latents_np = vae_latents_tensor.numpy()
+        clip_vectors_np = clip_vectors_tensor.cpu().numpy()
+        vae_latents_np = vae_latents_tensor.cpu().numpy()
 
         # Save to numpy files
         clip_vector_path= output_folder + "_clip-h.npy"
