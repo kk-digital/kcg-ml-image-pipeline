@@ -197,6 +197,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             "image_source": "generated_image"
         })
         if existing_image_tag:
+            existing_image_tag.pop('_id', None)  # Remove _id from the existing document
             # Return a success response indicating that the tag has already been added to the image
             return response_handler.create_success_response_v1(
                 response_data=existing_image_tag, 
@@ -214,17 +215,19 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
         }
-        request.app.image_tags_collection.insert_one(image_tag_data)
+        result = request.app.image_tags_collection.insert_one(image_tag_data)
+        # After insertion, add the inserted _id back to the data and remove it
+        image_tag_data['_id'] = result.inserted_id
+        image_tag_data.pop('_id', None)
 
         return response_handler.create_success_response_v1(
             response_data=image_tag_data, 
             http_status_code=200
         )
-
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
