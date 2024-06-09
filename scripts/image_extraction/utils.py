@@ -20,6 +20,8 @@ from utility.path import separate_bucket_and_file_path
 from utility.http import request, external_images_request
 
 
+EXTRACT_BUCKET= "extracts"
+
 def extract_square_images(minio_client: Minio, 
                         external_image_data: list,
                         target_size: int = 512):
@@ -76,11 +78,11 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         # upload the image
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='jpg')
-        img_byte_arr = img_byte_arr.getvalue()
-        cmd.upload_data(minio_client, "extracts", file_path, img_byte_arr)
+        img_byte_arr.seek(0)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path, img_byte_arr)
         
         # upload latent
-        save_latent_to_minio(minio_client, "extracts", image_uuid, image_hash, vae_latent, file_path)
+        save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, file_path)
 
         # upload clip vector
         clip_feature_dict = {"clip-feature-vector": clip_vector}
@@ -91,7 +93,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         clip_feature_msgpack_buffer.seek(0)
 
         # Upload the clip vector data
-        cmd.upload_data(minio_client, "extracts", file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
 
         # upload the image to mongoDB
         extract_data={
@@ -135,8 +137,8 @@ def save_latents_and_vectors(minio_client, batch_num, clip_vectors, vae_latents)
         # Save to numpy files
         clip_vector_path= output_folder + "_clip-h.npy"
         vae_latent_path= output_folder + "_vae_latents.npy"
-        cmd.upload_data(minio_client, "external", clip_vector_path, clip_vector_buffer)
-        cmd.upload_data(minio_client, "external", vae_latent_path, clip_vector_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, clip_vector_path, clip_vector_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, vae_latent_path, clip_vector_buffer)
 
         print(f"Saved CLIP vectors to {clip_vector_path}")
         print(f"Saved VAE latents to {vae_latent_path}")
