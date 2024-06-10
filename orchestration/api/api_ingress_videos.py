@@ -10,57 +10,11 @@ from datetime import datetime
 
 # import typing
 from typing import List
+from api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
 
 router = APIRouter()
 
 api_prefix = '/ingress-video'
-
-def minio_path_with_seq_id(dataset_name, middle_path, seq_id):
-    folder_id = (seq_id // 1000) + 1
-    file_id = (file_id % 1000) + 1
-    
-    folder_name = f"{folder_id:04d}"
-    file_name = f"{file_id:06d}"
-    
-    if middle_path != '' and middle_path is not None:
-        path = f'{dataset_name}/{middle_path}/{folder_name}/{file_name}'
-    else:
-        path = f'{dataset_name}/{folder_name}/{file_name}'
-    
-    return path
-
-def get_minio_video_path(seq_id, dataset_name, format):
-
-    folder_id = (seq_id // 1000) + 1
-    file_id = (seq_id % 1000)
-    
-    folder_name = f"{folder_id:04d}"
-    file_name = f"{file_id:06d}"
-
-    path = f'{dataset_name}/{folder_name}/{file_name}'
-
-    return f'{path}.{format}'
-
-def get_next_seq_id(request: Request):
-    # get ingress video counter
-    counter = request.app.counters_collection.find_one({"_id": "ingress_video"})
-    # create counter if it doesn't exist already
-    if counter is None:
-        request.app.counters_collection.insert_one({"_id": "ingress_video", "seq":0})
-    counter_seq = counter["seq"] if counter else 0 
-    counter_seq += 1
-    
-    return counter_seq
-
-def update_seq_id(request: Request, seq_id = 0):
-
-    try:
-        ret = request.app.counters_collection.update_one(
-            {"_id": "ingress_video"},
-            {"$set": {"seq": seq_id}})
-    except Exception as e:
-        raise Exception("Updating of classifier counter failed: {}".format(e))
-    
 
 @router.post(f'{api_prefix}/add-video',
              description='Add video for extracting external images',
@@ -83,13 +37,13 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
         video_meta_data.upload_date = str(datetime.now())
         if existed is None:
             # TODO: add dataset so get sequential id for specific dataset
-            next_seq_id = get_next_seq_id(request)
-            video_meta_data.file_path = get_minio_video_path(next_seq_id,
+            next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
+            video_meta_data.file_path = get_minio_file_path(next_seq_id,
                                                             video_meta_data.dataset, 
                                                             video_meta_data.file_type)
 
             request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-            update_seq_id(request=request, seq_id=next_seq_id)
+            update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
         else:
             video_meta_data.file_path = existed['file_path']
@@ -131,12 +85,12 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
 
             video_meta_data.upload_date = str(datetime.now())
             if existed is None:
-                next_seq_id = get_next_seq_id(request)
-                video_meta_data.file_path = get_minio_video_path(next_seq_id, 
+                next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
+                video_meta_data.file_path = get_minio_file_path(next_seq_id, 
                                                         video_meta_data.dataset, 
                                                         video_meta_data.file_type)
                 request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-                update_seq_id(next_seq_id)
+                update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
             else:
                 video_meta_data.file_path = existed['file_path']

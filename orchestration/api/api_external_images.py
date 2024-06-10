@@ -8,6 +8,8 @@ from typing import List
 from datetime import datetime
 from pymongo import UpdateOne
 import uuid
+from api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
+
 
 router = APIRouter()
 
@@ -28,8 +30,13 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         })
 
         if existed is None:
+            next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=image_data.dataset)
+            image_data.file_path = get_minio_file_path(next_seq_id, 
+                                                    image_data.dataset, 
+                                                    image_data.image_format)
             image_data.upload_date = str(datetime.now())
             request.app.external_images_collection.insert_one(image_data.to_dict())
+            update_seq_id(request=request, bucket="ingress-video", dataset=image_data.dataset, seq_id=next_seq_id)
         else:
             request.app.external_images_collection.update_one({
                 "image_hash": image_data.image_hash
@@ -72,9 +79,14 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
 
             image_uuid = str(uuid.uuid4())  # Generate a new UUID for new entries
             if existed is None:
+                next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=image_data.dataset)
+                image_data.file_path = get_minio_file_path(next_seq_id, 
+                                                        image_data.dataset, 
+                                                        image_data.image_format)
                 image_data.uuid = image_uuid
                 image_data.upload_date = str(datetime.now())
                 request.app.external_images_collection.insert_one(image_data.to_dict())
+                update_seq_id(request=request, bucket="ingress-video", dataset=image_data.dataset, seq_id=next_seq_id)
             else:
                 request.app.external_images_collection.update_one({
                     "image_hash": image_data.image_hash
