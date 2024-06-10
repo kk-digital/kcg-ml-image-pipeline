@@ -87,7 +87,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path, img_byte_arr)
         
         # upload latent
-        save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, file_path)
+        save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, f"{EXTRACT_BUCKET}/{file_path}")
 
         # upload clip vector
         clip_feature_dict = {"clip-feature-vector": clip_vector}
