@@ -54,7 +54,7 @@ def extract_square_images(minio_client: Minio,
 
             # Convert the resized image back to bytes
             image_data = BytesIO()
-            img.save(image_data, format='PNG')
+            img.save(image_data, format='JPEG')
             image_data.seek(0)  # Reset buffer position to the beginning
         
         extracted_images.append({
@@ -82,7 +82,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     try:    
         # upload the image
         img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='jpg')
+        image.save(img_byte_arr, format='JPEG')
         img_byte_arr.seek(0)
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path, img_byte_arr)
         

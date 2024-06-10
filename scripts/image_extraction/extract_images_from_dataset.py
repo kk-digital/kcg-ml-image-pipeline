@@ -82,6 +82,9 @@ class ImageExtractionPipeline:
         self.clip = None
         self.vae = None
 
+        # threads
+        self.threads=[]
+
     def load_models(self):
 
         try:
@@ -261,6 +264,7 @@ class ImageExtractionPipeline:
                 # spawn upload data thread
                 thread = threading.Thread(target=upload_extract_data, args=(self.minio_client, data,))
                 thread.start()
+                self.threads.append(thread)
 
                 self.clip_vectors.append(clip_vector)
                 self.vae_latents.append(vae_latent)
@@ -271,6 +275,7 @@ class ImageExtractionPipeline:
                     self.batch_num +=1
                     thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
                     thread.start()
+                    self.threads.append(thread)
             
             index+=1
         
@@ -280,6 +285,7 @@ class ImageExtractionPipeline:
             self.batch_num +=1
             thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
             thread.start()
+            self.threads.append(thread)
 
         return extract_data
 
@@ -312,6 +318,10 @@ class ImageExtractionPipeline:
             processed_images+= len(extract_data)
             print(f"{len(extract_data)} images filtered from {self.batch_size} images")
             print(f"total extracted images: {processed_images}")
+
+        # check if all upload threads are completed
+        for thread in self.threads:
+            thread.join()
 
 def main():
     args= parse_args()
