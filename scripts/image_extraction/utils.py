@@ -52,10 +52,15 @@ def extract_square_images(minio_client: Minio,
             params = RandomResizedCrop.get_params(img, scale=(scale, 1), ratio=(1.,1.))
             img = VF.resized_crop(img, *params, size=target_size, interpolation=VF.InterpolationMode.BICUBIC, antialias=True)
 
-            extracted_images.append({
+            # Convert the resized image back to bytes
+            image_data = BytesIO()
+            img.save(image_data, format='PNG')
+            image_data.seek(0)  # Reset buffer position to the beginning
+        
+        extracted_images.append({
                 "image": img,
                 "image_data": image_data
-            })
+        })
     
     return extracted_images
 
