@@ -49,8 +49,8 @@ async def add_image_hash(request: Request, image_hash_request: ImageHashRequest)
     
 
 @router.get("/image-hashes/update_all_image_hashes",
-             tags=["image-hashes"], 
-             description="Updates the image_hashes_collection collection so that it includes all the hashes from the completed_jobs_collection collection",
+             tags=["deprecated3"], 
+             description="changed with /image-hashes/update-all-image-hashes-v1",
              response_model=StandardSuccessResponseV1[List[ImageHash]],
              responses=ApiResponseHandlerV1.listErrors([500]))
 async def update_all_image_hashes(request: Request):

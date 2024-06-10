@@ -7,7 +7,9 @@ from dateutil.parser import parse
 router = APIRouter()
 
 # get job stats by job type
-@router.get("/job_stats/stats_by_job_type")
+@router.get("/job_stats/stats_by_job_type",
+            tags=['deprecated3'],
+            description="changed with /queue/image-generation/get-job-counts-by-type")
 def get_job_stats_by_job_type(request: Request, job_type: str = Query(...)):
     pending_count = request.app.pending_jobs_collection.count_documents({
         'task_type': job_type
@@ -36,7 +38,7 @@ def get_job_stats_by_job_type(request: Request, job_type: str = Query(...)):
 @router.get("/queue/image-generation/get-job-counts-by-type",
             description="Get job statistics by job type",
             response_model=StandardSuccessResponseV1[JobStatsResponse],
-            tags=["job-stats"],
+            tags=["jobs-standardized"],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_job_stats_by_job_type(request: Request, job_type: str = Query(..., description="Type of job to get statistics for")):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -65,7 +67,7 @@ async def get_job_stats_by_job_type(request: Request, job_type: str = Query(...,
         )    
 
 # get job stats by dataset
-@router.get("/job_stats/stats_by_dataset")
+@router.get("/job_stats/stats_by_dataset", tags = ['deprecated3'], description="changed with /queue/image-generation/get-job-counts-by-dataset")
 def get_job_stats_by_job_type(request: Request, dataset: str = Query(...)):
     pending_count = request.app.pending_jobs_collection.count_documents({
         "task_input_dict.dataset": dataset
@@ -93,7 +95,7 @@ def get_job_stats_by_job_type(request: Request, dataset: str = Query(...)):
 @router.get("/queue/image-generation/get-job-counts-by-dataset",
             description="Get job counts by dataset",
             response_model=StandardSuccessResponseV1[JobStatsResponse],
-            tags=["job-stats"],
+            tags=["jobs-standardized"],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_job_counts_by_dataset(request: Request, dataset: str = Query(..., description="Dataset to get job counts for")):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -133,7 +135,7 @@ async def get_job_counts_by_dataset(request: Request, dataset: str = Query(..., 
         )
 
 
-@router.get("/job_stats/get_generated_images_per_day")
+@router.get("/job_stats/get_generated_images_per_day", tags = ['deprecated3'], description="changed with /queue/image-generation/get-generations-count-per-day")
 def get_number_generated_images_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
     start_date = parse(start_date)
@@ -180,7 +182,7 @@ def get_number_generated_images_per_day(request: Request, start_date: str = Quer
 @router.get("/queue/image-generation/get-generations-count-per-day",
             description="Get number of generated images per day within the date range",
             response_model=StandardSuccessResponseV1[ListGenerationsCountPerDayResponse],
-            tags=["queue", "image-generation"],
+            tags=["jobs-standardized"],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_generations_count_per_day(
     request: Request,
@@ -239,7 +241,7 @@ async def get_generations_count_per_day(
         )    
 
 
-@router.get("/job_stats/get_selection_datapoints_per_day")
+@router.get("/job_stats/get_selection_datapoints_per_day", tags = ['deprecated3'], description="changed with /rank/get-datapoints-count-per-day")
 def get_number_selection_datapoints_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -279,7 +281,7 @@ def get_number_selection_datapoints_per_day(request: Request, start_date: str = 
 @router.get("/rank/get-datapoints-count-per-day",
             description="Get number of selection datapoints per day within the date range",
             response_model=StandardSuccessResponseV1[ListGenerationsCountPerDayResponse],
-            tags=["rank"],
+            tags=["ranking"],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_datapoints_count_per_day(
     request: Request,

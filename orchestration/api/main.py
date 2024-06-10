@@ -233,6 +233,12 @@ def startup_db_client():
 
     # external image collection
     app.external_images_collection = app.mongodb_db["external_images"]
+
+    external_images_creation_time_index=[
+    ('creation_time', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.external_images_collection ,external_images_creation_time_index, 'external_images_creation_time_index')
+
     app.extracts_collection = app.mongodb_db["extracts"]
     app.ingress_video_collection = app.mongodb_db["ingress_videos"]
 
