@@ -10,7 +10,7 @@ from datetime import datetime
 
 # import typing
 from typing import List
-from api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
+from .api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
 
 router = APIRouter()
 
