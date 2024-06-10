@@ -20,7 +20,7 @@ router = APIRouter()
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
-async def add_external_image_data(request: Request, image_data: ExternalImageData):
+async def add_external_image_data(request: Request, image_data: ExternalImageDataV1):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
 
@@ -88,6 +88,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    updaded_image_data_list = []
     try:
         for image_data in image_data_list:
             existed = request.app.external_images_collection.find_one({
@@ -106,17 +107,21 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 image_data_dict['uuid'] = str(uuid.uuid4())
                 image_data_dict['upload_date'] = str(datetime.now())
 
-                # Insert the new image data into the collection
-                request.app.external_images_collection.insert_one(image_data_dict)
                 next_seq_id = get_next_seq_id(request, bucket="external", dataset=image_data.dataset)
                 image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
                                                         image_data.dataset, 
                                                         image_data.image_format)
+                
+                # Insert the new image data into the collection
+                request.app.external_images_collection.insert_one(image_data_dict)
                 # update sequential id
                 update_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
 
+                # add updated image_data into updated_image_data_list
+                updaded_image_data_list.append(image_data_dict)
+
         # Remove the _id field from the response data
-        response_data = [image_data_dict for image_data_dict in image_data_list]
+        response_data = [image_data_dict for image_data_dict in updaded_image_data_list]
         for data in response_data:
             data.pop('_id', None)
 

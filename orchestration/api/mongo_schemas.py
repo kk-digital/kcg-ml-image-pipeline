@@ -380,6 +380,7 @@ class ExternalImageData(BaseModel):
     image_resolution: ImageResolution
     image_format: str
     file_path: str
+    upload_date: str
     source_image_dict: dict
     task_attributes_dict: dict
 
@@ -407,6 +408,19 @@ class ExternalImageDataV1(BaseModel):
     source_image_dict: dict
     task_attributes_dict: dict
     uuid: str
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "dataset": self.dataset,
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict,
+        }
 
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
