@@ -138,7 +138,7 @@ def save_latents_and_vectors(minio_client, batch_num, clip_vectors, vae_latents)
         clip_vector_path= output_folder + "_clip-h.npy"
         vae_latent_path= output_folder + "_vae_latents.npy"
         cmd.upload_data(minio_client, EXTRACT_BUCKET, clip_vector_path, clip_vector_buffer)
-        cmd.upload_data(minio_client, EXTRACT_BUCKET, vae_latent_path, clip_vector_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, vae_latent_path, vae_latent_buffer)
 
         print(f"Saved CLIP vectors to {clip_vector_path}")
         print(f"Saved VAE latents to {vae_latent_path}")
