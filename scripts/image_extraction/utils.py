@@ -87,9 +87,12 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path, img_byte_arr)
         
         # upload latent
+        print(f"vae latent shape: {vae_latent.shape}")
         save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, f"{EXTRACT_BUCKET}/{file_path}")
 
         # upload clip vector
+        print(f"clip vector shape: {clip_vector.shape}")
+        clip_vector = clip_vector.cpu().numpy().tolist()
         clip_feature_dict = {"clip-feature-vector": clip_vector}
         clip_feature_msgpack = msgpack.packb(clip_feature_dict)
 
@@ -97,7 +100,6 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         clip_feature_msgpack_buffer.write(clip_feature_msgpack)
         clip_feature_msgpack_buffer.seek(0)
 
-        # Upload the clip vector data
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
 
         # upload the image to mongoDB
