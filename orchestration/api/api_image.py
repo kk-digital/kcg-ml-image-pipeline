@@ -444,8 +444,10 @@ def get_random_image_with_time(
 # New Endpoints with /static/ prefix
 
 
-@router.get("/static/images/{file_path:path}", tags = ['deprecated3'], description= "changed wtih /static/images/get-image/{file_path}")
-def get_image_data_by_filepath_2(request: Request, file_path: str):
+@router.get("/static/images/path/{file_path:path}", 
+            tags=['deprecated3'], 
+            description="Changed to /static/images/get-image/{file_path:path}")
+def get_image_data_by_filepath(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
@@ -462,7 +464,8 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
 
-@router.get("/static/images/get-image/{file_path}", 
+
+@router.get("/static/images/get-image/{file_path:path}", 
         response_model=StandardSuccessResponseV1[List[str]],  
         tags = ["images"],
         description= "get image with file_path",
@@ -528,30 +531,30 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
 
 
 @router.get("/static/images/get-image-by-job-uuid/{job_uuid}", 
-            response_model=StandardSuccessResponseV1[List[str]],  
-            tags = ["images"],
-            description= "get image by job uuid",
+            response_model=StandardSuccessResponseV1[str],  
+            tags=["images"],
+            description="Get image by job UUID",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-def get_image_by_job_uuid(request: Request, job_uuid: str):
+def get_image_by_job_uuid_v1(request: Request, job_uuid: str):
     response_handler = ApiResponseHandlerV1(request)
     # Fetch the job from the completed_jobs_collection using the UUID
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="job not found",
-                http_status_code=404,
-            )
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string="Job not found",
+            http_status_code=404,
+        )
 
     # Extract the output file path from the job data
     output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
     if not output_file_path:
         return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="image not found in mongodb",
-                http_status_code=404,
-            )
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string="Image not found in MongoDB",
+            http_status_code=404,
+        )
 
     original_filename = os.path.basename(output_file_path)
 
@@ -565,10 +568,10 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
         content = image_data.read()
     else:
         return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="image not found in minio",
-                http_status_code=404,
-            )
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string="Image not found in MinIO",
+            http_status_code=404,
+        )
             
     # Return the image in the response
     headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
@@ -1083,7 +1086,8 @@ async def upload_image_v1(request: Request,
         )
     
 @router.get("/static/images/get-image-by-path/{file_path:path}",
-            description="get the image with file path",
+            description="changed with /static/images/get-image/{file_path:path}",
+            tags = ["deprecated3"], 
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_data_by_filepath_2(request: Request, file_path: str):
