@@ -1,0 +1,57 @@
+# Use an official NVIDIA CUDA image as a base
+FROM docker.io/nvidia/cuda:11.3.1-devel-ubuntu20.04
+
+# Avoid prompts from apt during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install prerequisites for Python installation and utilities
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libgdbm-dev \
+    libdb5.3-dev \
+    libbz2-dev \
+    libexpat1-dev \
+    liblzma-dev \
+    libffi-dev \
+    wget
+
+# Download and install Python 3.8
+RUN wget https://www.python.org/ftp/python/3.8.10/Python-3.8.10.tgz \
+    && tar -xzf Python-3.8.10.tgz \
+    && cd Python-3.8.10 \
+    && ./configure --enable-optimizations \
+    && make altinstall \
+    && cd .. \
+    && rm -rf Python-3.8.10 \
+    && rm Python-3.8.10.tgz
+
+# Set Python 3.8 as the default python
+RUN ln -s /usr/local/bin/python3.8 /usr/bin/python \
+    && ln -s /usr/local/bin/pip3.8 /usr/bin/pip
+
+# Set work directory
+WORKDIR /orchestration
+
+# Copy requirements file
+COPY ./requirements_orchestration.txt /orchestration/requirements.txt
+
+# Set pypi mirror and install python packages
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip install -r /orchestration/requirements.txt
+
+# Copy application code
+COPY ./orchestration /orchestration/orchestration
+COPY ./utility /orchestration/utility
+
+# Expose port 8000 for the application
+EXPOSE 8000
+
+# Command to run the application
+CMD ["uvicorn", "orchestration.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "16"]
