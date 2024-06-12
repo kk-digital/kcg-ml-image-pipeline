@@ -10,6 +10,8 @@ from pymongo import UpdateOne
 from utility.minio import cmd
 import uuid
 from .api_clip import http_clip_server_get_cosine_similarity_list
+from .api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
+
 
 router = APIRouter()
 
@@ -18,7 +20,7 @@ router = APIRouter()
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
-async def add_external_image_data(request: Request, image_data: ExternalImageData):
+async def add_external_image_data(request: Request, image_data: ExternalImageDataV1):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
 
@@ -50,12 +52,21 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         image_data_dict = image_data.to_dict()
         image_data_dict['uuid'] = str(uuid.uuid4())
         image_data_dict['upload_date'] = str(datetime.now())
+
+        # set minio path using sequential id
+        next_seq_id = get_next_seq_id(request, bucket="external", dataset=image_data.dataset)
+        image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+                                                image_data.dataset, 
+                                                image_data.image_format)
         
         # Insert the new image data into the collection
         request.app.external_images_collection.insert_one(image_data_dict)
 
         image_data_dict.pop('_id', None)
-        
+
+        # update sequential
+        update_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
+
         return api_response_handler.create_success_response_v1(
             response_data=image_data_dict,
             http_status_code=200
@@ -75,8 +86,9 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ListExternalImageData],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
+async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageDataV1]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    updaded_image_data_list = []
     try:
         for image_data in image_data_list:
             existed = request.app.external_images_collection.find_one({
@@ -95,13 +107,24 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 image_data_dict['uuid'] = str(uuid.uuid4())
                 image_data_dict['upload_date'] = str(datetime.now())
 
+                next_seq_id = get_next_seq_id(request, bucket="external", dataset=image_data.dataset)
+                image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+                                                        image_data.dataset, 
+                                                        image_data.image_format)
+                
                 # Insert the new image data into the collection
                 request.app.external_images_collection.insert_one(image_data_dict)
+                # update sequential id
+                update_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
+
+                # add updated image_data into updated_image_data_list
+                updaded_image_data_list.append(image_data_dict)
 
         # Remove the _id field from the response data
-        response_data = [image_data_dict for image_data_dict in image_data_list]
+        response_data = [image_data_dict for image_data_dict in updaded_image_data_list]
         for data in response_data:
             data.pop('_id', None)
+
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": response_data},
@@ -109,6 +132,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
         )
     
     except Exception as e:
+        print(e)
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
@@ -167,7 +191,7 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": list_external_images},
-            http_status_code=200  
+            http_status_code=200
         )
     
     except Exception as e:
