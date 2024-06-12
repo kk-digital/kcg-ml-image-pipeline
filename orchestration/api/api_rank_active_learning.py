@@ -316,7 +316,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         )
 
 @router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
-            description="It returns the classifier score of each image as a number or null (if no score is found for the image)",
+            description="Gets random image pairs from the rank active learning queue, It returns the classifier score of each image as a number or null (if no score is found for the image",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
             status_code=200,
             tags=["Rank Active Learning"],  
@@ -1079,7 +1079,7 @@ def get_random_image_date_range(
 
 @router.post("/rank-training/calculate-delta-scores", 
              status_code=200,
-             description="only calculates the scores that are missing in the datapoint and skips the ones that have already been calculated. ",
+             description="Calculate and update delta scores for ranking datapoints, only calculates the scores that are missing in the datapoint and skips the ones that have already been calculated. ",
              response_model=StandardSuccessResponseV1[str],
              tags=["Rank Training"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
