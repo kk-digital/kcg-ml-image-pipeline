@@ -374,19 +374,16 @@ class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
 class ExternalImageData(BaseModel):
-    uuid: str
     image_hash: str
     dataset:str
     image_resolution: ImageResolution
     image_format: str
     file_path: str
-    upload_date: str
     source_image_dict: dict
     task_attributes_dict: dict
 
     def to_dict(self):
         return {
-            "uuid": self.uuid,
             "dataset": self.dataset,
             "upload_date": self.upload_date,
             "image_hash": self.image_hash,

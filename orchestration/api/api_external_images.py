@@ -86,7 +86,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ListExternalImageData],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
+async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageDataV1]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     updaded_image_data_list = []
     try:
