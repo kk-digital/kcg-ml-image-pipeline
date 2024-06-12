@@ -25,7 +25,17 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 
 
     try:
-    
+        '''
+        objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+        dataset_path = f'{image_data.dataset}'
+        
+        if dataset_path not in objects:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{image_data.dataset}' does not exist.",
+                http_status_code=422,
+            )
+        '''
         # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
