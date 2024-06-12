@@ -381,55 +381,6 @@ def get_all_pseudo_tagged_images(request: Request):
             http_status_code=500)
 
 
-@router.post("/pseudotag/batch-update-task-type", 
-             response_model=StandardSuccessResponseV1[dict],
-             tags = ['deprecated2'],
-             responses=ApiResponseHandlerV1.listErrors([500]))
-def batch_update_classifier_scores_with_task_type(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    
-    try:
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger()
-
-        # Cursor for iterating over all scores where 'task_type' is not already set
-        scores_cursor = request.app.pseudo_tag_images_collection.find({"task_type": {"$exists": False}})
-
-        updated_count = 0
-        logger.info("Starting batch update of task types...")
-        
-        for score in scores_cursor:
-            logger.info(f"Processing score with ID: {score['_id']}")
-
-            # Fetch corresponding job using the UUID to get the 'task_type'
-            job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
-            
-            if job and 'task_type' in job:
-                logger.info(f"Found job with task type: {job['task_type']}")
-                
-                # Update the score document with the 'task_type'
-                update_result = request.app.pseudo_tag_images_collection.update_one(
-                    {"_id": score["_id"]},
-                    {"$set": {"task_type": job['task_type']}}
-                )
-                if update_result.modified_count > 0:
-                    updated_count += 1
-                    logger.info(f"Updated  with new task type: {job['task_type']}")
-
-        logger.info("Completed batch update.")
-        return api_response_handler.create_success_response_v1(
-            response_data={"updated_count": updated_count},
-            http_status_code=200
-        )
-    
-    except Exception as e:
-        logger.error(f"Batch update failed: {str(e)}")
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR, 
-            error_string=f"Failed to batch update pseudotag scores: {str(e)}",
-            http_status_code=500
-        )
-
 
 @router.get("/pseudotag/get-image-pseudotag-score-by-hash-and-tag-id", 
             description="Get image pseudotag score by tag_id and image_hash",
@@ -676,27 +627,3 @@ async def count_classifier_scores(request: Request):
             http_status_code=500
         )       
 
-
-@router.get("/pseudo-tag/count-task-type", 
-            response_model=StandardSuccessResponseV1[dict],
-            status_code=200,
-            tags=["deprecated2"],
-            description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def count_classifier_scores(request: Request):
-    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        # Count documents that include the 'task_type' field
-        count = request.app.pseudo_tag_images_collection.count_documents({"task_type": {"$exists": True}})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"count": count},
-            http_status_code=200  
-        )
-    
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR, 
-            error_string=str(e),
-            http_status_code=500
-        )
