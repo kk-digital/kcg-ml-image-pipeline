@@ -1201,21 +1201,26 @@ async def get_datapoints_count_per_day(
         # Initialize the result dictionary
         num_by_dataset_and_day = {}
 
+        # Fetch the list of rank folders from MinIO
+        rank_folders = set()
+        objects = request.app.minio_client.list_objects("datasets", prefix="ranks/", recursive=False)
+        for obj in objects:
+            folder = obj.object_name.split('/')[1]
+            rank_folders.add(folder)
+
         # Iterate through each day within the date range
         current_date = start_date_dt
         while current_date <= end_date_dt:
             # Construct the query for the current day
             query_date = current_date.strftime("%Y-%m-%d")
             num_by_rank = {}
-            rank_folders = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", "ranks")
-            print(rank_folders)
             for ranks in rank_folders:
                 # Construct the MinIO path for selection datapoints
                 datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
 
                 # List objects in the datapoints path
-                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path)
-                
+                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path, recursive=True)
+
                 # Filter objects that match the current date
                 num_datapoints = len([obj.object_name for obj in objects])
 
