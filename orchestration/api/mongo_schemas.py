@@ -420,6 +420,19 @@ class ExternalImageDataWithSimilarityScore(BaseModel):
 class ListExternalImageDataWithSimilarityScore(BaseModel):
     images: List[ExternalImageDataWithSimilarityScore]
 
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "dataset": self.dataset,
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict,
+        }
+
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
 
@@ -676,3 +689,34 @@ class ListSimilarityScoreTask(BaseModel):
     images: List[SimilarityScoreTask]
 
 
+
+class VideoMetaData(BaseModel):
+    file_hash: str
+    filename: str
+    file_path: str
+    file_type: str
+    source_url: str
+    video_length: int
+    video_resolution: str
+    video_frame_rate: int
+    video_description: str
+    dataset: str
+    upload_date: str
+
+    def to_dict(self):
+        return {
+            "file_hash": self.file_hash,
+            "filename": self.filename,
+            "file_path": self.file_path,
+            "file_type": self.file_type,
+            "source_url": self.source_url,
+            "video_length": self.video_length,
+            "video_resolution": self.video_resolution,
+            "video_frame_rate": self.video_frame_rate,
+            "video_description": self.video_description,
+            "dataset": self.dataset,
+            "upload_date": self.upload_date
+        }
+
+class ListVideoMetaData(BaseModel):
+    data: List[VideoMetaData]
