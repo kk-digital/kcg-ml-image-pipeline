@@ -563,17 +563,17 @@ async def upload_images(request: Request,
 
 @router.get("/clip/get-random-images-with-clip-search",
             tags=["clip"],
-            description="Size of the random images sample and the description of 'similarity_threshold' may be something like Minimum similarity score the images must have to be returned",
+            description="Gets as many random images as set in the size param, scores each image with clip according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
             response_model=StandardSuccessResponseV1[ListSimilarityScoreTask],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_random_image_similarity_date_range(
     request: Request,
     dataset: str = Query(..., description="Dataset to filter images"),
     phrase: str = Query(..., description="Phrase to compare similarity with"),
-    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    similarity_threshold: float = Query(0, description="Minimum similarity score the images must have to be returned"),
     start_date: str = None,
     end_date: str = None,
-    size: int = Query(..., description="Number of random images to return"),
+    size: int = Query(..., description="Size of the random images sample"),
     prompt_generation_policy: Optional[str] = Query(None, description="Optional prompt generation policy")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)

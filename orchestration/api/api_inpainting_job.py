@@ -167,53 +167,7 @@ def get_completed_job_count(request: Request):
     count = request.app.completed_inpainting_jobs_collection.count_documents({})
     return count    
 
-
-
-# ----------------- delete jobs ----------------------
-
-@router.delete("/queue/inpainting-generation/delete-all-pending",
-               description="remove all pending jobs",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpainting jobs"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_pending_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.pending_inpainting_jobs_collection.count_documents({}) > 0
-        request.app.pending_inpainting_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-    
-@router.delete("/queue/inpainting-generation/delete-all-in-progress",
-               description="remove all in-progress jobs",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpainting jobs"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    try:
-        was_present = request.app.in_progress_inapinting_jobs_collection.count_documents({}) > 0
-        request.app.in_progress_inpainting_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )    
+  
     
 
  # --------------------- List ----------------------
@@ -263,7 +217,7 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 # ---------------- Update -------------------
 
 
-@router.put("/queue/inpainting-generation/update-completed", description="Update in progress inpainting job and mark as completed.", tags=['inpainting jobs'])
+@router.put("/queue/inpainting-generation/update-completed", description="changed with /queue/inpainting-generation/set-in-progress-job-as-completed", tags=['deprecated3'])
 def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_inpainting_jobs_collection.find_one({"uuid": task.uuid})
@@ -281,7 +235,11 @@ def update_job_completed(request: Request, task: Task):
 
 
 
-@router.get("/queue/inpainting-generation/get-job-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[Task], responses=ApiResponseHandlerV1.listErrors([422, 500]))
+@router.get("/queue/inpainting-generation/move-job-to-in-progress", 
+            description="gets the oldest pending job and moves it to the 'in-progress' queue",
+            tags=["inpainting jobs"], 
+            response_model=StandardSuccessResponseV1[Task], 
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def get_job(request: Request, task_type: Optional[str] = None, model_type: Optional[str] = ""):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -321,13 +279,13 @@ async def get_job(request: Request, task_type: Optional[str] = None, model_type:
 
 
 
-@router.get("/queue/inpainting-generation/pending-count-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
+@router.get("/queue/inpainting-generation/get-pending-jobs-count", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_pending_job_count(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         count = request.app.pending_inpainting_jobs_collection.count_documents({})
         return api_response_handler.create_success_response_v1(
-            response_data=count,
+            response_data={"count": count},
             http_status_code=200
         )
     except Exception as e:
@@ -337,13 +295,13 @@ async def get_pending_job_count(request: Request):
             http_status_code=500
         )
 
-@router.get("/queue/inpainting-generation/in-progress-count-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
+@router.get("queue/inpainting-generation/get-in-progress-jobs-count", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_in_progress_job_count(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         count = request.app.in_progress_inpainting_jobs_collection.count_documents({})
         return api_response_handler.create_success_response_v1(
-            response_data=count,
+            response_data={"count": count},
             http_status_code=200
         )
     except Exception as e:
@@ -353,13 +311,13 @@ async def get_in_progress_job_count(request: Request):
             http_status_code=500
         )
 
-@router.get("/queue/inpainting-generation/completed-count-v1", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
+@router.get("/queue/inpainting-generation/get-completed-jobs-count", tags=["inpainting jobs"], response_model=StandardSuccessResponseV1[CountResponse], responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_completed_job_count(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         count = request.app.completed_inpainting_jobs_collection.count_documents({})
         return api_response_handler.create_success_response_v1(
-            response_data=count,
+            response_data={"count": count},
             http_status_code=200
         )
     except Exception as e:
@@ -370,50 +328,8 @@ async def get_completed_job_count(request: Request):
         )
 
 
-@router.delete("/queue/inpainting-generation/delete-all-pending-v1",
-               description="remove all pending jobs",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpainting jobs"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_pending_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    res = request.app.pending_inpainting_jobs_collection.delete_many({})
-    was_present = res.deleted_count > 0
-    
-    if was_present:
-        return api_response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return api_response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )
 
-
-@router.delete("/queue/inpainting-generation/delete-all-in-progress-v1",
-               description="remove all in-progress jobs",
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpainting jobs"],
-               responses=ApiResponseHandlerV1.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandlerV1(request)
-    res = request.app.in_progress_inpainting_jobs_collection.delete_many({})
-    was_present = res.deleted_count > 0
-    
-    if was_present:
-        return api_response_handler.create_success_delete_response_v1(
-            True,
-            http_status_code=200
-        )
-    else:
-        return api_response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )
-
-@router.get("/queue/inpainting-generation/list-pending-v1", 
+@router.get("queue/inpainting-generation/list-pending-jobs", 
             description="List all pending inpainting jobs", 
             tags=["inpainting jobs"],
             response_model=StandardSuccessResponseV1[ListTask],
@@ -426,12 +342,12 @@ def get_list_pending_jobs(request: Request):
         job.pop('_id', None)
     
     return api_response_handler.create_success_response_v1(
-        response_data=jobs,
+        response_data={"jobs": jobs},
         http_status_code=200
     )
 
 
-@router.get("/queue/inpainting-generation/list-in-progress-v1", 
+@router.get("/queue/inpainting-generation/list-in-progress-jobs", 
             description="List all in-progress inpainting jobs", 
             tags=["inpainting jobs"],
             response_model=StandardSuccessResponseV1[ListTask],
@@ -444,48 +360,36 @@ def get_list_in_progress_jobs(request: Request):
         job.pop('_id', None)
     
     return api_response_handler.create_success_response_v1(
-        response_data=jobs,
+        response_data={"jobs": jobs},
         http_status_code=200
     )
 
 
-@router.get("/queue/inpainting-generation/list-completed-v1", 
-            description="List completed inpainting jobs with a limit", 
+@router.get("/queue/inpainting-generation/list-completed-jobs", 
+            description="List completed inpainting jobs with an optional dataset filter and a limit", 
             tags=["inpainting jobs"],
             response_model=StandardSuccessResponseV1[ListTask],
             responses=ApiResponseHandlerV1.listErrors([500]))
-def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
+def get_list_completed_jobs(request: Request, 
+                            limit: Optional[int] = Query(10, alias="limit"), 
+                            dataset: Optional[str] = Query(None, alias="dataset")):
     api_response_handler = ApiResponseHandlerV1(request)
     
-    jobs = list(request.app.completed_inpainting_jobs_collection.find({}).limit(limit))
+    query = {}
+    if dataset:
+        query["task_input_dict.dataset"] = dataset
+
+    jobs = list(request.app.completed_inpainting_jobs_collection.find(query).limit(limit))
     for job in jobs:
         job.pop('_id', None)
     
     return api_response_handler.create_success_response_v1(
-        response_data=jobs,
+        response_data={"jobs": jobs},
         http_status_code=200
     )
 
 
-@router.get("/queue/inpainting-generation/list-completed-by-dataset-v1", 
-            description="List completed inpainting jobs by dataset with a limit", 
-            tags=["inpainting jobs"],
-            response_model=StandardSuccessResponseV1[ListTask],
-            responses=ApiResponseHandlerV1.listErrors([500]))
-def get_list_completed_jobs_by_dataset(request: Request, dataset: str, limit: Optional[int] = Query(10, alias="limit")):
-    api_response_handler = ApiResponseHandlerV1(request)
-    
-    jobs = list(request.app.completed_inpainting_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
-    for job in jobs:
-        job.pop('_id', None)
-    
-    return api_response_handler.create_success_response_v1(
-        response_data=jobs,
-        http_status_code=200
-    )
-
-
-@router.put("/queue/inpainting-generation/update-completed", 
+@router.put("/queue/inpainting-generation/set-in-progress-job-as-completed", 
             description="Update in progress inpainting job and mark as completed.", 
             tags=['inpainting jobs'],
             response_model=StandardSuccessResponseV1[Task],

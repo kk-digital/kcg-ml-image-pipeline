@@ -316,7 +316,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
         )
 
 @router.get("/rank-active-learning-queue/get-random-image-pair-v1", 
-            description="It returns the classifier score of each image as a number or null (if no score is found for the image)",
+            description="Gets random image pairs from the rank active learning queue, It returns the classifier score of each image as a number or null (if no score is found for the image",
             response_model=StandardSuccessResponseV1[ListRankActiveLearningPairWithScore],
             status_code=200,
             tags=["Rank Active Learning"],  
@@ -760,6 +760,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     # Check if the image is already marked as irrelevant
     existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
     if existing_entry:
+        existing_entry.pop('_id')
         return api_response_handler.create_success_response_v1(
             response_data=existing_entry,
             http_status_code=200
@@ -1079,7 +1080,7 @@ def get_random_image_date_range(
 
 @router.post("/rank-training/calculate-delta-scores", 
              status_code=200,
-             description="only calculates the scores that are missing in the datapoint and skips the ones that have already been calculated. ",
+             description="Calculate and update delta scores for ranking datapoints, only calculates the scores that are missing in the datapoint and skips the ones that have already been calculated. ",
              response_model=StandardSuccessResponseV1[str],
              tags=["Rank Training"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
@@ -1200,20 +1201,26 @@ async def get_datapoints_count_per_day(
         # Initialize the result dictionary
         num_by_dataset_and_day = {}
 
+        # Fetch the list of rank folders from MinIO
+        rank_folders = set()
+        objects = request.app.minio_client.list_objects("datasets", prefix="ranks/", recursive=False)
+        for obj in objects:
+            folder = obj.object_name.split('/')[1]
+            rank_folders.add(folder)
+
         # Iterate through each day within the date range
         current_date = start_date_dt
         while current_date <= end_date_dt:
             # Construct the query for the current day
             query_date = current_date.strftime("%Y-%m-%d")
             num_by_rank = {}
-            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets")
             for ranks in rank_folders:
                 # Construct the MinIO path for selection datapoints
                 datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
 
                 # List objects in the datapoints path
-                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path)
-                
+                objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path, recursive=True)
+
                 # Filter objects that match the current date
                 num_datapoints = len([obj.object_name for obj in objects])
 

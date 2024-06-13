@@ -634,6 +634,36 @@ async def get_datasets(request: Request):
             http_status_code=500
         )
     
+@router.get("/datasets/get-all-sequential-ids",
+            description="Get all sequential IDs for datasets",
+            response_model=StandardSuccessResponseV1[SeqIdResponse],  
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_all_sequential_ids(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Fetch all sequential IDs from the collection
+        sequential_ids = list(request.app.dataset_sequential_id_collection.find())
+
+        # Convert MongoDB ObjectId to string for serialization
+        for seq_id in sequential_ids:
+            seq_id.pop('_id', None)
+
+        # Return the sequential IDs
+        return response_handler.create_success_response_v1(
+            response_data=sequential_ids,
+            http_status_code=200
+        )
+        
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
 
 @router.get("/datasets/get-sequential-ids",
             description="Get or create sequential ID for a dataset",

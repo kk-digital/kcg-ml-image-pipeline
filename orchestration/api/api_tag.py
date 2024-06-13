@@ -13,6 +13,9 @@ from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
+
+generated_image = "generated_image"
+
 def get_next_classifier_id_sequence(request: Request):
     # get classifier counter
     counter = request.app.counters_collection.find_one({"_id": "classifiers"})
@@ -189,12 +192,13 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             )
 
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+
         
         # Check if the tag is already associated with the image
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": file_hash, 
-            "image_source": "generated_image"
+            "image_source": generated_image
         })
         if existing_image_tag:
             existing_image_tag.pop('_id', None)  # Remove _id from the existing document
@@ -210,7 +214,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             "file_path": file_path,  
             "image_hash": file_hash,
             "tag_type": tag_type,
-            "image_source": "generated_image",
+            "image_source": generated_image,
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
@@ -245,9 +249,10 @@ def remove_image_tag(
     tag_id: int  # Now as a path parameter
 ):
     response_handler = ApiResponseHandlerV1(request)
+    
 
     # The query now checks for the specific tag_id within the array of tags and image_source
-    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": "generated_image"}
+    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": generated_image}
     result = request.app.image_tags_collection.delete_one(query)
     
     # If no document was found and deleted, use response_handler to raise an HTTPException
@@ -608,8 +613,9 @@ def list_tag_definitions(request: Request):
 def get_tag_list_for_image_v1(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
+        
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "generated_image"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": generated_image})
         
         # Process the results
         tags_list = []
@@ -765,7 +771,7 @@ def get_tagged_images(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "generated_image"}
+        query = {"tag_id": tag_id, "image_source": generated_image}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -934,7 +940,7 @@ def get_image_count_by_tag(
     response_handler = ApiResponseHandlerV1(request)
 
     # Assuming each image document has an 'tags' array field
-    query = {"tag_id": tag_id, "image_source": "generated_image"}
+    query = {"tag_id": tag_id, "image_source": generated_image}
     count = request.app.image_tags_collection.count_documents(query)
     
     if count == 0:
