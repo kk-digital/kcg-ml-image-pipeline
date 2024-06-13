@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -874,7 +874,7 @@ async def list_external_images_v1(
 @router.get("/external-images/get-unique-datasets", 
             description="Get all unique dataset names in the external images collection.",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[str],  
+            response_model=StandardSuccessResponseV1[ListDatasetV1],  
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_unique_datasets(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -929,11 +929,12 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 @router.get("/external-images/get-random-images-with-clip-search",
             tags=["external-images"],
             description="Gets as many random external images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
-            response_model=StandardSuccessResponseV1[List],
+            response_model=StandardSuccessResponseV1[ListExternalImageDataWithSimilarityScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_random_external_image_similarity(
     request: Request,
     phrase: str = Query(..., description="Phrase to compare similarity with"),
+     dataset: Optional[str] = Query(None, description="Dataset to filter images"),
     similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
     end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
@@ -943,6 +944,9 @@ async def get_random_external_image_similarity(
 
     try:
         query = {}
+
+        if dataset:
+            query['dataset'] = dataset
 
         if start_date and end_date:
             query['creation_time'] = {'$gte': start_date, '$lte': end_date}
@@ -965,7 +969,11 @@ async def get_random_external_image_similarity(
         similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
-            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=str(e),
+                http_status_code=500
+            )
 
         similarity_score_list = similarity_score_list['similarity_list']
 
@@ -989,3 +997,4 @@ async def get_random_external_image_similarity(
             error_string=str(e),
             http_status_code=500
         )
+

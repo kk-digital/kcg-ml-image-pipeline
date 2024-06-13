@@ -405,6 +405,21 @@ class ExternalImageDataV1(BaseModel):
     task_attributes_dict: dict
     uuid: str
 
+class ExternalImageDataWithSimilarityScore(BaseModel):
+    upload_date: Union[str, None] = None
+    image_hash: str
+    dataset:str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
+    source_image_dict: dict
+    task_attributes_dict: dict
+    uuid: str
+    similarity_score: float
+
+class ListExternalImageDataWithSimilarityScore(BaseModel):
+    images: List[ExternalImageDataWithSimilarityScore]
+
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
 
@@ -633,6 +648,8 @@ class Dataset(BaseModel):
 class ListDataset(BaseModel):
     datasets: List[Dataset]   
 
+class ListDatasetV1(BaseModel):
+    datasets: List[str]
 
 class SimilarityScoreTask(BaseModel):
     task_type: str
