@@ -11,6 +11,7 @@ from utility.minio import cmd
 import uuid
 from .api_clip import http_clip_server_get_cosine_similarity_list
 
+
 router = APIRouter()
 
 external_image = "external_image"
@@ -19,13 +20,11 @@ external_image = "external_image"
 @router.post("/external-images/add-external-image", 
             description="Add an external image data with a randomly generated UUID by uuid4",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1,  
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500])) 
+            response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-
     try:
-        # Check if the dataset exists
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
         dataset_path = f'{image_data.dataset}'
         
@@ -37,33 +36,28 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             )
     
         # Check if the image data already exists
-        existed = request.app.external_images_collection.find_one({"image_hash": image_data.image_hash})
-
+        existed = request.app.external_images_collection.find_one({
+            "image_hash": image_data.image_hash
+        })
         if existed:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="Image data with this hash already exists.",
                 http_status_code=422
             )
-
         # Add a new UUID and upload date to the image data
         image_data_dict = image_data.to_dict()
-        image_data_dict = {
-            "upload_date": str(datetime.now()),  # Ensure upload_date is the first field
-            **image_data_dict,  # Include all other fields
-            "uuid": str(uuid.uuid4())  # Ensure uuid is the last field
-        }
+        image_data_dict['uuid'] = str(uuid.uuid4())
+        image_data_dict['upload_date'] = str(datetime.now())
         
         # Insert the new image data into the collection
         request.app.external_images_collection.insert_one(image_data_dict)
-
         image_data_dict.pop('_id', None)
         
         return api_response_handler.create_success_response_v1(
             response_data=image_data_dict,
             http_status_code=200
         )
-
     except Exception as e:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
