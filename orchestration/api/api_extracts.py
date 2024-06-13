@@ -7,6 +7,52 @@ import uuid
 
 router = APIRouter()
 
+@router.get("/extracts/get-current-data-batch-sequential-id", 
+            description="Get the sequential id for numpy file batches stored for a dataset",
+            tags=["extracts"])
+async def get_current_data_batch_sequential_id(request: Request, dataset: str):
+
+    # get batch counter
+    counter = request.app.extract_data_batch_sequential_id.find_one({"dataset": dataset})
+    # create counter if it doesn't exist already
+    if counter is None:
+        # insert the new counter
+        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset})
+        # Retrieve the inserted counter using the inserted_id
+        counter = request.app.extract_data_batch_sequential_id.find_one({'_id': insert_result.inserted_id})
+    
+    # remove _id field
+    counter.pop("_id")
+
+    return counter
+
+@router.get("/extracts/get-next-data-batch-sequential-id", 
+            description="Increment the sequential id for numpy file batches stored for a dataset",
+            tags=["extracts"])
+async def get_next_data_batch_sequential_id(request: Request, dataset: str, complete: bool):
+
+    # get batch counter
+    counter = request.app.extract_data_batch_sequential_id.find_one({"dataset": dataset})
+    # create counter if it doesn't exist already
+    if counter is None:
+        request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset})
+
+    # get current last batch count
+    counter_seq = counter["sequence_number"] if counter else 0
+    counter_seq += 1
+    try:
+        ret = request.app.counters_collection.update_one(
+            {"dataset": dataset},
+            {"$set": 
+                {
+                    "sequence_number": counter_seq,
+                    "complete": complete
+                }})
+    except Exception as e:
+        raise Exception("Updating of classifier counter failed: {}".format(e))
+
+    return counter_seq
+
 @router.post("/extracts/add-extracted-image", 
             description="Add an extracted image data",
             tags=["extracts"],  

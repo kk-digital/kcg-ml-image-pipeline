@@ -66,7 +66,6 @@ class ImageExtractionPipeline:
         self.file_batch_size= file_batch_size
         self.clip_vectors=[]
         self.vae_latents=[]
-        self.batch_num=0
 
         # get device
         if torch.cuda.is_available():
@@ -192,10 +191,11 @@ class ImageExtractionPipeline:
         above_classifier_threshold= False
         # Check quality score
         for dataset, model in self.quality_models.items():
-            clip_score = model.predict_clip(clip_vector).item()
-            score_mean= float(model.mean)
-            score_std= float(model.standard_deviation)
-            sigma_score = (clip_score - score_mean) / score_std
+            with torch.no_grad():
+                clip_score = model.predict_clip(clip_vector).item()
+                score_mean= float(model.mean)
+                score_std= float(model.standard_deviation)
+                sigma_score = (clip_score - score_mean) / score_std
             
             if sigma_score > self.min_quality_sigma:
                 above_quality_threshold =True
@@ -204,7 +204,8 @@ class ImageExtractionPipeline:
         # check classifier scores
         if not above_quality_threshold:
             for tag, model in self.topic_models.items():
-                classifier_score = model.classify(clip_vector).item()
+                with torch.no_grad():
+                    classifier_score = model.classify(clip_vector).item()
                 if classifier_score > self.min_classifier_score:
                     above_classifier_threshold= True
                     break
@@ -212,7 +213,8 @@ class ImageExtractionPipeline:
         if above_classifier_threshold or above_quality_threshold:
             # check if the image has any defects
             for tag, model in self.defect_models.items():
-                classifier_score = model.classify(clip_vector).item()
+                with torch.no_grad():
+                    classifier_score = model.classify(clip_vector).item()
                 if classifier_score >= self.defect_threshold:
                     return False
         
@@ -272,8 +274,7 @@ class ImageExtractionPipeline:
                 # check if batch size was reached
                 if len(self.clip_vectors) >= self.file_batch_size:
                     # save numpy files
-                    self.batch_num +=1
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents,))
                     thread.start()
                     self.threads.append(thread)
             
@@ -282,8 +283,7 @@ class ImageExtractionPipeline:
         # save any extra vectors to numpy files
         if len(self.clip_vectors) > 0:
             # save numpy files
-            self.batch_num +=1
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.batch_num, self.clip_vectors, self.vae_latents,))
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents,))
             thread.start()
             self.threads.append(thread)
 

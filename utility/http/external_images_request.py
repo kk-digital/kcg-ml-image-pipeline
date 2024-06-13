@@ -91,3 +91,32 @@ def http_get_extract_image_list(dataset, size=None):
 
     except Exception as e:
         print('request exception ', e)
+
+
+def http_get_current_extract_batch_sequential_id(dataset: str):
+    endpoint_url= "/extracts/get-current-data-batch-sequential-id?dataset={}".format(dataset)
+
+    url = SERVER_ADDRESS + endpoint_url
+    try:
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+def http_get_next_extract_batch_sequential_id(dataset: str, is_complete: bool = True):
+    endpoint_url= "/extracts/get-next-data-batch-sequential-id?dataset={}&complete={}".format(dataset, is_complete)
+
+    url = SERVER_ADDRESS + endpoint_url
+    try:
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
