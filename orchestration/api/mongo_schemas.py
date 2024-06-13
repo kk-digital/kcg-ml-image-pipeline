@@ -385,7 +385,6 @@ class ExternalImageData(BaseModel):
     def to_dict(self):
         return {
             "dataset": self.dataset,
-            "upload_date": self.upload_date,
             "image_hash": self.image_hash,
             "image_resolution": self.image_resolution.to_dict(),
             "image_format": self.image_format,
@@ -396,18 +395,21 @@ class ExternalImageData(BaseModel):
 
 
 class ExternalImageDataV1(BaseModel):
+    upload_date: Union[str, None] = None
     image_hash: str
     dataset:str
     image_resolution: ImageResolution
     image_format: str
     file_path: str
-    upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
     uuid: str
 
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
+
+class ListExternalImageDataV1(BaseModel):
+    images: List[ExternalImageDataV1] 
 
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]

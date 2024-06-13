@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -19,14 +19,13 @@ external_image = "external_image"
 @router.post("/external-images/add-external-image", 
             description="Add an external image data with a randomly generated UUID by uuid4",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
-            responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
+            response_model=StandardSuccessResponseV1,  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500])) 
 async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-
     try:
-
+        # Check if the dataset exists
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
         dataset_path = f'{image_data.dataset}'
         
@@ -38,9 +37,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             )
     
         # Check if the image data already exists
-        existed = request.app.external_images_collection.find_one({
-            "image_hash": image_data.image_hash
-        })
+        existed = request.app.external_images_collection.find_one({"image_hash": image_data.image_hash})
 
         if existed:
             return api_response_handler.create_error_response_v1(
@@ -51,8 +48,11 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 
         # Add a new UUID and upload date to the image data
         image_data_dict = image_data.to_dict()
-        image_data_dict['uuid'] = str(uuid.uuid4())
-        image_data_dict['upload_date'] = str(datetime.now())
+        image_data_dict = {
+            "upload_date": str(datetime.now()),  # Ensure upload_date is the first field
+            **image_data_dict,  # Include all other fields
+            "uuid": str(uuid.uuid4())  # Ensure uuid is the last field
+        }
         
         # Insert the new image data into the collection
         request.app.external_images_collection.insert_one(image_data_dict)
@@ -70,7 +70,6 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             error_string=str(e),
             http_status_code=500
         )
-
 
 
 @router.post("/external-images/add-external-image-list", 
@@ -696,7 +695,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],
             description="List external images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def list_external_images_v1(
+async def list_external_images_v1(
     request: Request,
     dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
     limit: int = Query(20, description="Limit on the number of results returned"),
@@ -707,7 +706,7 @@ def list_external_images_v1(
     time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
 ):
-    response_handler = ApiResponseHandlerV1(request)
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         # Calculate the time threshold based on the current time and the specified interval
@@ -746,13 +745,13 @@ def list_external_images_v1(
         # Build the query
         query = {}
         if start_date and end_date:
-            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+            query["upload_date"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
-            query["creation_time"] = {"$gte": validated_start_date}
+            query["upload_date"] = {"$gte": validated_start_date}
         elif end_date:
-            query["creation_time"] = {"$lte": validated_end_date}
+            query["upload_date"] = {"$lte": validated_end_date}
         elif threshold_time_str:
-            query["creation_time"] = {"$gte": threshold_time_str}
+            query["upload_date"] = {"$gte": threshold_time_str}
 
         # Add dataset filter if specified
         if dataset:
@@ -762,7 +761,7 @@ def list_external_images_v1(
         sort_order = -1 if order == "desc" else 1
 
         # Query the external_images_collection using the constructed query
-        images_cursor = request.app.external_images_collection.find(query).sort("creation_time", sort_order).skip(offset).limit(limit)
+        images_cursor = request.app.external_images_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit)
 
         # Collect the metadata for the images that match the query
         images_metadata = []
@@ -781,6 +780,96 @@ def list_external_images_v1(
             http_status_code=500
         )
 
+@router.get("/external-images/list-images-v2",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
+            description="List external images with optional filtering and pagination",
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def list_external_images_v1(
+    request: Request,
+    dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
+    limit: int = Query(20, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for the results to be returned"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+
+            # Convert threshold_time to a string in ISO format
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
+        else:
+            threshold_time_str = None
+
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+
+        # Build the query
+        query = {}
+        if start_date and end_date:
+            query["upload_date"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["upload_date"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["upload_date"] = {"$lte": validated_end_date}
+        elif threshold_time_str:
+            query["upload_date"] = {"$gte": threshold_time_str}
+
+        # Add dataset filter if specified
+        if dataset:
+            query["dataset"] = dataset
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Query the external_images_collection using the constructed query
+        images_cursor = request.app.external_images_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit)
+
+        # Collect the metadata for the images that match the query
+        images_metadata = []
+        for image in images_cursor:
+            image.pop('_id', None)  # Remove the auto-generated field
+            images_metadata.append(image)
+
+        return response_handler.create_success_response_v1(
+            response_data={"images": images_metadata},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
         
 @router.get("/external-images/get-unique-datasets", 
             description="Get all unique dataset names in the external images collection.",

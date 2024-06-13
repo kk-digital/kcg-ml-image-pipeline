@@ -760,6 +760,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     # Check if the image is already marked as irrelevant
     existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
     if existing_entry:
+        existing_entry.pop('_id')
         return api_response_handler.create_success_response_v1(
             response_data=existing_entry,
             http_status_code=200
@@ -1206,7 +1207,8 @@ async def get_datapoints_count_per_day(
             # Construct the query for the current day
             query_date = current_date.strftime("%Y-%m-%d")
             num_by_rank = {}
-            rank_folders = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+            rank_folders = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", "ranks")
+            print(rank_folders)
             for ranks in rank_folders:
                 # Construct the MinIO path for selection datapoints
                 datapoints_path = f"ranks/{ranks}/data/ranking/aggregate/{query_date}"
