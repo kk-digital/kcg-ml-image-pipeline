@@ -204,7 +204,7 @@ try:
         device_map="cuda", 
         trust_remote_code=True, 
         torch_dtype="auto", 
-        _attn_implementation='flash_attention_2'
+        _attn_implementation='eager'
     )  # use _attn_implementation='eager' to disable flash attention
 
     # Load processor
