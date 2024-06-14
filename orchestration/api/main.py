@@ -233,7 +233,7 @@ def startup_db_client():
     app.external_images_collection = app.mongodb_db["external_images"]
 
     external_images_creation_time_index=[
-    ('creation_time', pymongo.ASCENDING)
+    ('upload_date', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.external_images_collection ,external_images_creation_time_index, 'external_images_creation_time_index')
 

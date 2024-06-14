@@ -943,11 +943,11 @@ async def get_random_external_image_similarity(
             query['dataset'] = dataset
 
         if start_date and end_date:
-            query['creation_time'] = {'$gte': start_date, '$lte': end_date}
+            query['upload_date'] = {'$gte': start_date, '$lte': end_date}
         elif start_date:
-            query['creation_time'] = {'$gte': start_date}
+            query['upload_date'] = {'$gte': start_date}
         elif end_date:
-            query['creation_time'] = {'$lte': end_date}
+            query['upload_date'] = {'$lte': end_date}
 
         aggregation_pipeline = [{"$match": query}]
         if size:
