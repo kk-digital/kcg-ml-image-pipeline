@@ -134,8 +134,7 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, b
 
     if is_complete:
         # Current batch is complete, start a new batch
-        batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, len(clip_vectors)==batch_size)
-        batch_num = batch_info["sequence_number"]
+        batch_num = external_images_request.http_get_next_extract_batch_sequential_id(dataset, len(clip_vectors)==batch_size)
         output_folder = f"latents/{str(batch_num).zfill(4)}"
         # Save the new data directly as the start of a new batch
         save_batch_to_minio(minio_client, output_folder, clip_vectors_np, vae_latents_np)
@@ -156,8 +155,7 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, b
             # Handle the overflow
             overflow_clip = updated_clip_batch[batch_size:]
             overflow_vae = updated_vae_batch[batch_size:]
-            batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
-            new_batch_num = batch_info["sequence_number"]
+            new_batch_num = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
             new_output_folder = f"latents/{str(new_batch_num).zfill(4)}"
             save_batch_to_minio(minio_client, new_output_folder, overflow_clip, overflow_vae)
         else:
