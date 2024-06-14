@@ -119,6 +119,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
 def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, batch_size=10000):
     # Get the current batch information
     batch_info = external_images_request.http_get_current_extract_batch_sequential_id(dataset)
+    print(batch_info)
     batch_num = batch_info["sequence_number"]
     is_complete = batch_info["complete"]
 
