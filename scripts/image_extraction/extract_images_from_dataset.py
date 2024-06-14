@@ -299,6 +299,7 @@ class ImageExtractionPipeline:
             raise Exception(f"An error occured when querying the external image dataset: {e}.")
         
         total_images= len(external_images)
+        print("total images:", total_images)
         processed_images= 0
         print("Extracting images.......")
         for batch_iter in range(0, total_images, self.batch_size):
