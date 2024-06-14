@@ -373,11 +373,6 @@ class ExtractImageData(BaseModel):
 class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
-class ExtractDataBatchSequentialID(BaseModel):
-    dataset: str
-    sequence_number: Union[int, 0] = 0
-    complete: Union[str, True] = True
-
 class ExternalImageData(BaseModel):
     image_hash: str
     dataset:str
