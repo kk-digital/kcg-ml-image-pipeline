@@ -23,12 +23,9 @@ class IrrelevantResponse(BaseModel):
     file_hash: str
     rank_model_id: int
 
-class GenerationsCountPerDayResponse(BaseModel):
-    date: str
-    counts: Dict[str, int] 
 
 class ListGenerationsCountPerDayResponse(BaseModel):
-    results: Dict[str, GenerationsCountPerDayResponse]    
+    results: dict
 
 class JobStatsResponse(BaseModel):
     total: int
@@ -493,3 +490,39 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
 
 class CountLastHour(BaseModel):
     jobs_count: dict
+
+def get_id(bucket: str, dataset: str) -> str:
+    return '{}_{}'.format(bucket, dataset)
+
+def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
+
+    folder_id = (seq_id // sample_size) + 1
+    file_id = (seq_id % sample_size)
+    
+    folder_name = f"{folder_id:04d}"
+    file_name = f"{file_id:06d}"
+
+    path = f'{dataset_name}/{folder_name}/{file_name}'
+
+    return f'{path}.{format}'
+
+def get_next_seq_id(request: Request, bucket: str, dataset: str):
+    # get ingress video counter
+    counter = request.app.counters_collection.find_one({"_id": '{}_{}'.format(bucket, dataset)})
+    # create counter if it doesn't exist already
+    if counter is None:
+        request.app.counters_collection.insert_one({"_id": get_id(bucket, dataset), "seq":0})
+    counter_seq = counter["seq"] if counter else 0 
+    counter_seq += 1
+    
+    return counter_seq
+
+def update_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
+
+    try:
+        ret = request.app.counters_collection.update_one(
+            {"_id": get_id(bucket, dataset)},
+            {"$set": {"seq": seq_id}})
+    except Exception as e:
+        raise Exception("Updating of classifier counter failed: {}".format(e))
+    

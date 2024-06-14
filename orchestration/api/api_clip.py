@@ -46,7 +46,7 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     response = None
     try:
-        response = requests.post(url)
+        response = requests.put(url)
         if response.status_code == 200:
             return response.status_code, response.json()
         else:
@@ -63,7 +63,7 @@ def http_clip_server_add_phrase(phrase: str):
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
-    url = CLIP_SERVER_ADDRESS + "/get-clip-vector?phrase=" + phrase
+    url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
     response = None
     try:
         response = requests.get(url)
@@ -570,10 +570,10 @@ async def get_random_image_similarity_date_range(
     request: Request,
     dataset: str = Query(..., description="Dataset to filter images"),
     phrase: str = Query(..., description="Phrase to compare similarity with"),
-    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    similarity_threshold: float = Query(0, description="Minimum similarity score the images must have to be returned"),
     start_date: str = None,
     end_date: str = None,
-    size: int = Query(..., description="Number of random images to return"),
+    size: int = Query(..., description="Size of the random images sample"),
     prompt_generation_policy: Optional[str] = Query(None, description="Optional prompt generation policy")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -610,7 +610,11 @@ async def get_random_image_similarity_date_range(
         similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
-            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=str(e),
+                http_status_code=500
+            )
 
         similarity_score_list = similarity_score_list['similarity_list']
 

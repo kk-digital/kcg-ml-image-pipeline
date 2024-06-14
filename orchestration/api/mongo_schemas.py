@@ -379,14 +379,12 @@ class ExternalImageData(BaseModel):
     image_resolution: ImageResolution
     image_format: str
     file_path: str
-    upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
 
     def to_dict(self):
         return {
             "dataset": self.dataset,
-            "upload_date": self.upload_date,
             "image_hash": self.image_hash,
             "image_resolution": self.image_resolution.to_dict(),
             "image_format": self.image_format,
@@ -397,18 +395,49 @@ class ExternalImageData(BaseModel):
 
 
 class ExternalImageDataV1(BaseModel):
+    upload_date: Union[str, None] = None
     image_hash: str
     dataset:str
     image_resolution: ImageResolution
     image_format: str
     file_path: str
-    upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
     uuid: str
 
+class ExternalImageDataWithSimilarityScore(BaseModel):
+    upload_date: Union[str, None] = None
+    image_hash: str
+    dataset:str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
+    source_image_dict: dict
+    task_attributes_dict: dict
+    uuid: str
+    similarity_score: float
+
+class ListExternalImageDataWithSimilarityScore(BaseModel):
+    images: List[ExternalImageDataWithSimilarityScore]
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "dataset": self.dataset,
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict,
+        }
+
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
+
+class ListExternalImageDataV1(BaseModel):
+    images: List[ExternalImageDataV1] 
 
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
@@ -632,6 +661,8 @@ class Dataset(BaseModel):
 class ListDataset(BaseModel):
     datasets: List[Dataset]   
 
+class ListDatasetV1(BaseModel):
+    datasets: List[str]
 
 class SimilarityScoreTask(BaseModel):
     task_type: str
@@ -658,3 +689,34 @@ class ListSimilarityScoreTask(BaseModel):
     images: List[SimilarityScoreTask]
 
 
+
+class VideoMetaData(BaseModel):
+    file_hash: str
+    filename: str
+    file_path: str
+    file_type: str
+    source_url: str
+    video_length: int
+    video_resolution: str
+    video_frame_rate: int
+    video_description: str
+    dataset: str
+    upload_date: str
+
+    def to_dict(self):
+        return {
+            "file_hash": self.file_hash,
+            "filename": self.filename,
+            "file_path": self.file_path,
+            "file_type": self.file_type,
+            "source_url": self.source_url,
+            "video_length": self.video_length,
+            "video_resolution": self.video_resolution,
+            "video_frame_rate": self.video_frame_rate,
+            "video_description": self.video_description,
+            "dataset": self.dataset,
+            "upload_date": self.upload_date
+        }
+
+class ListVideoMetaData(BaseModel):
+    data: List[VideoMetaData]

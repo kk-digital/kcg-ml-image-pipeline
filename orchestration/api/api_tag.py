@@ -13,6 +13,9 @@ from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
+
+generated_image = "generated_image"
+
 def get_next_classifier_id_sequence(request: Request):
     # get classifier counter
     counter = request.app.counters_collection.find_one({"_id": "classifiers"})
@@ -189,14 +192,16 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             )
 
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+
         
         # Check if the tag is already associated with the image
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": file_hash, 
-            "image_source": "generated_image"
+            "image_source": generated_image
         })
         if existing_image_tag:
+            existing_image_tag.pop('_id', None)  # Remove _id from the existing document
             # Return a success response indicating that the tag has already been added to the image
             return response_handler.create_success_response_v1(
                 response_data=existing_image_tag, 
@@ -209,22 +214,24 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             "file_path": file_path,  
             "image_hash": file_hash,
             "tag_type": tag_type,
-            "image_source": "generated_image",
+            "image_source": generated_image,
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
         }
-        request.app.image_tags_collection.insert_one(image_tag_data)
+        result = request.app.image_tags_collection.insert_one(image_tag_data)
+        # After insertion, add the inserted _id back to the data and remove it
+        image_tag_data['_id'] = result.inserted_id
+        image_tag_data.pop('_id', None)
 
         return response_handler.create_success_response_v1(
             response_data=image_tag_data, 
             http_status_code=200
         )
-
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Internal server error", 
+            error_string=str(e), 
             http_status_code=500
         )
 
@@ -242,89 +249,25 @@ def remove_image_tag(
     tag_id: int  # Now as a path parameter
 ):
     response_handler = ApiResponseHandlerV1(request)
+    
 
     # The query now checks for the specific tag_id within the array of tags and image_source
-    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": "generated_image"}
+    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": generated_image}
     result = request.app.image_tags_collection.delete_one(query)
     
     # If no document was found and deleted, use response_handler to raise an HTTPException
     if result.deleted_count == 0:
         return response_handler.create_success_delete_response_v1(
-                response_data={"wasPresent": False},
+                False,
                 http_status_code=200
             )
 
     # Return standard success response with wasPresent: true using response_handler
-    return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
+    return response_handler.create_success_delete_response_v1(
+                True,
+                http_status_code=200
+            )
 
-
-
-@router.get("/tags/{tag_id}/images", 
-            tags=["deprecated"], 
-            status_code=200,
-            description="Get images by tag_id",
-            response_model=StandardSuccessResponse[ImageTag], 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_tagged_images(
-    request: Request, 
-    tag_id: int,
-    start_date: str = None,
-    end_date: str = None,
-    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
-):
-    response_handler = ApiResponseHandler(request)
-    try:
-        # Validate start_date and end_date
-        if start_date:
-            validated_start_date = validate_date_format(start_date)
-            if validated_start_date is None:
-                return response_handler.create_error_response(
-                    ErrorCode.INVALID_PARAMS, "Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 400
-                )
-        if end_date:
-            validated_end_date = validate_date_format(end_date)
-            if validated_end_date is None:
-                return response_handler.create_error_response(
-                    ErrorCode.INVALID_PARAMS, "Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 400
-                )
-
-        # Build the query
-        query = {"tag_id": tag_id}
-        if start_date and end_date:
-            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
-        elif start_date:
-            query["creation_time"] = {"$gte": validated_start_date}
-        elif end_date:
-            query["creation_time"] = {"$lte": validated_end_date}
-
-        # Decide the sort order
-        sort_order = -1 if order == "desc" else 1
-
-        # Execute the query
-        image_tags_cursor = request.app.image_tags_collection.find(query).sort("creation_time", sort_order)
-
-        # Process the results
-        image_info_list = []
-        for tag_data in image_tags_cursor:
-            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
-                image_tag = ImageTag(
-                    tag_id=int(tag_data["tag_id"]),
-                    file_path=tag_data["file_path"], 
-                    image_hash=str(tag_data["image_hash"]),
-                    tag_type=int(tag_data["tag_type"]),
-                    user_who_created=tag_data["user_who_created"],
-                    creation_time=tag_data.get("creation_time", None)
-                )
-                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
-
-        # Return the list of images in a standard success response
-        return response_handler.create_success_response({"images": image_info_list}, 200)
-
-    except Exception as e:
-        # Log the exception details here, if necessary
-        return response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR, "Internal Server Error", 500
-        )
 
 
 @router.put("/tag-categories/set-deprecated", 
@@ -670,8 +613,9 @@ def list_tag_definitions(request: Request):
 def get_tag_list_for_image_v1(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
+        
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "generated-image"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": generated_image})
         
         # Process the results
         tags_list = []
@@ -827,7 +771,7 @@ def get_tagged_images(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "generated_image"}
+        query = {"tag_id": tag_id, "image_source": generated_image}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -996,7 +940,7 @@ def get_image_count_by_tag(
     response_handler = ApiResponseHandlerV1(request)
 
     # Assuming each image document has an 'tags' array field
-    query = {"tag_id": tag_id, "image_source": "generated-image"}
+    query = {"tag_id": tag_id, "image_source": generated_image}
     count = request.app.image_tags_collection.count_documents(query)
     
     if count == 0:
@@ -1284,34 +1228,3 @@ async def list_classifiers(request: Request):
         print(f"Error: {str(e)}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
-
-@router.put("/tags/update-image-source",
-            tags=["tags"],
-            status_code=200,
-            description="Update image source for images based on file path",
-            response_model=StandardSuccessResponseV1,
-            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_image_source(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    try:
-        # Update documents where dataset is external-images
-        external_images_query = {"file_path": {"$regex": "external-images"}}
-        external_update = {"$set": {"image_source": "external-image"}}
-        request.app.image_tags_collection.update_many(external_images_query, external_update)
-
-        # Update documents where dataset is not external-images
-        generated_images_query = {"file_path": {"$not": {"$regex": "external-images"}}}
-        generated_update = {"$set": {"image_source": "generated_image"}}
-        request.app.image_tags_collection.update_many(generated_images_query, generated_update)
-
-        return response_handler.create_success_response_v1(
-            response_data={"message": "Image source field updated successfully"},
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"An error occurred: {str(e)}",
-            http_status_code=500
-        )
