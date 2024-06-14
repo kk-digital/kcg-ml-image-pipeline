@@ -60,7 +60,7 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
     except Exception as e:
         raise Exception("Updating of classifier counter failed: {}".format(e))
 
-    return counter_seq
+    return counter
 
 @router.delete("/extracts/delete-dataset-batch-sequential-id", 
                response_model=StandardSuccessResponseV1[WasPresentResponse], 
