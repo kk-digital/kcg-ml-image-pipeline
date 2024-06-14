@@ -47,7 +47,7 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
     counter_seq += 1
 
     try:
-        counter = request.app.counters_collection.find_one_and_update(
+        counter = request.app.extract_data_batch_sequential_id.find_one_and_update(
             {"dataset": dataset},
             {"$set": 
                 {
@@ -61,6 +61,36 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
         raise Exception("Updating of classifier counter failed: {}".format(e))
 
     return counter_seq
+
+@router.delete("/extracts/delete-dataset-batch-sequential-id", 
+               response_model=StandardSuccessResponseV1[WasPresentResponse], 
+               description="remove the batch sequential id for a dataset", 
+               tags=["extracts"], 
+               status_code=200,
+               responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def remove_current_data_batch_sequential_id(request: Request, dataset: str ):
+
+    response_handler = ApiResponseHandlerV1(request)
+
+    # Check if the rank exists
+    query = {"dataset": dataset}
+    sequential_id = request.app.extract_data_batch_sequential_id.find_one(query)
+    
+    if sequential_id is None:
+        # Return standard response with wasPresent: false
+        return response_handler.create_success_delete_response_v1(
+                                                           False,
+                                                           http_status_code=200
+                                                           )
+
+    # Remove the sequential id
+    request.app.extract_data_batch_sequential_id.delete_one(query)
+
+    # Return standard response with wasPresent: true
+    return response_handler.create_success_response_v1(
+                                                       response_data={"wasPresent": True},
+                                                       http_status_code=200
+                                                       )
 
 @router.post("/extracts/add-extracted-image", 
             description="Add an extracted image data",
