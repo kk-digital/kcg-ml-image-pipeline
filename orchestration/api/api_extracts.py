@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, Request
+from pymongo import ReturnDocument
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse
 from .mongo_schemas import ExtractImageData, ListExtractImageData
 from datetime import datetime
@@ -35,19 +36,26 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
     counter = request.app.extract_data_batch_sequential_id.find_one({"dataset": dataset})
     # create counter if it doesn't exist already
     if counter is None:
-        request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset})
+        # insert the new counter
+        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset, "sequence_number": 0, "complete": True})
+        # Retrieve the inserted counter using the inserted_id
+        counter = request.app.extract_data_batch_sequential_id.find_one({'_id': insert_result.inserted_id})
 
     # get current last batch count
     counter_seq = counter["sequence_number"] if counter else 0
     counter_seq += 1
+
     try:
-        ret = request.app.counters_collection.update_one(
+        counter = request.app.counters_collection.find_one_and_update(
             {"dataset": dataset},
             {"$set": 
                 {
                     "sequence_number": counter_seq,
                     "complete": complete
-                }})
+                }
+            },
+            return_document=ReturnDocument.AFTER
+            )
     except Exception as e:
         raise Exception("Updating of classifier counter failed: {}".format(e))
 
