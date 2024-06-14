@@ -18,7 +18,7 @@ async def get_current_data_batch_sequential_id(request: Request, dataset: str):
     # create counter if it doesn't exist already
     if counter is None:
         # insert the new counter
-        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset})
+        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset, "sequence_number": 0, "complete": True})
         # Retrieve the inserted counter using the inserted_id
         counter = request.app.extract_data_batch_sequential_id.find_one({'_id': insert_result.inserted_id})
     
