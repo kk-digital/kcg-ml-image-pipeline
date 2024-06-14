@@ -216,9 +216,11 @@ class ImageExtractionPipeline:
                 with torch.no_grad():
                     classifier_score = model.classify(clip_vector).item()
                 if classifier_score >= self.defect_threshold:
-                    return False
+                    return True
+        else:
+            return True
         
-        return True
+        return False
 
     def filter_extracts(self, external_images: list, extracted_images: list):
         print("Filtering extracted images...........")
