@@ -1243,3 +1243,225 @@ async def get_datapoints_count_per_day(
             error_string=f"An error occurred: {str(e)}",
             http_status_code=500
         )
+
+
+@router.post("/rank-training/add-extract-ranking-data-point", 
+             status_code=201,
+             tags=['rank-training'],
+             response_model=StandardSuccessResponseV1[ResponseRankSelection],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_datapoints(request: Request, selection: RankSelection):
+    api_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        rank = request.app.rank_model_models_collection.find_one(
+            {"rank_model_id": selection.rank_model_id}
+        )
+
+        if not rank:
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Rank with ID {selection.rank_model_id} not found",
+                http_status_code=404
+            )
+
+        policy = None
+        if selection.rank_active_learning_policy_id:
+            policy = request.app.rank_active_learning_policies_collection.find_one(
+                {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
+            )
+
+        # Extract policy details only if policy is not None
+        rank_active_learning_policy = policy.get("rank_active_learning_policy", None) if policy else None
+
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        file_name = f"{current_time}-{selection.username}.json"
+        dataset = selection.image_1_metadata.file_path.split('/')[1]
+        rank_model_string = rank.get("rank_model_string", None)
+
+        dict_data = selection.to_dict()
+
+        # Prepare ordered data for MongoDB insertion
+        mongo_data = OrderedDict([
+            ("_id", ObjectId()),  # Generate new ObjectId
+            ("file_name", file_name),
+            *dict_data.items(),  # Unpack the rest of dict_data
+            ("datetime", current_time)
+        ])
+
+        # Insert the ordered data into MongoDB
+        request.app.extract_ranking_datapoints_collection.insert_one(mongo_data)
+
+        formatted_rank_model_id = f"{selection.rank_model_id:05d}"
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = mongo_data.copy()
+        minio_data.pop("_id")
+        minio_data.pop("file_name")
+        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+        full_path = os.path.join(path, file_name)
+        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # Upload data to MinIO
+        try:
+            cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+            print(f"Uploaded successfully to MinIO: {full_path}")
+        except Exception as e:
+            print(f"Error uploading to MinIO: {str(e)}")
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=f"Failed to upload file to MinIO: {str(e)}",
+                http_status_code=500
+            )
+
+        mongo_data.pop("_id")
+        # Return a success response
+        return api_handler.create_success_response_v1(
+            response_data=mongo_data,
+            http_status_code=201
+        )
+
+    except Exception as e:
+        return api_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+@router.get("/rank-training/sort-extract-ranking-data-by-date", 
+            description="Sort rank data by date",
+            tags=["rank-training"],
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v2(
+    request: Request,
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query_filter = {}
+        date_filter = {}
+
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
+
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+        cursor = request.app.extract_ranking_datapoints_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            
+            # Ensure all fields are present, set default values if not
+            doc.setdefault('flagged', None)
+            doc.setdefault('flagged_by_user', None)
+            doc.setdefault('flagged_time', None)
+            
+            ranking_data.append(doc)
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": ranking_data}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        print("Error during API execution:", str(e))
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )
+
+
+@router.put("/rank-training/update-extract-ranking-datapoint", 
+            tags=['rank-training'], 
+            response_model=StandardSuccessResponseV1[FlaggedResponse],
+            responses=ApiResponseHandlerV1.listErrors([404, 422]))
+async def update_ranking_datapoint(request: Request, rank_model_id: int, filename: str, update_data: FlaggedDataUpdate):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    formatted_rank_model_id = f"{rank_model_id:05d}"
+
+    # Construct the object name based on the dataset
+    object_name = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate/{filename}"
+
+    flagged_time = datetime.now().isoformat()
+
+    # Fetch the content of the specified JSON file from MinIO
+    try:
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Error fetching file {filename}: {str(e)}",
+            http_status_code=404,
+        )
+
+    if data is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"File {filename} not found.",
+            http_status_code=404,
+        )
+
+    file_content = ""
+    for chunk in data.stream(32 * 1024):
+        file_content += chunk.decode('utf-8')
+
+    try:
+        # Load the existing content and update it
+        content_dict = json.loads(file_content)
+        content_dict["flagged"] = update_data.flagged
+        content_dict["flagged_by_user"] = update_data.flagged_by_user
+        content_dict["flagged_time"] = flagged_time
+
+        # Save the modified file back to MinIO
+        updated_content = json.dumps(content_dict, indent=2)
+        updated_data = io.BytesIO(updated_content.encode('utf-8'))
+        request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Failed to update file {filename}: {str(e)}",
+            http_status_code=500,
+        )
+
+    # Update the document in MongoDB
+    query = {"file_name": filename}
+    update = {"$set": {
+        "flagged": update_data.flagged,
+        "flagged_by_user": update_data.flagged_by_user,
+        "flagged_time": datetime.now().isoformat()
+    }}
+    updated_document = request.app.extract_ranking_datapoints_collection.find_one_and_update(
+        query, update, return_document=ReturnDocument.AFTER
+    )
+
+    if updated_document is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Document with filename {filename} not found in MongoDB.",
+            http_status_code=404,
+        )
+    
+    if '_id' in updated_document:
+        updated_document['_id'] = str(updated_document['_id'])
+
+    return response_handler.create_success_response_v1(
+        response_data=updated_document,
+        http_status_code=200,
+    )     

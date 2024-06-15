@@ -1177,3 +1177,141 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id: int, min_score
             error_string=f'Failed to get image pair for ab rank: {e}',
             http_status_code=500
         )
+
+
+@router.get('/rank-training/get-ab-rank-extract-image-pair',
+            status_code=200,
+            tags=["rank-training"],
+            description="Get image pair for ab rank with parameters",
+            response_model=StandardSuccessResponseV1[ABRankImagePairResponse_v1],
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_ab_rank_image_pair_v1(
+    request: Request, 
+    rank_model_id: int, 
+    min_score: float, 
+    max_diff: float, 
+    sample_size: int = 1000,
+    start_date: str = None,
+    end_date: str = None
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Validate the provided start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                    http_status_code=400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+
+        rank_model = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_model_id})
+        if rank_model is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model not found.",
+                http_status_code=404
+            )
+        
+        classifier_id = rank_model.get("classifier_id")
+        if classifier_id is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Rank model does not have a classifier_id.",
+                http_status_code=404
+            )
+        
+        # Build the query for filtering classifier scores
+        query = {
+            'classifier_id': classifier_id,
+            'score': {'$gte': min_score}
+        }
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": validated_end_date}
+        
+        while True:
+            filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+                {'$sample': {
+                    'size': sample_size
+                }},
+                {'$match': query},
+                {'$project': {
+                    'uuid': 1,
+                    'score': 1
+                }},
+            ]))
+
+            if len(filtered_classfier_scores) < 2:
+                continue
+
+            unique_filtered_classifier_scores = []
+            uuid_set = set()
+
+            for document in filtered_classfier_scores:
+                uuid = document.get('uuid')
+                if uuid not in uuid_set:
+                    uuid_set.add(uuid)
+                    unique_filtered_classifier_scores.append(document)
+            filtered_classfier_scores = unique_filtered_classifier_scores
+
+            scores = [classifier_score['score'] for classifier_score in filtered_classfier_scores]
+            
+            # Sort the scores and filtered_classfier_scores
+            sorted_args = np.argsort(scores)
+            scores = [scores[i] for i in sorted_args]
+            filtered_classfier_scores = [filtered_classfier_scores[i] for i in sorted_args]
+
+            num_filtered_classifier_scores = len(filtered_classfier_scores)
+
+            image_pair_list = []
+            
+            for i in range(num_filtered_classifier_scores):
+                next = bisect.bisect_left(scores, scores[i] + max_diff, i, num_filtered_classifier_scores)
+
+                for j in range(i+1, next):
+                    image_pair_list.append((i, j))
+
+            num_image_pair_within_max_diff = len(image_pair_list)
+
+            if num_image_pair_within_max_diff > 0:
+                break
+
+        image_pair = image_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
+
+        image_1 = request.app.extracts_collection.find_one({'uuid': filtered_classfier_scores[image_pair[0]]['uuid']})
+        image_2 = request.app.extracts_collection.find_one({'uuid': filtered_classfier_scores[image_pair[1]]['uuid']})
+        
+        image_1.pop('_id')
+        image_2.pop('_id')
+
+        image_1['classifier_score'] = filtered_classfier_scores[image_pair[0]]['score']
+        image_2['classifier_score'] = filtered_classfier_scores[image_pair[1]]['score']
+
+        return response_handler.create_success_response_v1(
+            response_data={'image_1': image_1,
+                            'image_2': image_2,
+                            'num_images_above_min_score': num_filtered_classifier_scores, 
+                            'num_image_pair_within_max_diff': num_image_pair_within_max_diff},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to get image pair for ab rank {e}',
+            http_status_code=500
+        )
+        
