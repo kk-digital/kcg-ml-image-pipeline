@@ -1278,6 +1278,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         file_name = f"{current_time}-{selection.username}.json"
         dataset = selection.image_1_metadata.file_path.split('/')[1]
         rank_model_string = rank.get("rank_model_string", None)
+        extract_image = "extract_image"
 
         dict_data = selection.to_dict()
 
@@ -1286,6 +1287,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             *dict_data.items(),  # Unpack the rest of dict_data
+            ("image_source", extract_image )
             ("datetime", current_time)
         ])
 

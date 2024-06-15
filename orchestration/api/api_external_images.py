@@ -954,7 +954,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 async def get_random_external_image_similarity(
     request: Request,
     phrase: str = Query(..., description="Phrase to compare similarity with"),
-     dataset: Optional[str] = Query(None, description="Dataset to filter images"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter images"),
     similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
     end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
@@ -987,6 +987,7 @@ async def get_random_external_image_similarity(
             image_path_list.append(image['file_path'])
 
         similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        print(similarity_score_list)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
             return response_handler.create_error_response_v1(
