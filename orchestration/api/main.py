@@ -281,8 +281,6 @@ def startup_db_client():
 
     app.irrelevant_images_collection = app.mongodb_db["irrelevant_images"]
 
-    # extract ranking data points
-    app.extract_ranking_datapoints_collection = app.mongodb_db["extract_ranking_datapoints"]
 
     # ranking data points
 

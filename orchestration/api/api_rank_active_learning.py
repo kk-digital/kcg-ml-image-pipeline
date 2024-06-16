@@ -21,6 +21,7 @@ import time
 
 router = APIRouter()
 
+generated_image = "generated_image"
 
 @router.post("/rank-active-learning-queue/add-image-pair",
              description="Adds a new image pair to the rank active ranking queue. If there is already a pair with the same images, rank and policy, no new entry is added to the queue.",
@@ -436,6 +437,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             *dict_data.items(),  # Unpack the rest of dict_data
+            ("image_source", generated_image),
             ("datetime", current_time)
         ])
 
@@ -1292,7 +1294,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         ])
 
         # Insert the ordered data into MongoDB
-        request.app.extract_ranking_datapoints_collection.insert_one(mongo_data)
+        request.app.ranking_datapoints_collection.insert_one(mongo_data)
 
         formatted_rank_model_id = f"{selection.rank_model_id:05d}"
         # Prepare data for MinIO upload (excluding the '_id' field)
@@ -1361,7 +1363,7 @@ async def sort_ranking_data_by_date_v2(
             query_filter["datetime"] = date_filter
 
         sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
-        cursor = request.app.extract_ranking_datapoints_collection.find(query_filter).sort(
+        cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
             "datetime", sort_order  
         ).skip(skip).limit(limit)
 
@@ -1449,7 +1451,7 @@ async def update_ranking_datapoint(request: Request, rank_model_id: int, filenam
         "flagged_by_user": update_data.flagged_by_user,
         "flagged_time": datetime.now().isoformat()
     }}
-    updated_document = request.app.extract_ranking_datapoints_collection.find_one_and_update(
+    updated_document = request.app.ranking_datapoints_collection.find_one_and_update(
         query, update, return_document=ReturnDocument.AFTER
     )
 
