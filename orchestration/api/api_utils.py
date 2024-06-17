@@ -505,14 +505,16 @@ def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
     path = f'{dataset_name}/{folder_name}/{file_name}'
 
     return f'{path}.{format}'
-
-def get_next_seq_id(request: Request, bucket: str, dataset: str):
-    # get ingress video counter
-    counter = request.app.counters_collection.find_one({"_id": '{}_{}'.format(bucket, dataset)})
-    # create counter if it doesn't exist already
+    
+def get_next_seq_id(request: Request, bucket:str, dataset: str):
+    counter = \
+        request.app.seq_id_collection.find_one({"bucket": bucket, 
+                                                            "dataset": dataset})
     if counter is None:
-        request.app.counters_collection.insert_one({"_id": get_id(bucket, dataset), "seq":0})
-    counter_seq = counter["seq"] if counter else 0 
+        request.app.seq_id_collection.insert_one({"bucket": bucket,
+                                                   "dataset": dataset,
+                                                   "count": 0})
+    counter_seq = counter["count"] if counter else 0 
     counter_seq += 1
     
     return counter_seq
@@ -520,30 +522,8 @@ def get_next_seq_id(request: Request, bucket: str, dataset: str):
 def update_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
 
     try:
-        ret = request.app.counters_collection.update_one(
-            {"_id": get_id(bucket, dataset)},
-            {"$set": {"seq": seq_id}})
-    except Exception as e:
-        raise Exception("Updating of  failed: {}".format(e))
-    
-def get_extenal_img_next_seq_id(request: Request, bucket:str, dataset: str):
-    counter = \
-        request.app.extenal_img_seq_id_collection.find_one({"bucket": bucket, 
-                                                            "dataset": dataset})
-    if counter is None:
-        request.app.extenal_img_seq_id_collection({"bucket": bucket,
-                                                   "dataset": dataset,
-                                                   "image_count": 0})
-    counter_seq = counter["image_count"] if counter else 0 
-    counter_seq += 1
-    
-    return counter_seq
-
-def update_external_img_next_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
-
-    try:
-        ret = request.app.extenal_img_seq_id_collection.update_one(
+        ret = request.app.seq_id_collection.update_one(
             {"bucket": bucket, "dataset": dataset},
-            {"$set": {"image_count": seq_id}})
+            {"$set": {"count": seq_id}})
     except Exception as e:
         raise Exception("Updating of external image sequential id failed: {}".format(e))
