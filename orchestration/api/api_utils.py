@@ -524,5 +524,26 @@ def update_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
             {"_id": get_id(bucket, dataset)},
             {"$set": {"seq": seq_id}})
     except Exception as e:
-        raise Exception("Updating of classifier counter failed: {}".format(e))
+        raise Exception("Updating of  failed: {}".format(e))
     
+def get_extenal_img_next_seq_id(request: Request, bucket:str, dataset: str):
+    counter = \
+        request.app.extenal_img_seq_id_collection.find_one({"bucket": bucket, 
+                                                            "dataset": dataset})
+    if counter is None:
+        request.app.extenal_img_seq_id_collection({"bucket": bucket,
+                                                   "dataset": dataset,
+                                                   "image_count": 0})
+    counter_seq = counter["image_count"] if counter else 0 
+    counter_seq += 1
+    
+    return counter_seq
+
+def update_external_img_next_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
+
+    try:
+        ret = request.app.extenal_img_seq_id_collection.update_one(
+            {"bucket": bucket, "dataset": dataset},
+            {"$set": {"image_count": seq_id}})
+    except Exception as e:
+        raise Exception("Updating of external image sequential id failed: {}".format(e))
