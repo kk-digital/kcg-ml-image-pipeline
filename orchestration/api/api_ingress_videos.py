@@ -25,8 +25,6 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
     # for this, need to add dataset name
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-
-    
     try:
         # check if video already exists
         video_file_hash = video_meta_data.file_hash
@@ -46,13 +44,11 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
             update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
         else:
-            video_meta_data.file_path = existed['file_path']
-            request.app.ingress_video_collection.update_one({
-                'file_hash': video_file_hash
-            }, {
-                '$set': video_meta_data.to_dict()
-            })
-
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Video data with this hash already exists.",
+                http_status_code=422
+            )
 
         return api_response_handler.create_success_response_v1(
             response_data=video_meta_data.to_dict(),
@@ -93,12 +89,11 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
                 update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
             else:
-                video_meta_data.file_path = existed['file_path']
-                request.app.ingress_video_collection.update_one({
-                    'file_hash': video_file_hash
-                }, {
-                    '$set': video_meta_data.to_dict()
-                })
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Video with these hash already exists.",
+                    http_status_code=422
+                )
 
         return api_response_handler.create_success_response_v1(
             response_data={'data': [video_meta_data.to_dict() \
