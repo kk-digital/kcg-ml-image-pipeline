@@ -405,6 +405,20 @@ class ExternalImageDataV1(BaseModel):
     task_attributes_dict: dict
     uuid: str
 
+    def to_dict(self):
+        return {
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "dataset": self.dataset,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict,
+            "uuid": self.uuid,
+        }
+        
+
 class ExternalImageDataWithSimilarityScore(BaseModel):
     upload_date: Union[str, None] = None
     image_hash: str
