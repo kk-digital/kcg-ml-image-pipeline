@@ -8,7 +8,7 @@ MINIO_ENDPOINT = "192.168.3.5:9000"
 MINIO_ACCESS_KEY = "v048BpXpWrsVIHUfdAix"
 MINIO_SECRET_KEY = "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu"
 BUCKET_NAME = "datasets"
-SPECIFIC_PATH = "ranks/00005/data"  
+SPECIFIC_PATH = "ranks/00006/data"  
 
 # New field to add
 NEW_FIELD = "image_source"
