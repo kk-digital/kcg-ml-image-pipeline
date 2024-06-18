@@ -243,6 +243,7 @@ def startup_db_client():
 
     app.extracts_collection = app.mongodb_db["extracts"]
     app.ingress_video_collection = app.mongodb_db["ingress_videos"]
+    app.external_dataset_sequential_id = app.mongodb_db["external_dataset_sequential_id"]
 
     pseudo_tag_uuid_index=[
     ('uuid', pymongo.ASCENDING)
