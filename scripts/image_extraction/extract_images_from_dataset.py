@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import io
+import math
 import os
 import sys
 import threading
@@ -66,6 +67,7 @@ class ImageExtractionPipeline:
         self.file_batch_size= file_batch_size
         self.clip_vectors=[]
         self.vae_latents=[]
+        self.image_hashes= []
 
         # get device
         if torch.cuda.is_available():
@@ -225,6 +227,7 @@ class ImageExtractionPipeline:
     def filter_extracts(self, external_images: list, extracted_images: list):
         print("Filtering extracted images...........")
         extract_data=[]
+        extraction_policy= "random_crop_resize"
 
         # filter the images based on
         index=0 
@@ -260,6 +263,7 @@ class ImageExtractionPipeline:
                     "vae_latent" : vae_latent,
                     "source_image_hash": source_image_data["image_hash"],
                     "source_image_uuid": source_image_data["uuid"],
+                    "extraction_policy": extraction_policy,
                     "dataset": source_image_data["dataset"]
                 }
 
@@ -272,11 +276,12 @@ class ImageExtractionPipeline:
 
                 self.clip_vectors.append(clip_vector)
                 self.vae_latents.append(vae_latent)
+                self.image_hashes.append(data["image_hash"])
                 
                 # check if batch size was reached
                 if len(self.clip_vectors) >= self.file_batch_size:
                     # save numpy files
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents,))
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
                     thread.start()
                     self.threads.append(thread)
             
@@ -285,7 +290,7 @@ class ImageExtractionPipeline:
         # save any extra vectors to numpy files
         if len(self.clip_vectors) > 0:
             # save numpy files
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents,))
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
             thread.start()
             self.threads.append(thread)
 
@@ -302,7 +307,8 @@ class ImageExtractionPipeline:
         print("total images:", total_images)
         processed_images= 0
         print("Extracting images.......")
-        for batch_iter in range(0, total_images, self.batch_size):
+        num_batches= math.ceil(total_images / self.batch_size)
+        for batch_iter in range(0, num_batches):
             print(f"processing batch {batch_iter}")
             # getting start and end index for the batch
             start_index= batch_iter * self.batch_size
