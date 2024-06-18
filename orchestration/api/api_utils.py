@@ -506,12 +506,12 @@ def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
 
     return f'{path}.{format}'
     
-def get_next_seq_id(request: Request, bucket:str, dataset: str):
+def get_next_external_dataset_seq_id(request: Request, bucket:str, dataset: str):
     counter = \
-        request.app.seq_id_collection.find_one({"bucket": bucket, 
+        request.app.external_dataset_sequential_id.find_one({"bucket": bucket, 
                                                             "dataset": dataset})
     if counter is None:
-        request.app.seq_id_collection.insert_one({"bucket": bucket,
+        request.app.external_dataset_sequential_id.insert_one({"bucket": bucket,
                                                    "dataset": dataset,
                                                    "count": 0})
     counter_seq = counter["count"] if counter else 0 
@@ -519,10 +519,10 @@ def get_next_seq_id(request: Request, bucket:str, dataset: str):
     
     return counter_seq
 
-def update_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
+def update_external_dataset_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
 
     try:
-        ret = request.app.seq_id_collection.update_one(
+        ret = request.app.external_dataset_sequential_id.update_one(
             {"bucket": bucket, "dataset": dataset},
             {"$set": {"count": seq_id}})
     except Exception as e:
