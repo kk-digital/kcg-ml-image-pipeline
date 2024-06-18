@@ -114,89 +114,70 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         
     except Exception as e:
         print(e)
-
-
-def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, batch_size=10000):
-    # Get the current batch information
+    
+def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, image_hashes, batch_size=10000):
     batch_info = external_images_request.http_get_current_extract_batch_sequential_id(dataset)
-    print(batch_info)
     batch_num = batch_info["sequence_number"]
     is_complete = batch_info["complete"]
 
+    # Convert tensors to numpy arrays
+    clip_vectors_np = [vec.cpu().numpy() for vec in clip_vectors]
+    vae_latents_np = [vec.cpu().numpy() for vec in vae_latents]
+
+    # Prepare data for saving
+    combined_data = [
+        {"image_hash": img_hash, "clip_vector": clip_vec, "vae_latent": vae_lat}
+        for img_hash, clip_vec, vae_lat in zip(image_hashes, clip_vectors_np, vae_latents_np)
+    ]
+
     # Determine the output folder based on batch number
     output_folder = f"latents/{str(batch_num).zfill(4)}"
-    clip_vector_path = output_folder + "_clip-h.npy"
-    vae_latent_path = output_folder + "_vae_latents.npy"
-
-    # Convert tensors to numpy arrays
-    clip_vectors_np = torch.stack(clip_vectors).cpu().numpy()
-    vae_latents_np = torch.stack(vae_latents).cpu().numpy()
+    data_path = output_folder + "_data.msgpack"
 
     if is_complete:
         # Current batch is complete, start a new batch
         batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, len(clip_vectors)==batch_size)
         batch_num = batch_info["sequence_number"]
         output_folder = f"latents/{str(batch_num).zfill(4)}"
+        data_path = output_folder + "_data.msgpack"
         # Save the new data directly as the start of a new batch
-        save_batch_to_minio(minio_client, output_folder, clip_vectors_np, vae_latents_np)
+        save_data_to_minio(minio_client, data_path, combined_data)
     else:
-        # Current batch is not complete, load existing data
-        current_clip_batch = load_batch_from_minio(minio_client, EXTRACT_BUCKET, clip_vector_path) or np.array([])
-        current_vae_batch = load_batch_from_minio(minio_client, EXTRACT_BUCKET, vae_latent_path) or np.array([])
+        # Current batch is not complete, load existing data, append, and save
+        existing_data = load_data_from_minio(minio_client, EXTRACT_BUCKET, data_path) or []
+        updated_data = existing_data + combined_data
 
-        # Append new data
-        updated_clip_batch = np.concatenate((current_clip_batch, clip_vectors_np))
-        updated_vae_batch = np.concatenate((current_vae_batch, vae_latents_np))
-
-        # Check if updated batch exceeds batch size
-        if len(updated_clip_batch) > batch_size:
-            # Save only up to batch size
-            save_batch_to_minio(minio_client, output_folder, updated_clip_batch[:batch_size], updated_vae_batch[:batch_size])
-
-            # Handle the overflow
-            overflow_clip = updated_clip_batch[batch_size:]
-            overflow_vae = updated_vae_batch[batch_size:]
-            batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
-            new_batch_num = batch_info["sequence_number"]
+        # Check if updated data exceeds batch size
+        if len(updated_data) > batch_size:
+            # Split and save the full batch, then the overflow
+            save_data_to_minio(minio_client, data_path, updated_data[:batch_size])
+            overflow_data = updated_data[batch_size:]
+            new_batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
+            new_batch_num = new_batch_info["sequence_number"]
             new_output_folder = f"latents/{str(new_batch_num).zfill(4)}"
-            save_batch_to_minio(minio_client, new_output_folder, overflow_clip, overflow_vae)
+            new_data_path = new_output_folder + "_latent_data.msgpack"
+            save_data_to_minio(minio_client, new_data_path, overflow_data)
         else:
-            # Save updated batch normally
-            save_batch_to_minio(minio_client, output_folder, updated_clip_batch, updated_vae_batch)
+            # Save updated data batch
+            save_data_to_minio(minio_client, data_path, updated_data)
 
-    print(f"Saved CLIP vectors to {clip_vector_path}")
-    print(f"Saved VAE latents to {vae_latent_path}")
+    print(f"Data saved in {data_path}")
 
-def save_batch_to_minio(minio_client: Minio, output_folder: str, clip_vectors: np.array, vae_latents: np.array):
-    clip_vector_buffer = BytesIO()
-    np.save(clip_vector_buffer, clip_vectors)
-    clip_vector_buffer.seek(0)  # Reset buffer position to the beginning
+def save_data_to_minio(minio_client, data_path, data):
+    data_buffer = BytesIO()
+    packed_data = msgpack.packb(data, use_bin_type=True)
+    data_buffer.write(packed_data)
+    data_buffer.seek(0)
+    minio_client.put_object(EXTRACT_BUCKET, data_path, data_buffer, len(data_buffer.getvalue()))
 
-    vae_latent_buffer = BytesIO()
-    np.save(vae_latent_buffer, vae_latents)
-    vae_latent_buffer.seek(0)  # Reset buffer position to the beginning
-
-    # Save to numpy files
-    clip_vector_path= output_folder + "_clip-h.npy"
-    vae_latent_path= output_folder + "_vae_latents.npy"
-    cmd.upload_data(minio_client, EXTRACT_BUCKET, clip_vector_path, clip_vector_buffer)
-    cmd.upload_data(minio_client, EXTRACT_BUCKET, vae_latent_path, vae_latent_buffer)
-
-def load_batch_from_minio(minio_client: Minio, bucket_name: str, file_path: str):
+def load_data_from_minio(minio_client, bucket_name, file_path):
     try:
-        # Get the object from MinIO
         response = minio_client.get_object(bucket_name, file_path)
-        
-        # Read data into bytes buffer
         data = BytesIO(response.read())
-        
-        # Load array using NumPy
-        array = list(np.load(data))
-        
-        return array
+        return msgpack.unpackb(data.getvalue(), raw=False)
     except Exception as e:
-        print("Failed to retrieve or parse the file:", e)
-        return None
+        print(f"Failed to retrieve or parse the file: {e}")
+        return []
     
 
      
