@@ -99,7 +99,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         clip_feature_msgpack_buffer.write(clip_feature_msgpack)
         clip_feature_msgpack_buffer.seek(0)
 
-        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_vae_clip-h.msgpack'), clip_feature_msgpack_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_clip-h.msgpack'), clip_feature_msgpack_buffer)
 
         # upload the image to mongoDB
         extract_data={
@@ -134,14 +134,14 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, i
 
     # Determine the output folder based on batch number
     output_folder = f"latents/{str(batch_num).zfill(4)}"
-    data_path = output_folder + "_data.msgpack"
+    data_path = output_folder + "_latent_data.msgpack"
 
     if is_complete:
         # Current batch is complete, start a new batch
         batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, len(clip_vectors)==batch_size)
         batch_num = batch_info["sequence_number"]
         output_folder = f"latents/{str(batch_num).zfill(4)}"
-        data_path = output_folder + "_data.msgpack"
+        data_path = output_folder + "_latent_data.msgpack"
         # Save the new data directly as the start of a new batch
         save_data_to_minio(minio_client, data_path, combined_data)
     else:

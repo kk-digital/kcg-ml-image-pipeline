@@ -10,7 +10,7 @@ import uuid
 router = APIRouter()
 
 @router.get("/extracts/get-current-data-batch-sequential-id", 
-            description="Get the sequential id for numpy file batches stored for a dataset",
+            description="Get the sequential id for file batches stored for a dataset",
             tags=["extracts"])
 async def get_current_data_batch_sequential_id(request: Request, dataset: str):
 
@@ -60,6 +60,9 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
     except Exception as e:
         raise Exception("Updating of classifier counter failed: {}".format(e))
 
+    # remove _id field
+    counter.pop("_id")
+    
     return counter
 
 @router.delete("/extracts/delete-dataset-batch-sequential-id", 
@@ -68,7 +71,7 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
                tags=["extracts"], 
                status_code=200,
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def remove_current_data_batch_sequential_id(request: Request, dataset: str ):
+async def remove_current_data_batch_sequential_id(request: Request, dataset: str ):
 
     response_handler = ApiResponseHandlerV1(request)
 
