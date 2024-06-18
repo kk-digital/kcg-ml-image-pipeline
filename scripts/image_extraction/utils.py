@@ -77,7 +77,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     dataset= extract_data["dataset"]
 
     # get image file path with sequential ids
-    sequential_ids = request.http_get_sequential_id(f"{EXTRACT_BUCKET}_{dataset}", 1)
+    sequential_ids = request.http_get_sequential_id(f"{EXTRACT_BUCKET}/{dataset}", 1)
     file_path= f"{dataset}/{sequential_ids[0]+'.jpg'}"
 
     try:    
