@@ -73,6 +73,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     vae_latent= extract_data["vae_latent"]
     source_image_hash= extract_data["source_image_hash"]
     source_image_uuid= extract_data["source_image_uuid"]
+    extraction_policy= extract_data["extraction_policy"]
     dataset= extract_data["dataset"]
 
     # get image file path with sequential ids
@@ -108,6 +109,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
             "file_path": file_path,
             "source_image_uuid": source_image_uuid,
             "source_image_hash": source_image_hash,
+            'extraction_policy': extraction_policy
         }
 
         external_images_request.http_add_extract(extract_data)
