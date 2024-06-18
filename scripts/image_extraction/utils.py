@@ -155,7 +155,7 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, i
             new_batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
             new_batch_num = new_batch_info["sequence_number"]
             new_output_folder = f"latents/{str(new_batch_num).zfill(4)}"
-            new_data_path = new_output_folder + "_data.msgpack"
+            new_data_path = new_output_folder + "_latent_data.msgpack"
             save_data_to_minio(minio_client, new_data_path, overflow_data)
         else:
             # Save updated data batch
