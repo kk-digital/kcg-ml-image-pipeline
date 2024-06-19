@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Request,  Query
 from pymongo import ReturnDocument
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, validate_date_format, TagListForImages
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
 from .mongo_schemas import ExtractImageData, ListExtractImageData
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
@@ -62,7 +62,7 @@ async def get_next_data_batch_sequential_id(request: Request, dataset: str, comp
 
     # remove _id field
     counter.pop("_id")
-    
+
     return counter
 
 @router.delete("/extracts/delete-dataset-batch-sequential-id", 
@@ -113,6 +113,13 @@ async def add_extract(request: Request, image_data: ExtractImageData):
 
         if existed is None:
             image_data.upload_date = str(datetime.now())
+            # set minio path using sequential id
+            next_seq_id = get_next_external_dataset_seq_id(request, bucket="extracts", dataset=image_data.dataset)
+            image_data.file_path = get_minio_file_path(next_seq_id,
+                                                    "extracts",    
+                                                    image_data.dataset, 
+                                                    'jpg')
+            
             request.app.extracts_collection.insert_one(image_data.to_dict())
         else:
             return api_response_handler.create_error_response_v1(
@@ -121,6 +128,9 @@ async def add_extract(request: Request, image_data: ExtractImageData):
                 http_status_code=400
             )
         
+        # update sequential id
+        update_external_dataset_seq_id(request=request, bucket="extracts", dataset=image_data.dataset, seq_id=next_seq_id) 
+
         return api_response_handler.create_success_response_v1(
             response_data={"data": image_data.to_dict()},
             http_status_code=200  

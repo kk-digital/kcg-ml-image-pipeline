@@ -37,6 +37,7 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
             # TODO: add dataset so get sequential id for specific dataset
             next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
             video_meta_data.file_path = get_minio_file_path(next_seq_id,
+                                                            "ingress-video",
                                                             video_meta_data.dataset, 
                                                             video_meta_data.file_type)
 
