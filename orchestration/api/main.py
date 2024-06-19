@@ -207,6 +207,8 @@ def startup_db_client():
 
     app.external_datasets_collection = app.mongodb_db["external-datasets"]
 
+    app.extract_datasets_collection = app.mongodb_db["extract-datasets"]
+
     # ab ranking
     app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
     app.image_ranks_collection = app.mongodb_db["image_ranks"]
