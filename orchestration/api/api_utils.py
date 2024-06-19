@@ -494,15 +494,24 @@ class CountLastHour(BaseModel):
 def get_id(bucket: str, dataset: str) -> str:
     return '{}_{}'.format(bucket, dataset)
 
-def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
+def get_file_extension(file_format: str) -> str:
+    file_format = file_format.lower()
+    if file_format in ["jpg", "jpeg"]:
+        file_format = "jpg"
+
+    return file_format
+
+
+def get_minio_file_path(seq_id, bucket_name, dataset_name, format, sample_size = 1000):
 
     folder_id = (seq_id // sample_size) + 1
     file_id = (seq_id % sample_size)
     
     folder_name = f"{folder_id:04d}"
     file_name = f"{file_id:06d}"
-
-    path = f'{dataset_name}/{folder_name}/{file_name}'
+    format = get_file_extension(format)
+    
+    path = f'{bucket_name}/{dataset_name}/{folder_name}/{file_name}'
 
     return f'{path}.{format}'
     
