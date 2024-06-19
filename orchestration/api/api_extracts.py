@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Request,  Query
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, validate_date_format, TagListForImages
-from .mongo_schemas import ExtractImageData, ListExtractImageData
+from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
 import uuid
@@ -17,6 +17,14 @@ async def add_extract(request: Request, image_data: ExtractImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
+
+        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        if not dataset_result:
+            return request.app.api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset with name {image_data.dataset} does not exist.",
+                http_status_code=422
+            )
 
         image_data.uuid = str(uuid.uuid4())
 
@@ -383,3 +391,66 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
             http_status_code=500
         )
     
+
+@router.post("/extract-images/add-new-dataset",
+            description="add new dataset in mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[Dataset],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+async def add_new_dataset(request: Request, dataset: Dataset):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    if request.app.extract_datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='dataset already exist',
+            http_status_code=400
+        )    
+    
+    request.app.extract_datasets_collection.insert_one(dataset.to_dict())
+
+    return response_handler.create_success_response_v1(
+                response_data={"dataset_name":dataset.dataset_name}, 
+                http_status_code=200
+            )  
+
+
+@router.delete("/extract-images/remove-dataset",
+               description="Remove dataset and its configuration in MongoDB",
+               tags=["dataset"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422]))
+async def remove_dataset(request: Request, dataset: str = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Check if the dataset contains any objects (images) 
+    image_count = request.app.extract_datasets_collection.count_documents({"dataset_name": dataset, "images": {"$exists": True, "$ne": []}})
+    if image_count > 0:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string=f"Dataset '{dataset}' contains images and cannot be deleted.",
+            http_status_code=422
+        )
+
+    # Attempt to delete the dataset
+    dataset_result = request.app.extract_datasets_collection.delete_one({"dataset_name": dataset})
+
+    # Check if the dataset was present and deleted
+    was_present = dataset_result.deleted_count > 0
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If the dataset was deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            True, 
+            http_status_code=200
+        )
+    else:
+        # If the dataset was not found, return False
+        return response_handler.create_success_delete_response_v1(
+            False, 
+            http_status_code=200
+        )
+
+
+
