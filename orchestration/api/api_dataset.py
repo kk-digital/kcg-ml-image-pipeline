@@ -63,6 +63,19 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
+@router.delete("/dataset/delete-sequential-id", 
+               tags = ['deprecated3'],
+               description="delete the sequential id of a dataset")
+def delete_sequential_id(request: Request, dataset_name: str):
+
+    res= request.app.dataset_sequential_id_collection.delete_one({"dataset_name": dataset_name})
+
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No sequential id was found for that dataset name")
+
+    return True
+
+
 @router.delete("/dataset/clear-self-training-sequential-id", tags = ['deprecated3'], description= "changed with /datasets/clear-all-self-training-sequential-ids" )
 def clear_self_training_sequential_id_jobs(request: Request):
     request.app.self_training_sequential_id_collection.delete_many({})

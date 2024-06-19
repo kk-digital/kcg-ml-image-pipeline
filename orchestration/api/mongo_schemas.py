@@ -351,10 +351,11 @@ class ExtractImageData(BaseModel):
     uuid: str
     image_hash: str
     dataset:str
-    file_path: str
+    file_path: Union[str, None] = None
     upload_date: Union[str, None] = None
     source_image_uuid: str
     source_image_hash: str
+    extraction_policy: str
     task_attributes_dict: Union[dict, None] = None
     
 
@@ -367,6 +368,7 @@ class ExtractImageData(BaseModel):
             "upload_date": self.upload_date,
             "source_image_uuid": self.source_image_uuid,
             "source_image_hash": self.source_image_hash,
+            "extraction_policy": self.extraction_policy,
             "task_attributes_dict": self.task_attributes_dict,
         }
 
@@ -404,6 +406,20 @@ class ExternalImageDataV1(BaseModel):
     source_image_dict: dict
     task_attributes_dict: dict
     uuid: str
+
+    def to_dict(self):
+        return {
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "dataset": self.dataset,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict,
+            "uuid": self.uuid,
+        }
+        
 
 class ExternalImageDataWithSimilarityScore(BaseModel):
     upload_date: Union[str, None] = None

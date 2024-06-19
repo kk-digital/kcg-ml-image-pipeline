@@ -10,7 +10,7 @@ from datetime import datetime
 
 # import typing
 from typing import List
-from .api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
+from .api_utils import get_next_external_dataset_seq_id, update_external_dataset_seq_id, get_minio_file_path
 
 router = APIRouter()
 
@@ -25,8 +25,6 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
     # for this, need to add dataset name
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-
-    
     try:
         # check if video already exists
         video_file_hash = video_meta_data.file_hash
@@ -37,22 +35,21 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
         video_meta_data.upload_date = str(datetime.now())
         if existed is None:
             # TODO: add dataset so get sequential id for specific dataset
-            next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
+            next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
             video_meta_data.file_path = get_minio_file_path(next_seq_id,
+                                                            "ingress-video",
                                                             video_meta_data.dataset, 
                                                             video_meta_data.file_type)
 
             request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-            update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
+            update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
         else:
-            video_meta_data.file_path = existed['file_path']
-            request.app.ingress_video_collection.update_one({
-                'file_hash': video_file_hash
-            }, {
-                '$set': video_meta_data.to_dict()
-            })
-
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Video data with this hash already exists.",
+                http_status_code=422
+            )
 
         return api_response_handler.create_success_response_v1(
             response_data=video_meta_data.to_dict(),
@@ -85,20 +82,19 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
 
             video_meta_data.upload_date = str(datetime.now())
             if existed is None:
-                next_seq_id = get_next_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
+                next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
                 video_meta_data.file_path = get_minio_file_path(next_seq_id, 
                                                         video_meta_data.dataset, 
                                                         video_meta_data.file_type)
                 request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-                update_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
+                update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
             else:
-                video_meta_data.file_path = existed['file_path']
-                request.app.ingress_video_collection.update_one({
-                    'file_hash': video_file_hash
-                }, {
-                    '$set': video_meta_data.to_dict()
-                })
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Video with these hash already exists.",
+                    http_status_code=422
+                )
 
         return api_response_handler.create_success_response_v1(
             response_data={'data': [video_meta_data.to_dict() \

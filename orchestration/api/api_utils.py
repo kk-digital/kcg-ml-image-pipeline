@@ -494,7 +494,7 @@ class CountLastHour(BaseModel):
 def get_id(bucket: str, dataset: str) -> str:
     return '{}_{}'.format(bucket, dataset)
 
-def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
+def get_minio_file_path(seq_id, bucket_name, dataset_name, format, sample_size = 1000):
 
     folder_id = (seq_id // sample_size) + 1
     file_id = (seq_id % sample_size)
@@ -502,27 +502,28 @@ def get_minio_file_path(seq_id, dataset_name, format, sample_size = 1000):
     folder_name = f"{folder_id:04d}"
     file_name = f"{file_id:06d}"
 
-    path = f'{dataset_name}/{folder_name}/{file_name}'
+    path = f'{bucket_name}/{dataset_name}/{folder_name}/{file_name}'
 
     return f'{path}.{format}'
-
-def get_next_seq_id(request: Request, bucket: str, dataset: str):
-    # get ingress video counter
-    counter = request.app.counters_collection.find_one({"_id": '{}_{}'.format(bucket, dataset)})
-    # create counter if it doesn't exist already
+    
+def get_next_external_dataset_seq_id(request: Request, bucket:str, dataset: str):
+    counter = \
+        request.app.external_dataset_sequential_id.find_one({"bucket": bucket, 
+                                                            "dataset": dataset})
     if counter is None:
-        request.app.counters_collection.insert_one({"_id": get_id(bucket, dataset), "seq":0})
-    counter_seq = counter["seq"] if counter else 0 
+        request.app.external_dataset_sequential_id.insert_one({"bucket": bucket,
+                                                   "dataset": dataset,
+                                                   "count": 0})
+    counter_seq = counter["count"] if counter else 0 
     counter_seq += 1
     
     return counter_seq
 
-def update_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
+def update_external_dataset_seq_id(request: Request, bucket:str, dataset: str, seq_id = 0):
 
     try:
-        ret = request.app.counters_collection.update_one(
-            {"_id": get_id(bucket, dataset)},
-            {"$set": {"seq": seq_id}})
+        ret = request.app.external_dataset_sequential_id.update_one(
+            {"bucket": bucket, "dataset": dataset},
+            {"$set": {"count": seq_id}})
     except Exception as e:
-        raise Exception("Updating of classifier counter failed: {}".format(e))
-    
+        raise Exception("Updating of external image sequential id failed: {}".format(e))
