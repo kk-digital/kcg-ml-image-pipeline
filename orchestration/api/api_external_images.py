@@ -837,7 +837,10 @@ async def list_external_images_v1(
             elif time_unit == "hours":
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
-                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid time unit. Use 'minutes' or 'hours'.",
+                    http_status_code=400)
 
             # Convert threshold_time to a string in ISO format
             threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
