@@ -47,7 +47,7 @@ def main():
 
     # Define the dataset bucket and path
     dataset_bucket = "external"
-    dataset_prefix = "metroid-fusion-dataset/"
+    dataset_prefix = "test2/"
 
     # List objects in the dataset
     objects = minio_client.list_objects(bucket_name=dataset_bucket, prefix=dataset_prefix, recursive=True)
