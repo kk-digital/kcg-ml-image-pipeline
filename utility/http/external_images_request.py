@@ -64,7 +64,10 @@ def http_add_extract(image_data):
     try:
         response = requests.post(url, json=image_data, headers=headers)
 
-        if response.status_code != 200:
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']['data']
+        else:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
     except Exception as e:
         print('request exception ', e)
@@ -88,6 +91,35 @@ def http_get_extract_image_list(dataset, size=None):
         if response.status_code == 200:
             data_json = response.json()
             return data_json['response']['data']
+
+    except Exception as e:
+        print('request exception ', e)
+
+
+def http_get_current_extract_batch_sequential_id(dataset: str):
+    endpoint_url= "/extracts/get-current-data-batch-sequential-id?dataset={}".format(dataset)
+
+    url = SERVER_ADDRESS + endpoint_url
+    try:
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+def http_get_next_extract_batch_sequential_id(dataset: str, is_complete: bool = True):
+    endpoint_url= "/extracts/get-next-data-batch-sequential-id?dataset={}&complete={}".format(dataset, is_complete)
+
+    url = SERVER_ADDRESS + endpoint_url
+    try:
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
 
     except Exception as e:
         print('request exception ', e)

@@ -10,7 +10,7 @@ from pymongo import UpdateOne
 from utility.minio import cmd
 import uuid
 from .api_clip import http_clip_server_get_cosine_similarity_list
-from .api_utils import get_next_seq_id, update_seq_id, get_minio_file_path
+from .api_utils import get_next_external_dataset_seq_id, update_external_dataset_seq_id, get_minio_file_path
 
 
 
@@ -66,8 +66,9 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         image_data_dict['upload_date'] = str(datetime.now())
 
         # set minio path using sequential id
-        next_seq_id = get_next_seq_id(request, bucket="external", dataset=image_data.dataset)
-        image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+        next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
+        image_data_dict['file_path'] = get_minio_file_path(next_seq_id,
+                                                "external",            
                                                 image_data.dataset, 
                                                 image_data.image_format)
         
@@ -76,7 +77,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         image_data_dict.pop('_id', None)
 
         # update sequential
-        update_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
+        update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
 
         return api_response_handler.create_success_response_v1(
             response_data=image_data_dict,
@@ -116,7 +117,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 image_data_dict['uuid'] = str(uuid.uuid4())
                 image_data_dict['upload_date'] = str(datetime.now())
 
-                next_seq_id = get_next_seq_id(request, bucket="external", dataset=image_data.dataset)
+                next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
                 image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
                                                         image_data.dataset, 
                                                         image_data.image_format)
@@ -124,7 +125,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 # Insert the new image data into the collection
                 request.app.external_images_collection.insert_one(image_data_dict)
                 # update sequential id
-                update_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
+                update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
 
                 # add updated image_data into updated_image_data_list
                 updaded_image_data_list.append(image_data_dict)

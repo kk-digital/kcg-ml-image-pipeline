@@ -1,7 +1,8 @@
 
 from fastapi import APIRouter, Request,  Query
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, validate_date_format, TagListForImages
 from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListExternalImageDataWithSimilarityScore
+from pymongo import ReturnDocument
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
 from typing import Optional
@@ -12,6 +13,92 @@ from .api_clip import http_clip_server_get_cosine_similarity_list
 
 
 router = APIRouter()
+
+@router.get("/extracts/get-current-data-batch-sequential-id", 
+            description="Get the sequential id for file batches stored for a dataset",
+            tags=["extracts"])
+async def get_current_data_batch_sequential_id(request: Request, dataset: str):
+
+    # get batch counter
+    counter = request.app.extract_data_batch_sequential_id.find_one({"dataset": dataset})
+    # create counter if it doesn't exist already
+    if counter is None:
+        # insert the new counter
+        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset, "sequence_number": 0, "complete": True})
+        # Retrieve the inserted counter using the inserted_id
+        counter = request.app.extract_data_batch_sequential_id.find_one({'_id': insert_result.inserted_id})
+    
+    # remove _id field
+    counter.pop("_id")
+
+    return counter
+
+@router.get("/extracts/get-next-data-batch-sequential-id", 
+            description="Increment the sequential id for numpy file batches stored for a dataset",
+            tags=["extracts"])
+async def get_next_data_batch_sequential_id(request: Request, dataset: str, complete: bool):
+
+    # get batch counter
+    counter = request.app.extract_data_batch_sequential_id.find_one({"dataset": dataset})
+    # create counter if it doesn't exist already
+    if counter is None:
+        # insert the new counter
+        insert_result= request.app.extract_data_batch_sequential_id.insert_one({"dataset": dataset, "sequence_number": 0, "complete": True})
+        # Retrieve the inserted counter using the inserted_id
+        counter = request.app.extract_data_batch_sequential_id.find_one({'_id': insert_result.inserted_id})
+
+    # get current last batch count
+    counter_seq = counter["sequence_number"] if counter else 0
+    counter_seq += 1
+
+    try:
+        counter = request.app.extract_data_batch_sequential_id.find_one_and_update(
+            {"dataset": dataset},
+            {"$set": 
+                {
+                    "sequence_number": counter_seq,
+                    "complete": complete
+                }
+            },
+            return_document=ReturnDocument.AFTER
+            )
+    except Exception as e:
+        raise Exception("Updating of classifier counter failed: {}".format(e))
+
+    # remove _id field
+    counter.pop("_id")
+
+    return counter
+
+@router.delete("/extracts/delete-dataset-batch-sequential-id", 
+               response_model=StandardSuccessResponseV1[WasPresentResponse], 
+               description="remove the batch sequential id for a dataset", 
+               tags=["extracts"], 
+               status_code=200,
+               responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def remove_current_data_batch_sequential_id(request: Request, dataset: str ):
+
+    response_handler = ApiResponseHandlerV1(request)
+
+    # Check if the rank exists
+    query = {"dataset": dataset}
+    sequential_id = request.app.extract_data_batch_sequential_id.find_one(query)
+    
+    if sequential_id is None:
+        # Return standard response with wasPresent: false
+        return response_handler.create_success_delete_response_v1(
+                                                           False,
+                                                           http_status_code=200
+                                                           )
+
+    # Remove the sequential id
+    request.app.extract_data_batch_sequential_id.delete_one(query)
+
+    # Return standard response with wasPresent: true
+    return response_handler.create_success_response_v1(
+                                                       response_data={"wasPresent": True},
+                                                       http_status_code=200
+                                                       )
 
 @router.post("/extracts/add-extracted-image", 
             description="Add an extracted image data",
@@ -40,6 +127,13 @@ async def add_extract(request: Request, image_data: ExtractImageData):
 
         if existed is None:
             image_data.upload_date = str(datetime.now())
+            # set minio path using sequential id
+            next_seq_id = get_next_external_dataset_seq_id(request, bucket="extracts", dataset=image_data.dataset)
+            image_data.file_path = get_minio_file_path(next_seq_id,
+                                                    "extracts",    
+                                                    image_data.dataset, 
+                                                    'jpg')
+            
             request.app.extracts_collection.insert_one(image_data.to_dict())
         else:
             return api_response_handler.create_error_response_v1(
@@ -48,6 +142,9 @@ async def add_extract(request: Request, image_data: ExtractImageData):
                 http_status_code=400
             )
         
+        # update sequential id
+        update_external_dataset_seq_id(request=request, bucket="extracts", dataset=image_data.dataset, seq_id=next_seq_id) 
+
         return api_response_handler.create_success_response_v1(
             response_data={"data": image_data.to_dict()},
             http_status_code=200  
@@ -105,6 +202,37 @@ async def delete_extract_image_data(request: Request, image_hash: str):
     try:
         result = request.app.extracts_collection.delete_one({
             "image_hash": image_hash
+        })
+        
+        if result.deleted_count == 0:
+            return api_response_handler.create_success_delete_response_v1(
+                response_data=False, 
+                http_status_code=200
+            )
+        
+        return api_response_handler.create_success_delete_response_v1(
+                response_data=True, 
+                http_status_code=200
+            )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+
+@router.delete("/extracts/delete-extract-dataset", 
+            description="Delete all the extracted images in a dataset",
+            tags=["extracts"],  
+            response_model=StandardSuccessResponseV1[WasPresentResponse],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def delete_extract_dataset_data(request: Request, dataset: str):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        result = request.app.extracts_collection.delete_many({
+            "dataset": dataset
         })
         
         if result.deleted_count == 0:
