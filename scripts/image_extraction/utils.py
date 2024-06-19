@@ -76,11 +76,20 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     extraction_policy= extract_data["extraction_policy"]
     dataset= extract_data["dataset"]
 
-    # get image file path with sequential ids
-    sequential_ids = request.http_get_sequential_id(f"{EXTRACT_BUCKET}_{dataset}", 1)
-    file_path= f"{dataset}/{sequential_ids[0]+'.jpg'}"
+    try:
+        # upload the image to mongoDB
+        extract_data={
+            "uuid": image_uuid,
+            "image_hash": image_hash,
+            "dataset": dataset,
+            "source_image_uuid": source_image_uuid,
+            "source_image_hash": source_image_hash,
+            'extraction_policy': extraction_policy
+        }
 
-    try:    
+        image_data= external_images_request.http_add_extract(extract_data)
+        file_path= image_data['file_path']
+
         # upload the image
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='JPEG')
@@ -100,19 +109,6 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         clip_feature_msgpack_buffer.seek(0)
 
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_clip-h.msgpack'), clip_feature_msgpack_buffer)
-
-        # upload the image to mongoDB
-        extract_data={
-            "uuid": image_uuid,
-            "image_hash": image_hash,
-            "dataset": dataset,
-            "file_path": file_path,
-            "source_image_uuid": source_image_uuid,
-            "source_image_hash": source_image_hash,
-            'extraction_policy': extraction_policy
-        }
-
-        external_images_request.http_add_extract(extract_data)
         
     except Exception as e:
         print(e)

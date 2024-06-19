@@ -64,7 +64,10 @@ def http_add_extract(image_data):
     try:
         response = requests.post(url, json=image_data, headers=headers)
 
-        if response.status_code != 200:
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']['data']
+        else:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
     except Exception as e:
         print('request exception ', e)
