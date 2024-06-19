@@ -77,7 +77,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
     dataset= extract_data["dataset"]
 
     # get image file path with sequential ids
-    sequential_ids = request.http_get_sequential_id(f"{EXTRACT_BUCKET}/{dataset}", 1)
+    sequential_ids = request.http_get_sequential_id(f"{EXTRACT_BUCKET}_{dataset}", 1)
     file_path= f"{dataset}/{sequential_ids[0]+'.jpg'}"
 
     try:    
@@ -88,7 +88,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path, img_byte_arr)
         
         # upload latent
-        save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, f"{EXTRACT_BUCKET}_{file_path}")
+        save_latent_to_minio(minio_client, EXTRACT_BUCKET, image_uuid, image_hash, vae_latent, f"{EXTRACT_BUCKET}/{file_path}")
 
         # upload clip vector
         clip_vector = clip_vector.cpu().numpy().tolist()
