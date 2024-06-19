@@ -351,7 +351,7 @@ class ExtractImageData(BaseModel):
     uuid: str
     image_hash: str
     dataset:str
-    file_path: str
+    file_path: Union[str, None] = None
     upload_date: Union[str, None] = None
     source_image_uuid: str
     source_image_hash: str
