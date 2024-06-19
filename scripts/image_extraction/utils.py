@@ -88,7 +88,8 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         }
 
         image_data= external_images_request.http_add_extract(extract_data)
-        file_path= image_data['file_path']
+        bucket, file_path= separate_bucket_and_file_path(image_data['file_path'])
+        
 
         # upload the image
         img_byte_arr = io.BytesIO()
@@ -119,8 +120,8 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, i
     is_complete = batch_info["complete"]
 
     # Convert tensors to numpy arrays
-    clip_vectors_np = [vec.cpu().numpy() for vec in clip_vectors]
-    vae_latents_np = [vec.cpu().numpy() for vec in vae_latents]
+    clip_vectors_np = [vec.cpu().numpy().tolist() for vec in clip_vectors]
+    vae_latents_np = [vec.cpu().numpy().tolist() for vec in vae_latents]
 
     # Prepare data for saving
     combined_data = [
