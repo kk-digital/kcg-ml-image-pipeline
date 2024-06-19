@@ -84,6 +84,7 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
             if existed is None:
                 next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
                 video_meta_data.file_path = get_minio_file_path(next_seq_id, 
+                                                        "ingress-video",
                                                         video_meta_data.dataset, 
                                                         video_meta_data.file_type)
                 request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
