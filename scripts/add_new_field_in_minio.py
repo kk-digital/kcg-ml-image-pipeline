@@ -41,6 +41,11 @@ def update_minio_objects():
             print(f"Skipping non-JSON object: {obj.object_name}")
             continue
 
+        # Check if the new field already exists
+        if NEW_FIELD in json_data:
+            print(f"Skipping object: {obj.object_name} as it already contains the field '{NEW_FIELD}'.")
+            continue
+
         # Create an OrderedDict to maintain the order and add the new field before "datetime"
         updated_data = OrderedDict()
         for key, value in json_data.items():
