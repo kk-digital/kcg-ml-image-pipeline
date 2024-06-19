@@ -19,6 +19,11 @@ def update_mongodb_documents():
     documents = collection.find({})
 
     for document in documents:
+        # Check if the new field already exists
+        if NEW_FIELD in document:
+            print(f"Skipping document ID: {document['_id']} as it already contains the field '{NEW_FIELD}'.")
+            continue
+
         # Create an OrderedDict with the new field
         updated_data = OrderedDict([
             ("_id", document["_id"]),
