@@ -130,14 +130,14 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, i
     ]
 
     # Determine the output folder based on batch number
-    output_folder = f"latents/{str(batch_num).zfill(4)}"
+    output_folder = f"{dataset}/latents/{str(batch_num).zfill(4)}"
     data_path = output_folder + "_latent_data.msgpack"
 
     if is_complete:
         # Current batch is complete, start a new batch
         batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, len(clip_vectors)==batch_size)
         batch_num = batch_info["sequence_number"]
-        output_folder = f"latents/{str(batch_num).zfill(4)}"
+        output_folder = f"{dataset}/latents/{str(batch_num).zfill(4)}"
         data_path = output_folder + "_latent_data.msgpack"
         # Save the new data directly as the start of a new batch
         save_data_to_minio(minio_client, data_path, combined_data)
@@ -153,7 +153,7 @@ def save_latents_and_vectors(minio_client, dataset, clip_vectors, vae_latents, i
             overflow_data = updated_data[batch_size:]
             new_batch_info = external_images_request.http_get_next_extract_batch_sequential_id(dataset, False)
             new_batch_num = new_batch_info["sequence_number"]
-            new_output_folder = f"latents/{str(new_batch_num).zfill(4)}"
+            new_output_folder = f"{dataset}/latents/{str(new_batch_num).zfill(4)}"
             new_data_path = new_output_folder + "_latent_data.msgpack"
             save_data_to_minio(minio_client, new_data_path, overflow_data)
         else:
