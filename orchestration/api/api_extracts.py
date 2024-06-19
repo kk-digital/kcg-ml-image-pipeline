@@ -22,14 +22,15 @@ async def add_extract(request: Request, image_data: ExtractImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-
+        
         dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
         if not dataset_result:
-            return request.app.api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string=f"Dataset with name {image_data.dataset} does not exist.",
-                http_status_code=422
-            )
+            # Create a new dataset if it does not exist
+            new_dataset = {
+                "dataset_name": image_data.dataset
+            }
+            request.app.extract_datasets_collection.insert_one(new_dataset)
+            print(f"Created new dataset with name {image_data.dataset}")
 
         image_data.uuid = str(uuid.uuid4())
 
