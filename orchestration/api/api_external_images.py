@@ -57,6 +57,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         # set minio path using sequential id
         next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
         image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+                                                "external",
                                                 image_data.dataset, 
                                                 image_data.image_format)
         
@@ -107,6 +108,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
 
                 next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
                 image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+                                                        "external",
                                                         image_data.dataset, 
                                                         image_data.image_format)
                 
