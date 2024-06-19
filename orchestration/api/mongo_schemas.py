@@ -351,10 +351,11 @@ class ExtractImageData(BaseModel):
     uuid: str
     image_hash: str
     dataset:str
-    file_path: str
+    file_path: Union[str, None] = None
     upload_date: Union[str, None] = None
     source_image_uuid: str
     source_image_hash: str
+    extraction_policy: str
     task_attributes_dict: Union[dict, None] = None
     
 
@@ -367,6 +368,7 @@ class ExtractImageData(BaseModel):
             "upload_date": self.upload_date,
             "source_image_uuid": self.source_image_uuid,
             "source_image_hash": self.source_image_hash,
+            "extraction_policy": self.extraction_policy,
             "task_attributes_dict": self.task_attributes_dict,
         }
 

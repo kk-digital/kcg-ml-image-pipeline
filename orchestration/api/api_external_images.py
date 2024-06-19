@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -39,6 +39,17 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
                 http_status_code=422,
             )
         '''
+
+        # Check if the dataset exists
+        dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        if not dataset_result:
+            # Create a new dataset if it does not exist
+            new_dataset = {
+                "dataset_name": image_data.dataset
+            }
+            request.app.external_datasets_collection.insert_one(new_dataset)
+            print(f"Created new dataset with name {image_data.dataset}")
+
         # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
             "image_hash": image_data.image_hash
@@ -56,8 +67,8 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
 
         # set minio path using sequential id
         next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
-        image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
-                                                "external",
+        image_data_dict['file_path'] = get_minio_file_path(next_seq_id,
+                                                "external",            
                                                 image_data.dataset, 
                                                 image_data.image_format)
         
@@ -830,7 +841,10 @@ async def list_external_images_v1(
             elif time_unit == "hours":
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
-                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid time unit. Use 'minutes' or 'hours'.",
+                    http_status_code=400)
 
             # Convert threshold_time to a string in ISO format
             threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
@@ -956,7 +970,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 async def get_random_external_image_similarity(
     request: Request,
     phrase: str = Query(..., description="Phrase to compare similarity with"),
-     dataset: Optional[str] = Query(None, description="Dataset to filter images"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter images"),
     similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
     start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
     end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
@@ -989,6 +1003,7 @@ async def get_random_external_image_similarity(
             image_path_list.append(image['file_path'])
 
         similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        print(similarity_score_list)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
             return response_handler.create_error_response_v1(
@@ -1019,4 +1034,65 @@ async def get_random_external_image_similarity(
             error_string=str(e),
             http_status_code=500
         )
+
+@router.post("/external-images/add-new-dataset",
+            description="add new dataset in mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[Dataset],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+async def add_new_dataset(request: Request, dataset: Dataset):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    if request.app.external_datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='dataset already exist',
+            http_status_code=400
+        )    
+    
+    request.app.external_datasets_collection.insert_one(dataset.to_dict())
+
+    return response_handler.create_success_response_v1(
+                response_data={"dataset_name":dataset.dataset_name}, 
+                http_status_code=200
+            )  
+
+
+@router.delete("/external-images/remove-dataset",
+               description="Remove dataset and its configuration in MongoDB",
+               tags=["dataset"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422]))
+async def remove_dataset(request: Request, dataset: str = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Check if the dataset contains any objects (images)
+    image_count = request.app.external_datasets_collection.count_documents({"dataset_name": dataset, "images": {"$exists": True, "$ne": []}})
+    if image_count > 0:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string=f"Dataset '{dataset}' contains images and cannot be deleted.",
+            http_status_code=422
+        )
+
+    # Attempt to delete the dataset
+    dataset_result = request.app.external_datasets_collection.delete_one({"dataset_name": dataset})
+
+    # Check if the dataset was present and deleted
+    was_present = dataset_result.deleted_count > 0
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If the dataset was deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            True, 
+            http_status_code=200
+        )
+    else:
+        # If the dataset was not found, return False
+        return response_handler.create_success_delete_response_v1(
+            False, 
+            http_status_code=200
+        )
+
 
