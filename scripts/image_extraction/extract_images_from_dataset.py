@@ -282,8 +282,14 @@ class ImageExtractionPipeline:
                 
                 # check if batch size was reached
                 if len(self.clip_vectors) >= self.file_batch_size:
-                    # save numpy files
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
+                    # save batch file
+                    clip_vectors= self.clip_vectors.copy()
+                    vae_latents= self.vae_latents.copy()
+
+                    self.clip_vectors =[]
+                    self.vae_latents =[]
+
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
                     thread.start()
                     self.threads.append(thread)
             
@@ -291,8 +297,14 @@ class ImageExtractionPipeline:
         
         # save any extra vectors to numpy files
         if len(self.clip_vectors) > 0:
-            # save numpy files
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
+            # save batch file
+            clip_vectors= self.clip_vectors.copy()
+            vae_latents= self.vae_latents.copy()
+
+            self.clip_vectors =[]
+            self.vae_latents =[]
+            
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
             thread.start()
             self.threads.append(thread)
 
