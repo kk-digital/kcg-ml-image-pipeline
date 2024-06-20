@@ -14,6 +14,8 @@ from .api_clip import http_clip_server_get_cosine_similarity_list
 
 router = APIRouter()
 
+extracts = "extracts"
+
 @router.get("/extracts/get-current-data-batch-sequential-id", 
             description="Get the sequential id for file batches stored for a dataset",
             tags=["extracts"])
@@ -285,7 +287,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
         if existing_image_tag:
             # Remove the '_id' field before returning the response
@@ -302,7 +304,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "file_path": file_path,  
             "image_hash": image_hash,
             "tag_type": tag_type,
-            "image_source": "extracts",
+            "image_source": extracts,
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
@@ -341,7 +343,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
         if not existing_image_tag:
             return response_handler.create_success_delete_response_v1(
@@ -353,7 +355,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         request.app.image_tags_collection.delete_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
 
         return response_handler.create_success_delete_response_v1(
@@ -404,7 +406,7 @@ def get_extracts_by_tag_id(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "extracts"}
+        query = {"tag_id": tag_id, "image_source": extracts}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -456,7 +458,7 @@ def get_tag_list_for_extract_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "extracts"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": extracts})
         
         # Process the results
         tags_list = []
@@ -509,7 +511,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
     try :
         # Build the query to include the image_source as "extracts"
-        query = {"tag_id": tag_id, "image_source": "extracts"}
+        query = {"tag_id": tag_id, "image_source": extracts}
         count = request.app.image_tags_collection.count_documents(query)
 
         # Return the count even if it is zero

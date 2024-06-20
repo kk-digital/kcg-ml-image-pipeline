@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1,ListExternalImageDataV2, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -24,7 +24,7 @@ external_image = "external_image"
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
-async def add_external_image_data(request: Request, image_data: ExternalImageDataV1):
+async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
@@ -96,7 +96,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ListExternalImageData],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageDataV1]):
+async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     updaded_image_data_list = []
     try:
@@ -214,7 +214,7 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
 @router.get("/external-images/get-all-external-image-list", 
             description="Get all external image data. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV2],  
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_all_external_image_data_list(request: Request, dataset: str=None, size: int = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)

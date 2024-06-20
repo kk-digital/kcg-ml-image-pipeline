@@ -395,6 +395,8 @@ class ExternalImageData(BaseModel):
             "task_attributes_dict": self.task_attributes_dict,
         }
 
+class ListExternalImageDataV2(BaseModel):
+    data: List[ExternalImageData]
 
 class ExternalImageDataV1(BaseModel):
     upload_date: Union[str, None] = None
