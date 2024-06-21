@@ -570,7 +570,67 @@ async def sort_ranking_data_by_date_v2(
         )
 
   
-    
+
+@router.get("/rank-training/sort-ranking-data-by-date-v1", 
+            description="Sort rank data by date",
+            tags=["rank-training"],
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v2(
+    request: Request,
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$"),
+    image_source: str = Query(..., description="Image source to filter by", regex="^(generated_image|external_image|extract_image)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query_filter = {"image_source": image_source}
+        date_filter = {}
+
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
+
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+        cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            
+            # Ensure all fields are present, set default values if not
+            doc.setdefault('flagged', None)
+            doc.setdefault('flagged_by_user', None)
+            doc.setdefault('flagged_time', None)
+            
+            ranking_data.append(doc)
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": ranking_data}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        print("Error during API execution:", str(e))
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )
+
+
 
 @router.get("/rank-training/count-ranking-data-points", 
             description="Count ranking data points based on specific rank models or policies",

@@ -14,7 +14,7 @@ from .api_clip import http_clip_server_get_cosine_similarity_list
 
 router = APIRouter()
 
-extracts = "extracts"
+extracts = "extract_image"
 
 @router.get("/extracts/get-current-data-batch-sequential-id", 
             description="Get the sequential id for file batches stored for a dataset",
