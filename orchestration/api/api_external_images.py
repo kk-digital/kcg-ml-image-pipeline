@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1,ListExternalImageDataV2, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1,ListExternalImageDataV2, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset, ListDataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -1055,6 +1055,24 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 response_data={"dataset_name":dataset.dataset_name}, 
                 http_status_code=200
             )  
+
+
+@router.get("/external-images/list-datasets",
+            description="list datasets from mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    datasets = list(request.app.external_datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )               
 
 
 @router.delete("/external-images/remove-dataset",

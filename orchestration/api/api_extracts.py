@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Request,  Query
-from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListExternalImageDataWithSimilarityScore
+from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListExternalImageDataWithSimilarityScore, ListDataset
 from pymongo import ReturnDocument
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
@@ -550,6 +550,22 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 http_status_code=200
             )  
 
+@router.get("/extract-images/list-datasets",
+            description="list datasets from mongodb",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    datasets = list(request.app.extract_datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )  
 
 @router.delete("/extract-images/remove-dataset",
                description="Remove dataset and its configuration in MongoDB",
