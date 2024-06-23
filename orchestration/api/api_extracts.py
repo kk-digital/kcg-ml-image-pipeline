@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Request,  Query
-from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListExternalImageDataWithSimilarityScore, ListDataset
+from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListDataset , ListExtractImageDataWithScore
 from pymongo import ReturnDocument
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
@@ -530,7 +530,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 
 @router.post("/extract-images/add-new-dataset",
             description="add new dataset in mongodb",
-            tags=["dataset"],
+            tags=["extracts"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -552,7 +552,7 @@ async def add_new_dataset(request: Request, dataset: Dataset):
 
 @router.get("/extract-images/list-datasets",
             description="list datasets from mongodb",
-            tags=["dataset"],
+            tags=["extracts"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -568,8 +568,8 @@ async def list_datasets(request: Request):
             )  
 
 @router.delete("/extract-images/remove-dataset",
-               description="Remove dataset and its configuration in MongoDB",
-               tags=["dataset"],
+               description="Remove dataset",
+               tags=["extracts"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
@@ -608,10 +608,10 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
 @router.get("/extract-images/list-images",
             status_code=200,
             tags=["extracts"],
-            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
+            response_model=StandardSuccessResponseV1[ListExtractImageData],
             description="List extracts images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def list_external_images_v1(
+async def list_extract_images_v1(
     request: Request,
     dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
     limit: int = Query(20, description="Limit on the number of results returned"),
@@ -727,7 +727,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 @router.get("/extract-images/get-random-images-with-clip-search",
             tags=["extracts"],
             description="Gets as many random extract images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
-            response_model=StandardSuccessResponseV1[ListExternalImageDataWithSimilarityScore],
+            response_model=StandardSuccessResponseV1[ListExtractImageDataWithScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_random_external_image_similarity(
     request: Request,

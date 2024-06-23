@@ -1036,7 +1036,7 @@ async def get_random_external_image_similarity(
 
 @router.post("/external-images/add-new-dataset",
             description="add new dataset in mongodb",
-            tags=["dataset"],
+            tags=["external-images"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -1059,7 +1059,7 @@ async def add_new_dataset(request: Request, dataset: Dataset):
 
 @router.get("/external-images/list-datasets",
             description="list datasets from mongodb",
-            tags=["dataset"],
+            tags=["external-images"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -1076,8 +1076,8 @@ async def list_datasets(request: Request):
 
 
 @router.delete("/external-images/remove-dataset",
-               description="Remove dataset and its configuration in MongoDB",
-               tags=["dataset"],
+               description="Remove dataset",
+               tags=["external-images"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):

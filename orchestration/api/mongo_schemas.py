@@ -375,6 +375,21 @@ class ExtractImageData(BaseModel):
 class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
+class ExtractImageDataWithScore(BaseModel):
+    uuid: str
+    image_hash: str
+    dataset:str
+    file_path: str
+    upload_date: str
+    source_image_uuid: str
+    source_image_hash: str
+    extraction_policy: str
+    task_attributes_dict: str
+    similarity_score: float
+
+class ListExtractImageDataWithScore(BaseModel):
+    images: List[ExtractImageDataWithScore]
+
 class ExternalImageData(BaseModel):
     image_hash: str
     dataset:str
@@ -437,19 +452,6 @@ class ExternalImageDataWithSimilarityScore(BaseModel):
 
 class ListExternalImageDataWithSimilarityScore(BaseModel):
     images: List[ExternalImageDataWithSimilarityScore]
-
-    def to_dict(self):
-        return {
-            "uuid": self.uuid,
-            "dataset": self.dataset,
-            "upload_date": self.upload_date,
-            "image_hash": self.image_hash,
-            "image_resolution": self.image_resolution.to_dict(),
-            "image_format": self.image_format,
-            "file_path": self.file_path,
-            "source_image_dict": self.source_image_dict,
-            "task_attributes_dict": self.task_attributes_dict,
-        }
 
 class ListExternalImageData(BaseModel):
     data: List[ExternalImageDataV1]
