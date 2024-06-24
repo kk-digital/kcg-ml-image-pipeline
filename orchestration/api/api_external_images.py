@@ -108,7 +108,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
             if existed:
                 return api_response_handler.create_error_response_v1(
                     error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="Image data with this hash already exists.",
+                    error_string=f"Image data with hash {image_data.image_hash} already exists.",
                     http_status_code=422
                 )
             else:
@@ -723,9 +723,9 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 
 @router.get("/external-images/list-images-v1",
             status_code=200,
-            tags=["external-images"],
+            tags=["deprecated3"],
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],
-            description="List external images with optional filtering and pagination",
+            description="changed with /external-images/list-images-v2 ",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def list_external_images_v1(
     request: Request,

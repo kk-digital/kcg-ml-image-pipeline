@@ -23,9 +23,21 @@ class IrrelevantResponse(BaseModel):
     file_hash: str
     rank_model_id: int
 
+class GenerationCounts(BaseModel):
+    character: int
+    environmental: int
+    external_images: int
+    icons: int
+    mech: int
+    propaganda_poster: int
+    ranks: int
+    test_generations: int
+    variants: int
+    waifu: int
 
 class ListGenerationsCountPerDayResponse(BaseModel):
-    results: dict
+    results: Dict[str, GenerationCounts]
+
 
 class JobStatsResponse(BaseModel):
     total: int
@@ -49,8 +61,13 @@ class DoneResponse(BaseModel):
 class DatasetResponse(BaseModel):
     datasets: List[str]
 
+class SeqSeqIdResponseData(BaseModel):
+    dataset_name: str
+    subfolder_count: int
+    file_count: int
+
 class SeqIdResponse(BaseModel):
-    sequential_ids : List[str]
+    sequential_ids : List[SeqSeqIdResponseData]
     
 class SeqIdDatasetResponse(BaseModel):
     dataset: str

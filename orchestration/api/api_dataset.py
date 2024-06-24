@@ -665,7 +665,7 @@ async def get_all_sequential_ids(request: Request):
 
         # Return the sequential IDs
         return response_handler.create_success_response_v1(
-            response_data=sequential_ids,
+            response_data={"sequential_ids": sequential_ids},
             http_status_code=200
         )
         
