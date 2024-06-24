@@ -372,6 +372,26 @@ class ExtractImageData(BaseModel):
             "task_attributes_dict": self.task_attributes_dict,
         }
 
+class ExtractImageDataV1(BaseModel):
+    image_hash: str
+    dataset:str
+    source_image_uuid: str
+    source_image_hash: str
+    extraction_policy: str
+    task_attributes_dict: Union[dict, None] = None
+    
+
+    def to_dict(self):
+        return {
+            "image_hash": self.image_hash,
+            "dataset": self.dataset,
+            "source_image_uuid": self.source_image_uuid,
+            "source_image_hash": self.source_image_hash,
+            "extraction_policy": self.extraction_policy,
+            "task_attributes_dict": self.task_attributes_dict,
+        }    
+
+
 class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
