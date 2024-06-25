@@ -13,6 +13,8 @@ from typing import List
 router = APIRouter()
 
 
+generated_image = "generated_image"
+
 @router.get("/classifier-score/get-scores-by-classifier-id-and-tag-id",
             description="deprecated, replaced with /pseudotag-classifier-scores/list-images-by-scores-v1",
             status_code=200,
@@ -404,14 +406,15 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
             "tag_id": tag_id,
             "score": classifier_score.score,
             "image_hash": image_hash,
-            "creation_time": current_utc_time
+            "creation_time": current_utc_time,
+            "image_source": generated_image
         }
 
         # Check for existing score and update or insert accordingly
         existing_score = request.app.image_classifier_scores_collection.find_one(query)
         if existing_score:
             # Update existing score
-            request.app.image_classifier_scores_collection.update_one(query, {"$set": {"score": classifier_score.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+            request.app.image_classifier_scores_collection.update_one(query, {"$set": {"score": classifier_score.score, "image_hash": image_hash, "creation_time": current_utc_time }})
         else:
             # Insert new score
             insert_result = request.app.image_classifier_scores_collection.insert_one(new_score_data)
