@@ -65,7 +65,7 @@ def get_aggregated_selection_datapoints(minio_client, dataset_name):
     return unflagged_ab_data
 
 def get_aggregated_selection_datapoints_v1(minio_client, rank_model_id):
-    prefix = "ranks/{}/data/ranking/aggregate".format(rank_model_id)
+    prefix = "ranks/{:05}/data/ranking/aggregate".format(rank_model_id)
     dataset_paths = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", prefix=prefix)
 
     print("Get selection datapoints contents and filter out flagged datapoints...")
