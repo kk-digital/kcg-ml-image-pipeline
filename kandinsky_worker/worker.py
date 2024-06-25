@@ -308,7 +308,7 @@ def get_job_if_exist(worker_type_list):
         #     job = generation_request.http_get_job(worker_type, model_type="kandinsky")
         
     # temporarily forcing workers to do only clip calculations
-    job = generation_request.http_get_job("clip_calculation_task_kandinsky", model_type="kandinsky")
+    job = generation_request.http_get_job("clip_calculation_task_kandinsky")
 
     return job
 
