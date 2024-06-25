@@ -21,7 +21,7 @@ def http_add_external_image(image_data):
 
     return None
 
-def http_get_external_image_list(dataset, size=None):
+def http_get_external_image_list(dataset= None, size=None):
     endpoint_url= "/external-images/get-all-external-image-list?dataset={}".format(dataset)
 
     if size:
@@ -78,7 +78,7 @@ def http_add_extract(image_data):
 
     return None
 
-def http_get_extract_image_list(dataset, size=None):
+def http_get_extract_image_list(dataset= None, size=None):
     endpoint_url= "/extracts/get-all-extracts-list?dataset={}".format(dataset)
 
     if size:

@@ -41,7 +41,9 @@ def check_new_images_and_download(clip_server):
         # TODO(): orchestration must provide an api
         # TODO(): that will take in num_jobs & offset
         # TODO(): so that we dont download millions of jobs each time
-        clip_server.download_all_clip_vectors()
+        clip_server.download_all_clip_vectors("external")
+        clip_server.download_all_clip_vectors("extracts")
+        clip_server.download_all_clip_vectors("datasets")
 
         # Sleep for 2 hours
         sleep_time_in_seconds = 2.0 * 60 * 60
@@ -59,8 +61,10 @@ def startup_db_client():
     app.clip_server = ClipServer(app.device, app.minio_client)
     app.clip_server.load_clip_model()
 
-    # downloads all clip vectors
-    app.clip_server.download_all_clip_vectors()
+    # downloads all clip vectors for external, extracts and datasets buckets
+    app.clip_server.download_all_clip_vectors("external")
+    app.clip_server.download_all_clip_vectors("extracts")
+    app.clip_server.download_all_clip_vectors("datasets")
 
     # spawn a thread that will check if there are
     # new images clip_vectors & download them

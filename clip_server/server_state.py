@@ -17,6 +17,7 @@ from utility.path import separate_bucket_and_file_path
 from clip_cache import ClipCache
 from clip_constants import CLIP_CACHE_DIRECTORY
 from utility.http.request import http_get_list_completed_jobs
+from utility.http.external_images_request import http_get_external_image_list, http_get_extract_image_list
 
 class Phrase:
     def __init__(self, id, phrase):
@@ -301,12 +302,22 @@ class ClipServer:
         clip_vector = clip_vector_cpu.tolist()
         return clip_vector
 
-    def download_all_clip_vectors(self):
+    def download_all_clip_vectors(self, bucket):
 
         print('Starting to download all clip vectors')
 
         print('Getting list of completed jobs')
-        completed_jobs = http_get_list_completed_jobs()
+        
+        if bucket=="datasets":
+            completed_jobs = http_get_list_completed_jobs()
+        elif bucket=="external":
+            completed_jobs = http_get_external_image_list()
+        elif bucket=="extracts":
+            completed_jobs = http_get_extract_image_list()
+        else:
+            print(f"Bucket name {bucket} not recognized")
+            return None
+        
         print('Finished getting list of completed jobs')
 
         if completed_jobs is None:
@@ -317,30 +328,33 @@ class ClipServer:
         job_index = 0
         for job in completed_jobs:
             print(f'processing job {job_index} our of {num_jobs}')
-
             job_index = job_index + 1
-            input_dict = job['task_input_dict']
+            if bucket=="datasets":
+                input_dict = job['task_input_dict']
 
-            # Jobs must have input dictionary
-            if input_dict is None:
-                continue
+                # Jobs must have input dictionary
+                if input_dict is None:
+                    continue
 
-            # Jobs must have target dataset
-            if 'dataset' not in input_dict:
-                continue
+                # Jobs must have target dataset
+                if 'dataset' not in input_dict:
+                    continue
 
-            # Jobs must have output image path
-            if 'file_path' not in input_dict:
-                continue
+                # Jobs must have output image path
+                if 'file_path' not in input_dict:
+                    continue
 
-            dataset = input_dict['dataset']
-            file_path = input_dict['file_path']
+                dataset = input_dict['dataset']
+                file_path = input_dict['file_path']
 
-            image_path = f'{dataset}/{file_path}'
+                image_path = f'{dataset}/{file_path}'
+
+            elif bucket in ['external', 'extracts']:
+                _ , image_path = separate_bucket_and_file_path(job['file_path'])
 
             # this will download the clip vector from minio
             # and will also add it to clip cache
-            self.clip_cache.get_clip_vector(image_path)
+            self.clip_cache.get_clip_vector(bucket, image_path)
 
 
 
