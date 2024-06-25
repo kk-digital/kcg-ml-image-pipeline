@@ -9,6 +9,7 @@ from PIL import Image
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from kandinsky.models.clip_text_encoder.clip_text_encoder import KandinskyCLIPTextEmbedder
 from utility.clip.clip import ClipModel
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio.cmd import get_file_from_minio, is_object_exists
@@ -34,14 +35,13 @@ class ClipServer:
         self.phrase_dictionary = {}
         self.clip_vector_dictionary = {}
         self.image_clip_vector_cache = {}
-        self.clip_model = ClipModel(device=device)
+        self.clip_model = KandinskyCLIPTextEmbedder(device=device)
         self.kandinsky_clip_model= KandinskyCLIPImageEncoder(device=device)
         self.device = device
         self.clip_cache = ClipCache(device, minio_client, CLIP_CACHE_DIRECTORY)
 
     def load_clip_model(self):
-        self.clip_model.load_clip()
-        self.clip_model.load_tokenizer()
+        self.clip_model.load_submodels()
         self.kandinsky_clip_model.load_submodels()
 
     def generate_id(self):
@@ -123,8 +123,10 @@ class ClipServer:
         base_path = image_path.rstrip(image_path[-4:])
 
         # finds the clip file associated with the image
-        # example image => image_clip.msgpack
-        image_clip_vector_path = f'{base_path}_clip.msgpack'
+        if bucket_name == "extracts":
+            image_clip_vector_path = f'{base_path}_clip-h.msgpack'
+        elif bucket_name in ['datasets', 'external']:
+            image_clip_vector_path = f'{base_path}_clip_kandinsky.msgpack'
 
         print(f'image clip vector path : {image_clip_vector_path}')
         # get the clip.msgpack from minio
@@ -291,7 +293,7 @@ class ClipServer:
         return cosine_match_list
 
     def compute_clip_vector(self, text):
-        clip_vector_gpu = self.clip_model.get_text_features(text)
+        clip_vector_gpu = self.clip_model(text)
         clip_vector_cpu = clip_vector_gpu.cpu()
 
         del clip_vector_gpu

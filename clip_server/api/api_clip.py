@@ -25,19 +25,20 @@ def get_clip_vector(request: Request,
 
 @router.get("/clip-vector-from-image-path")
 def clip_vector_from_image_path(request: Request,
-             image_path : str):
+                                image_path : str,
+                                bucket: str = "datasets"):
     clip_server = request.app.clip_server
 
-    clip_vector = clip_server.get_image_clip_from_minio(image_path, 'datasets')
+    clip_vector = clip_server.get_image_clip_from_minio(image_path, bucket)
 
     return clip_vector
 
 
 @router.get("/cosine-similarity")
-def clip_vector_from_image_path(request: Request,
-             bucket: str,                  
+def clip_vector_from_image_path(request: Request,                 
              image_path : str,
-             phrase : str):
+             phrase : str,
+             bucket: str = "datasets"):
     clip_server = request.app.clip_server
 
     similarity = clip_server.compute_cosine_match_value(phrase, bucket, image_path)
@@ -46,9 +47,9 @@ def clip_vector_from_image_path(request: Request,
 
 @router.post("/cosine-similarity-list")
 def clip_vector_from_image_path(request: Request,
-                                bucket: str,
                                 image_path : List[str],
-                                phrase : str):
+                                phrase : str,
+                                bucket: str = "datasets"):
     clip_server = request.app.clip_server
 
     similarity_list = clip_server.compute_cosine_match_value_list(phrase, bucket, image_path)
@@ -59,10 +60,11 @@ def clip_vector_from_image_path(request: Request,
 
 @router.get("/image-clip")
 def clip_vector_from_image_path(request: Request,
-             image_path : str):
+             image_path : str,
+             bucket: str = "datasets"):
     clip_server = request.app.clip_server
 
-    image_clip_vector_numpy = clip_server.get_image_clip_from_minio(image_path, 'datasets')
+    image_clip_vector_numpy = clip_server.get_image_clip_from_minio(image_path, bucket)
 
     return image_clip_vector_numpy
 

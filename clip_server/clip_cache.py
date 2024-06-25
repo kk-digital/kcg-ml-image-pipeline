@@ -63,7 +63,7 @@ class ClipFile:
 class ClipCache:
     def __init__(self, device, minio_client, clip_cache_directory):
         self.minio_client = minio_client
-        self.clip_model = ClipModel(device=device)
+        # self.clip_model = ClipModel(device=device)
         self.device = device
         self.clip_cache_directory = clip_cache_directory
         self.clip_vector_dictionary_lock = threading.Lock()
