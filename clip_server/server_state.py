@@ -95,8 +95,8 @@ class ClipServer:
 
         return None
 
-    def get_image_clip_vector(self, image_path):
-        return self.clip_cache.get_clip_vector(image_path)
+    def get_image_clip_vector(self, bucket, image_path):
+        return self.clip_cache.get_clip_vector(bucket, image_path)
 
     def get_phrase_list(self, offset, limit):
         result = []
@@ -157,7 +157,7 @@ class ClipServer:
         return None
 
 
-    def compute_cosine_match_value(self, phrase, image_path):
+    def compute_cosine_match_value(self, phrase, bucket, image_path):
         print('computing cosine match value for ', phrase, ' and ', image_path)
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
@@ -168,7 +168,7 @@ class ClipServer:
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
-        image_clip_vector_numpy = self.get_image_clip_vector(image_path)
+        image_clip_vector_numpy = self.get_image_clip_vector(bucket, image_path)
 
         # the score is zero if we cant find the image clip vector
         if image_clip_vector_numpy is None:
@@ -208,7 +208,7 @@ class ClipServer:
 
         return similarity.item()
 
-    def compute_cosine_match_value_list(self, phrase, image_path_list):
+    def compute_cosine_match_value_list(self, phrase, bucket, image_path_list):
 
         num_images = len(image_path_list)
 
@@ -243,7 +243,7 @@ class ClipServer:
         # for each batch do
         for image_index in range(0, num_images):
             image_path = image_path_list[image_index]
-            image_clip_vector = self.get_image_clip_vector(image_path)
+            image_clip_vector = self.get_image_clip_vector(bucket, image_path)
             # if the clip_vector was not found
             # or couldn't load for some network reason
             # we must provide an empty vector as replacement

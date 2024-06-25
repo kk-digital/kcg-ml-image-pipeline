@@ -35,21 +35,23 @@ def clip_vector_from_image_path(request: Request,
 
 @router.get("/cosine-similarity")
 def clip_vector_from_image_path(request: Request,
+             bucket: str,                  
              image_path : str,
              phrase : str):
     clip_server = request.app.clip_server
 
-    similarity = clip_server.compute_cosine_match_value(phrase, image_path)
+    similarity = clip_server.compute_cosine_match_value(phrase, bucket, image_path)
 
     return similarity
 
 @router.post("/cosine-similarity-list")
 def clip_vector_from_image_path(request: Request,
+                                bucket: str,
                                 image_path : List[str],
                                 phrase : str):
     clip_server = request.app.clip_server
 
-    similarity_list = clip_server.compute_cosine_match_value_list(phrase, image_path)
+    similarity_list = clip_server.compute_cosine_match_value_list(phrase, bucket, image_path)
 
     return {
         "similarity_list" : similarity_list
