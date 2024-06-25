@@ -538,7 +538,7 @@ def http_get_tag_list():
 
 
 def http_get_tagged_images(tag_id):
-    url = SERVER_ADDRESS + "/tags/get-images-by-tag-id/?tag_id{}".format(tag_id)
+    url = SERVER_ADDRESS + "/tags/get-images-by-tag-id/?tag_id={}".format(tag_id)
     try:
         response = requests.get(url)
 
