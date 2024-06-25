@@ -145,6 +145,7 @@ class ResponseRankSelection(BaseModel):
     selected_image_hash: str
     training_mode: str
     rank_active_learning_policy_id: Union[int, None] = None
+    image_source: str
     datetime: datetime
     flagged: Optional[bool] = None
     flagged_by_user: Optional[str] = None
