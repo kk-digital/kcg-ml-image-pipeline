@@ -301,17 +301,14 @@ def parse_args():
 
 def get_job_if_exist(worker_type_list):
     job = None
-    for worker_type in worker_type_list:        
+    # for worker_type in worker_type_list:        
         # if worker_type == "":
         #     job = generation_request.http_get_job(model_type="kandinsky")
         # else:
         #     job = generation_request.http_get_job(worker_type, model_type="kandinsky")
         
-        # temporarily forcing workers to do only clip calculations
-        job = generation_request.http_get_job("clip_calculation_task_kandinsky", model_type="kandinsky")
-
-        if job is not None:
-            break
+    # temporarily forcing workers to do only clip calculations
+    job = generation_request.http_get_job("clip_calculation_task_kandinsky", model_type="kandinsky")
 
     return job
 
@@ -558,7 +555,7 @@ def process_jobs(worker_state):
             generation_task = GenerationTask.from_dict(job)
 
             try:
-                if task_type == 'img2img_generation_kandinsky':
+                if task_type == 'img2img_generation_kandinsky' and False:
                     output_file_path, output_file_hash, img_data, latent, seed = run_img2img_generation_task(worker_state,
                                                                                                    generation_task)
                     
@@ -569,7 +566,7 @@ def process_jobs(worker_state):
                         worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash, job_completion_time, img_data))
                     thread.start()
 
-                elif task_type == 'inpainting_kandinsky':
+                elif task_type == 'inpainting_kandinsky' and False:
                     output_file_path, output_file_hash, img_data, inpainting_latent, seed = run_inpainting_generation_task(worker_state,
                                                                                                   generation_task)
 
@@ -597,7 +594,7 @@ def process_jobs(worker_state):
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'image_generation_kandinsky':
+                elif task_type == 'image_generation_kandinsky' and False:
                     output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
                                                                                                    generation_task)
 
