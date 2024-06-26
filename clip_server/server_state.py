@@ -183,8 +183,8 @@ class ClipServer:
         image_clip_vector = torch.tensor(image_clip_vector_numpy, dtype=torch.float32, device=self.device)
 
         #check the vector size
-        assert phrase_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {phrase_clip_vector.size()}"
-        assert image_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {image_clip_vector.size()}"
+        assert phrase_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {phrase_clip_vector.size()}"
+        assert image_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {image_clip_vector.size()}"
 
         # removing the extra dimension
         # from shape (1, 768) => (768)
@@ -234,7 +234,7 @@ class ClipServer:
         phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
 
          #check the vector size
-        assert phrase_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {phrase_clip_vector.size()}"
+        assert phrase_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {phrase_clip_vector.size()}"
 
         # Normalizing the tensor
         normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector, p=2, dim=1)
@@ -259,7 +259,7 @@ class ClipServer:
             image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)
 
             #check the vector size
-            assert image_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {image_clip_vector.size()}"
+            assert image_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {image_clip_vector.size()}"
 
             normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector, p=2, dim=1)
             # removing the extra dimension
@@ -294,7 +294,7 @@ class ClipServer:
         return cosine_match_list
 
     def compute_clip_vector(self, text):
-        clip_vector_gpu = self.clip_model(text)
+        _, clip_vector_gpu, _ = self.clip_model.compute_embeddings(text)
         clip_vector_cpu = clip_vector_gpu.cpu()
 
         del clip_vector_gpu
