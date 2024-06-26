@@ -2020,7 +2020,8 @@ async def count_pending(request: Request, dataset: Optional[str] = None):
         }}
     ]
 
-    task_counts = await request.app.pending_jobs_collection.aggregate(aggregation_pipeline).to_list(None)
+    task_counts_cursor = request.app.pending_jobs_collection.aggregate(aggregation_pipeline)
+    task_counts = list(task_counts_cursor)
     
     counts = {item['_id']: item['count'] for item in task_counts}
 
