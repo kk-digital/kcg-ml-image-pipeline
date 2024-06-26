@@ -310,7 +310,7 @@ def get_random_image_similarity_date_range(
 
         image_path_list.append(image_path)
 
-    similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+    similarity_score_list = http_clip_server_get_cosine_similarity_list("datasets", image_path_list, phrase)
 
     print(similarity_score_list)
 
