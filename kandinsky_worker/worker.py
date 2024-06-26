@@ -301,14 +301,14 @@ def parse_args():
 
 def get_job_if_exist(worker_type_list):
     job = None
-    # for worker_type in worker_type_list:        
-        # if worker_type == "":
-        #     job = generation_request.http_get_job(model_type="kandinsky")
-        # else:
-        #     job = generation_request.http_get_job(worker_type, model_type="kandinsky")
+    for worker_type in worker_type_list:        
+        if worker_type == "":
+            job = generation_request.http_get_job(model_type="kandinsky")
+        else:
+            job = generation_request.http_get_job(worker_type, model_type="kandinsky")
         
-    # temporarily forcing workers to do only clip calculations
-    job = generation_request.http_get_job("clip_calculation_task_kandinsky")
+        if job is not None:
+            break
 
     return job
 
