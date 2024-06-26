@@ -46,18 +46,6 @@ def get_worker_stats(ssh_key_path: str = Query(...),
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/ping", 
-            response_model=StandardSuccessResponseV1[None],
-            description="dummy endpoint to test connection with the server",
-            responses=ApiResponseHandlerV1.listErrors([422, 500]))
-def ping(request: Request):
-    response_handler = ApiResponseHandlerV1(request)
-    # Simply return None for data, indicating a successful ping with no additional data
-    return response_handler.create_success_response_v1(
-        response_data=None,  
-        http_status_code=200
-    )
-
 
 @router.post("/worker/register-worker",
              status_code=201,

@@ -198,19 +198,19 @@ async def add_job(request: Request, task: Task):
     
 # -------------- Get jobs count ----------------------
     
-@router.get("/queue/inpainting-generation/pending-count", tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/pending-count", tags=["deprecated3"], description="changed with /queue/inpainting-generation/get-pending-jobs-count ")
 def get_pending_job_count(request: Request):
     count = request.app.pending_inpainting_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/inpainting-generation/in-progress-count", tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/in-progress-count", tags=["deprecated3"], description="changed with /queue/inpainting-generation/get-in-progress-jobs-count")
 def get_in_progress_job_count(request: Request):
     count = request.app.in_progress_inpainting_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/inpainting-generation/completed-count", tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/completed-count", tags=["deprecated3"],description="changed with /queue/inpainting-generation/get-completed-jobs-count")
 def get_completed_job_count(request: Request):
     count = request.app.completed_inpainting_jobs_collection.count_documents({})
     return count    
@@ -218,7 +218,7 @@ def get_completed_job_count(request: Request):
 
  # --------------------- List ----------------------
 
-@router.get("/queue/inpainting-generation/list-pending", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/list-pending", response_class=PrettyJSONResponse, tags=["deprecated3"], description="changed with /queue/inpainting-generation/list-pending-jobs ")
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.pending_inpainting_jobs_collection.find({}))
 
@@ -228,7 +228,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/inpainting-generation/list-in-progress", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/list-in-progress", response_class=PrettyJSONResponse, tags=["deprecated3"], description="changed with /queue/inpainting-generation/list-in-progress-jobs")
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.in_progress_inpainting_jobs_collection.find({}))
 
@@ -238,7 +238,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/inpainting-generation/list-completed", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/list-completed", response_class=PrettyJSONResponse, tags=["deprecated3"], description="changed with /queue/inpainting-generation/list-completed-jobs")
 def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_inpainting_jobs_collection.find({}).limit(limit))
@@ -248,7 +248,7 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
-@router.get("/queue/inpainting-generation/list-completed-by-dataset", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
+@router.get("/queue/inpainting-generation/list-completed-by-dataset", response_class=PrettyJSONResponse, tags=["deprecated3"], description="changed with /queue/inpainting-generation/list-completed-jobs")
 def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_inpainting_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
