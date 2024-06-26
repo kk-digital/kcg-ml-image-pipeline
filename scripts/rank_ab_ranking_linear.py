@@ -49,10 +49,10 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
-    training_dataset_path = os.path.join(bucket_name, "ranks/{}/data/ranking/aggregate".format(rank_model_info["rank_model_id"]))
+    training_dataset_path = os.path.join(bucket_name, "ranks/{:05}/data/ranking/aggregate".format(rank_model_info["rank_model_id"]))
     network_type = "linear"
     output_type = "score"
-    output_path = "ranks/{}/models/ranking".format(rank_model_info["rank_model_id"])
+    output_path = "ranks/{:05}/models/ranking".format(rank_model_info["rank_model_id"])
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:

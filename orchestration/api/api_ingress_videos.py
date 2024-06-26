@@ -10,7 +10,10 @@ from datetime import datetime
 
 # import typing
 from typing import List
-from .api_utils import get_next_external_dataset_seq_id, update_external_dataset_seq_id, get_minio_file_path
+from .api_utils import get_next_external_dataset_seq_id, \
+                        update_external_dataset_seq_id, \
+                        get_minio_file_path, \
+                        get_ingress_video_path
 
 router = APIRouter()
 
@@ -36,10 +39,8 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
         if existed is None:
             # TODO: add dataset so get sequential id for specific dataset
             next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
-            video_meta_data.file_path = get_minio_file_path(next_seq_id,
-                                                            "ingress-video",
-                                                            video_meta_data.dataset, 
-                                                            video_meta_data.file_type)
+                            
+            video_meta_data.file_path = get_ingress_video_path(bucket="ingress-video", video_metadata=video_meta_data)
 
             request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
             update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
@@ -83,10 +84,9 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
             video_meta_data.upload_date = str(datetime.now())
             if existed is None:
                 next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
-                video_meta_data.file_path = get_minio_file_path(next_seq_id, 
-                                                        "ingress-video",
-                                                        video_meta_data.dataset, 
-                                                        video_meta_data.file_type)
+                
+                video_meta_data.file_path = get_ingress_video_path(bucket="ingress-video", video_metadata=video_meta_data)
+                
                 request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
                 update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
 
