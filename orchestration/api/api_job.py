@@ -40,10 +40,10 @@ def convert_objectid_to_str(doc):
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     # Define the base query
     base_query = {}
-    if task_type:
-        base_query["task_type"] = task_type
     if model_type:
         base_query["task_type"] = {"$regex": model_type} 
+    if task_type:
+        base_query["task_type"] = task_type
     
     # Prioritize jobs where task_input_dict.dataset is "variants"
     priority_query = base_query.copy()
