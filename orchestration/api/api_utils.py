@@ -558,6 +558,7 @@ def get_ingress_video_path(bucket:str, video_metadata: VideoMetaData) -> str:
         .format(get_video_short_hash_from_url(video_metadata.source_url),
                 video_metadata.video_resolution.split('x')[1],
                 video_metadata.video_frame_rate)
-        
-    return f'{bucket}/{video_metadata.dataset}/{fname}'
+    path = f'{bucket}/{video_metadata.dataset}/{fname}'
+    
+    return f'{path}.{video_metadata.file_type}'
     
