@@ -555,7 +555,7 @@ def process_jobs(worker_state):
             generation_task = GenerationTask.from_dict(job)
 
             try:
-                if task_type == 'img2img_generation_kandinsky' and False:
+                if task_type == 'img2img_generation_kandinsky':
                     output_file_path, output_file_hash, img_data, latent, seed = run_img2img_generation_task(worker_state,
                                                                                                    generation_task)
                     
@@ -566,7 +566,7 @@ def process_jobs(worker_state):
                         worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash, job_completion_time, img_data))
                     thread.start()
 
-                elif task_type == 'inpainting_kandinsky' and False:
+                elif task_type == 'inpainting_kandinsky':
                     output_file_path, output_file_hash, img_data, inpainting_latent, seed = run_inpainting_generation_task(worker_state,
                                                                                                   generation_task)
 
@@ -594,7 +594,7 @@ def process_jobs(worker_state):
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'image_generation_kandinsky' and False:
+                elif task_type == 'image_generation_kandinsky':
                     output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
                                                                                                    generation_task)
 
@@ -684,7 +684,7 @@ def main():
 
     while True:
         # store self training data
-        worker_state.store_self_training_data()
+        # worker_state.store_self_training_data()
 
         # if we have more than n jobs in queue
         # sleep for a while
