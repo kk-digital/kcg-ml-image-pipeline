@@ -2000,7 +2000,7 @@ async def get_completed_job_count(request: Request):
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
 
 
-@router.get("/queue/image-generation/get-pending-jobs-count-v1", 
+@router.get("/test-count", 
             response_model=StandardSuccessResponseV1,
             status_code=200,
             tags=["jobs-standardized"],
@@ -2029,3 +2029,22 @@ async def count_pending(request: Request, dataset: Optional[str] = None):
         response_data={"counts": counts},
         http_status_code=200
     )
+
+@router.delete("/remove-pending-jobs",
+               response_model=StandardSuccessResponseV1,
+               status_code=200,
+               tags=["jobs-standardized"],
+               description="Delete all pending img2img generation jobs of type kandinsky.")
+async def delete_img2img_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    delete_result = request.app.pending_jobs_collection.delete_many({"task_type": "img2img_generation_kandinsky"})
+    delete_result = list(delete_result)
+    
+    if delete_result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No matching jobs found to delete.")
+    
+    return response_handler.create_success_response_v1(
+        response_data={"message": f"Deleted {delete_result.deleted_count} img2img generation kandinsky jobs."},
+        http_status_code=200
+    )    
