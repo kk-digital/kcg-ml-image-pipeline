@@ -29,7 +29,6 @@ hyperopt==0.2.7
 bayesian-optimization==1.4.3
 python-dateutil
 scikit-learn
-xgboost
 clip-interrogator
 omegaconf
 seaborn

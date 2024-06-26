@@ -326,6 +326,10 @@ class KandinskyImageGenerator:
 def main():
     args= parse_args()
 
+    print("Generation jobs are currently blocked")
+
+    return None
+
     if args.dataset != "all":
         # initialize generator
         generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
