@@ -166,10 +166,23 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_compound_index, 'completed_jobs_compound_index')
 
+    pending_jobs_task_creation_time_index=[
+    ("task_creation_time", pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_creation_time_index, 'pending_jobs_task_creation_time_index')
+    
     pending_jobs_task_type_index=[
-    ('task_type', pymongo.ASCENDING)
+    ("task_type", pymongo.ASCENDING),
+    ("task_creation_time", pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_index, 'pending_jobs_task_type_index')
+    
+    pending_jobs_task_type_and_dataset_index=[
+    ("task_type", pymongo.ASCENDING),
+    ("task_input_dict.dataset", pymongo.ASCENDING),
+    ("task_creation_time", pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_and_dataset_index, 'pending_jobs_task_type_and_dataset_index')
 
     completed_jobs_uuid_index=[
     ('uuid', pymongo.ASCENDING)
