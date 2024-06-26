@@ -2008,7 +2008,7 @@ async def get_completed_job_count(request: Request):
 async def count_clip_calculation_jobs(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     
-    count = await request.app.pending_jobs_collection.count_documents({"task_type": "clip_calculation_task_kandinsky"})
+    count = request.app.pending_jobs_collection.count_documents({"task_type": "clip_calculation_task_kandinsky"})
     
     return response_handler.create_success_response_v1(
         response_data={"count": count},
