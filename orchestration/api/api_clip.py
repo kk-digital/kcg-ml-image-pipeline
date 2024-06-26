@@ -608,7 +608,7 @@ async def get_random_image_similarity_date_range(
             image_path = output_file_dictionary['output_file_path'].replace("datasets/", "")
             image_path_list.append(image_path)
 
-        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("datasets", image_path_list, phrase)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
             return response_handler.create_error_response_v1(
