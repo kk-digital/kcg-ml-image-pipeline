@@ -684,7 +684,7 @@ def main():
 
     while True:
         # store self training data
-        # worker_state.store_self_training_data()
+        worker_state.store_self_training_data()
 
         # if we have more than n jobs in queue
         # sleep for a while
