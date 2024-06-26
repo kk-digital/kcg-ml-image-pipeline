@@ -846,3 +846,96 @@ async def get_scores_by_image_hash(
         http_status_code=200
     )
    
+
+@router.post("/pseudotag-classifier-scores/set-image-classifier-score-v1", 
+             status_code=200,
+             response_model=StandardSuccessResponseV1[ClassifierScoreV1],
+             description="Set classifier image score",
+             tags=["pseudotag-classifier-scores"], 
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
+             )
+async def set_image_classifier_score_v1(
+    request: Request, 
+    classifier_score: ClassifierScoreRequest, 
+    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")
+):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Fetch image_hash from completed_jobs_collection
+        job_data = request.app.completed_jobs_collection.find_one(
+            {"uuid": classifier_score.job_uuid}, 
+            {"task_output_file_dict.output_file_hash": 1, "task_type": 1}
+        )
+        if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided UUID does not have an associated image hash.",
+                http_status_code=404
+            )
+        image_hash = job_data['task_output_file_dict']['output_file_hash']
+        task_type = job_data['task_type']
+
+        # Fetch tag_id from classifier_models_collection
+        classifier_data = request.app.classifier_models_collection.find_one(
+            {"classifier_id": classifier_score.classifier_id}, 
+            {"tag_id": 1}
+        )
+        if not classifier_data:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided classifier ID does not exist.",
+                http_status_code=404
+            )
+        tag_id = classifier_data['tag_id']
+
+        query = {
+            "classifier_id": classifier_score.classifier_id,
+            "uuid": classifier_score.job_uuid,
+            "tag_id": tag_id
+        }
+
+        # Get current UTC time in ISO format
+        current_utc_time = datetime.utcnow().isoformat()
+
+        # Initialize new_score_data outside of the if/else block
+        new_score_data = {
+            "uuid": classifier_score.job_uuid,
+            "task_type": task_type,
+            "classifier_id": classifier_score.classifier_id,
+            "tag_id": tag_id,
+            "score": classifier_score.score,
+            "image_hash": image_hash,
+            "creation_time": current_utc_time,
+            "image_source": image_source
+        }
+
+        # Check for existing score and update or insert accordingly
+        existing_score = request.app.image_classifier_scores_collection.find_one(query)
+        if existing_score:
+            # Update existing score
+            request.app.image_classifier_scores_collection.update_one(
+                query, 
+                {"$set": {
+                    "score": classifier_score.score, 
+                    "image_hash": image_hash, 
+                    "creation_time": current_utc_time,
+                    "image_source": image_source
+                }}
+            )
+        else:
+            # Insert new score
+            insert_result = request.app.image_classifier_scores_collection.insert_one(new_score_data)
+            new_score_data['_id'] = str(insert_result.inserted_id)
+
+        return api_response_handler.create_success_response_v1(
+            response_data=new_score_data,
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
