@@ -1999,3 +1999,32 @@ async def get_completed_job_count(request: Request):
     
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
 
+
+@router.get("/queue/image-generation/get-pending-jobs-count-v1", 
+            response_model=StandardSuccessResponseV1,
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Count the number of pending jobs optionally filtered by dataset.",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def count_pending(request: Request, dataset: Optional[str] = None):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    query = {'task_input_dict.dataset': dataset} if dataset else {}
+    query['task_type'] = {'$not': {'$regex': '^clip_calculation'}}
+
+    aggregation_pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$task_type",
+            "count": {"$sum": 1}
+        }}
+    ]
+
+    task_counts = await request.app.pending_jobs_collection.aggregate(aggregation_pipeline).to_list(None)
+    
+    counts = {item['_id']: item['count'] for item in task_counts}
+
+    return response_handler.create_success_response_v1(
+        response_data={"counts": counts},
+        http_status_code=200
+    )
