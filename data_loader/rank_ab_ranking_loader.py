@@ -194,7 +194,11 @@ class ABRankingDatasetLoader:
         features_path_img_2 = file_path_img_2.replace(".jpg", input_type_extension)
         features_path_img_2 = features_path_img_2.replace("datasets/", "")
 
-        features_img_1_data = get_object(self.minio_client, features_path_img_1)
+        try:
+            features_img_1_data = get_object(self.minio_client, features_path_img_1)
+        except Exception as e:
+            print("Error: ", e)
+            return None, None, None, None
         features_img_1_data = msgpack.unpackb(features_img_1_data)
         features_vector_img_1 = []
 
@@ -206,7 +210,12 @@ class ABRankingDatasetLoader:
             features_vector_img_1.extend(features_img_1_data["clip-feature-vector"])
 
         features_vector_img_1 = np.array(features_vector_img_1)
-        features_img_2_data = get_object(self.minio_client, features_path_img_2)
+        
+        try:
+            features_img_2_data = get_object(self.minio_client, features_path_img_2)
+        except Exception as e:
+            print("Error: ", e)
+            return None, None, None, None
         features_img_2_data = msgpack.unpackb(features_img_2_data)
         features_vector_img_2 = []
 
@@ -279,6 +288,8 @@ class ABRankingDatasetLoader:
 
             for future in tqdm(as_completed(futures), total=len(paths_list)):
                 image_pairs, index, selected_img_hash, other_img_hash = future.result()
+                if image_pairs is None:
+                    continue
                 for pair in image_pairs:
                     self.training_image_pair_data_arr.append(pair)
                     new_training_data_paths_indices.append(self.training_data_paths_indices[index])
@@ -333,6 +344,8 @@ class ABRankingDatasetLoader:
 
             for future in tqdm(as_completed(futures), total=len(paths_list)):
                 image_pairs, index, selected_img_hash, other_img_hash = future.result()
+                if image_pairs is None:
+                    continue
                 for pair in image_pairs:
                     self.validation_image_pair_data_arr.append(pair)
                     new_validation_data_paths_indices.append(self.validation_data_paths_indices[index])
