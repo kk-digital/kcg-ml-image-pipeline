@@ -862,8 +862,22 @@ async def set_image_classifier_score_v1(
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Fetch image_hash from completed_jobs_collection
-        job_data = request.app.completed_jobs_collection.find_one(
+        # Determine the appropriate collection based on image_source
+        if image_source == "generated_image":
+            collection = request.app.completed_jobs_collection
+        elif image_source == "extract_image":
+            collection = request.app.extracts_collection
+        elif image_source == "external_image":
+            collection = request.app.external_images_collection
+        else:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Invalid image source provided.",
+                http_status_code=422
+            )
+
+        # Fetch image_hash from the determined collection
+        job_data = collection.find_one(
             {"uuid": classifier_score.job_uuid}, 
             {"task_output_file_dict.output_file_hash": 1, "task_type": 1}
         )
@@ -898,7 +912,7 @@ async def set_image_classifier_score_v1(
         # Get current UTC time in ISO format
         current_utc_time = datetime.utcnow().isoformat()
 
-        # Initialize new_score_data outside of the if/else block
+        # Initialize new_score_data
         new_score_data = {
             "uuid": classifier_score.job_uuid,
             "task_type": task_type,
