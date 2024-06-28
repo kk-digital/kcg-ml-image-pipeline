@@ -252,13 +252,13 @@ class RankingModel(BaseModel):
 
 
 class RankingScore(BaseModel):
-    model_id: int
+    rank_model_id: int
     image_hash: str
     score: float
 
     def to_dict(self):
         return {
-            "model_id": self.model_id,
+            "rank_model_id": self.rank_model_id,
             "image_hash": self.image_hash,
             "score": self.score,
         }

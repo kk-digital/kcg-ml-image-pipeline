@@ -9,10 +9,10 @@ router = APIRouter()
 def set_image_rank_score(request: Request, ranking_score: RankingScore):
     # check if exists
     query = {"image_hash": ranking_score.image_hash,
-             "model_id": ranking_score.model_id}
+             "rank_model_id": ranking_score.rank_model_id}
     count = request.app.image_scores_collection.count_documents(query)
     if count > 0:
-        raise HTTPException(status_code=409, detail="Score for specific model_id and image_hash already exists.")
+        raise HTTPException(status_code=409, detail="Score for specific rank_model_id and image_hash already exists.")
 
     request.app.image_scores_collection.insert_one(ranking_score.to_dict())
 
@@ -26,30 +26,41 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 @router.post("/score/set-rank-score", 
              status_code=201,
-             description="deprecated: use /image-scores/scores/set-rank-score ",
+             description="deprecated: use /image-scores/scores/set-rank-score",
              tags=["deprecated2"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 async def set_image_rank_score(request: Request, ranking_score: RankingScore):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-   
-    
-    # check if exists
-    query = {"image_hash": ranking_score.image_hash,
-             "model_id": ranking_score.model_id}
-    count = request.app.image_scores_collection.count_documents(query)
-    if count > 0:
-        # Using ApiResponseHandler for standardized error response
+
+    # Check if rank_model_id exists in rank_model_models_collection
+    model_exists = request.app.rank_model_models_collection.find_one(
+        {"rank_model_id": ranking_score.rank_model_id},
+        {"_id": 1}
+    )
+    if not model_exists:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specific model_id and image_hash already exists.",
+            error_string="The provided rank_model_id does not exist in rank_model_models_collection.",
+            http_status_code=400
+        )
+
+    # Check if the score already exists in image_scores_collection
+    query = {
+        "image_hash": ranking_score.image_hash,
+        "rank_model_id": ranking_score.rank_model_id
+    }
+    count = request.app.image_scores_collection.count_documents(query)
+    if count > 0:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Score for specific rank_model_id and image_hash already exists.",
             http_status_code=400
         )
 
     # Insert the new ranking score
     request.app.image_scores_collection.insert_one(ranking_score.dict())
 
-    # Using ApiResponseHandler for standardized success response
     return api_response_handler.create_success_response_v1(
         response_data=ranking_score.dict(),
         http_status_code=201  
@@ -57,10 +68,10 @@ async def set_image_rank_score(request: Request, ranking_score: RankingScore):
 
 
 @router.get("/score/get-image-rank-score-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/scores/get-image-rank-score")
-def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: int):
+def get_image_rank_score_by_hash(request: Request, image_hash: str, rank_model_id: int):
     # check if exist
     query = {"image_hash": image_hash,
-             "model_id": model_id}
+             "rank_model_id": rank_model_id}
 
     item = request.app.image_scores_collection.find_one(query)
     if item is None:
@@ -84,18 +95,18 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: in
             tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[RankingScore],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
-def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):
+def get_image_rank_score_by_hash(request: Request, image_hash: str, rank_model_id: str):
     api_response_handler = ApiResponseHandlerV1(request)
 
     # check if exists
-    query = {"image_hash": image_hash, "model_id": model_id}
+    query = {"image_hash": image_hash, "rank_model_id": rank_model_id}
     item = request.app.image_scores_collection.find_one(query)
 
     if item is None:
         # Return a standardized error response if not found
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specified model_id and image_hash does not exist.",
+            error_string="Score for specified rank_model_id and image_hash does not exist.",
             http_status_code=404
         )
 
@@ -111,9 +122,9 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: st
 
 @router.get("/score/get-image-rank-scores-by-model-id",
             tags = ['deprecated3'], description= "changed with /image-scores/scores/list-image-rank-scores-by-model-id")
-def get_image_rank_scores_by_model_id(request: Request, model_id: int):
+def get_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int):
     # check if exist
-    query = {"model_id": model_id}
+    query = {"rank_model_id": rank_model_id}
     items = request.app.image_scores_collection.find(query).sort("score", -1)
     if items is None:
         return []
@@ -138,11 +149,11 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: int):
             tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ResponseRankingScore],  
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
-def get_image_rank_scores_by_model_id(request: Request, model_id: str):
+def get_image_rank_scores_by_model_id(request: Request, rank_model_id: str):
     api_response_handler = ApiResponseHandlerV1(request)
     
     # check if exist
-    query = {"model_id": model_id}
+    query = {"rank_model_id": rank_model_id}
     items = list(request.app.image_scores_collection.find(query).sort("score", -1))
     
     score_data = []
@@ -159,9 +170,9 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: str):
 
 
 @router.delete("/score/delete-image-rank-scores-by-model-id", tags = ['deprecated3'], description= "delete scores accoridng model id")
-def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
+def delete_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int):
     # check if exist
-    query = {"model_id": model_id}
+    query = {"rank_model_id": rank_model_id}
     res = request.app.image_scores_collection.delete_many(query)
     print(res.deleted_count, " documents deleted.")
 
@@ -181,11 +192,11 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
                tags=["deprecated2"], 
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
-def delete_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):
+def delete_image_rank_score_by_hash(request: Request, image_hash: str, rank_model_id: str):
     api_response_handler = ApiResponseHandlerV1(request)
     
-    # Adjust the query to include model_id
-    query = {"image_hash": image_hash, "model_id": model_id}
+    # Adjust the query to include rank_model_id
+    query = {"image_hash": image_hash, "rank_model_id": rank_model_id}
     res = request.app.image_scores_collection.delete_one(query)
     
     was_present = res.deleted_count > 0
