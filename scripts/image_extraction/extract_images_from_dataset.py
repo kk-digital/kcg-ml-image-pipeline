@@ -54,7 +54,8 @@ class ImageExtractionPipeline:
                  file_batch_size= 10000):
         
         # get minio client
-        self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
+        self.minio_client = cmd.get_minio_client(minio_ip_addr= "103.20.60.90:9001",
+                                                minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
 
         # set parameters
