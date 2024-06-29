@@ -103,14 +103,16 @@ class ImageExtractionPipeline:
             print("loading the classifier models")
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags]
+            tag_types= ['defect', 'topic', 'perspective', 'style', 'concept']
 
             for tag in tag_names:
-                classifier_model= self.get_classifier_model(tag)
-                if classifier_model:
-                    if "defect" in tag:
-                        self.defect_models[tag]= classifier_model
-                    else:
-                        self.topic_models[tag]= classifier_model
+                if any(tag_type in tag for tag_type in tag_types):
+                    classifier_model= self.get_classifier_model(tag)
+                    if classifier_model:
+                        if "defect" in tag:
+                            self.defect_models[tag]= classifier_model
+                        else:
+                            self.topic_models[tag]= classifier_model
             
             print("Loading the image encoder")
             # load clip image encoder
@@ -280,8 +282,14 @@ class ImageExtractionPipeline:
                 
                 # check if batch size was reached
                 if len(self.clip_vectors) >= self.file_batch_size:
-                    # save numpy files
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
+                    # save batch file
+                    clip_vectors= self.clip_vectors.copy()
+                    vae_latents= self.vae_latents.copy()
+
+                    self.clip_vectors =[]
+                    self.vae_latents =[]
+
+                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
                     thread.start()
                     self.threads.append(thread)
             
@@ -289,8 +297,14 @@ class ImageExtractionPipeline:
         
         # save any extra vectors to numpy files
         if len(self.clip_vectors) > 0:
-            # save numpy files
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, self.clip_vectors, self.vae_latents, self.image_hashes,))
+            # save batch file
+            clip_vectors= self.clip_vectors.copy()
+            vae_latents= self.vae_latents.copy()
+
+            self.clip_vectors =[]
+            self.vae_latents =[]
+            
+            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
             thread.start()
             self.threads.append(thread)
 

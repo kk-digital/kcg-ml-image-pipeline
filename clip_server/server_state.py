@@ -9,6 +9,7 @@ from PIL import Image
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from kandinsky.models.clip_text_encoder.clip_text_encoder import KandinskyCLIPTextEmbedder
 from utility.clip.clip import ClipModel
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio.cmd import get_file_from_minio, is_object_exists
@@ -16,6 +17,7 @@ from utility.path import separate_bucket_and_file_path
 from clip_cache import ClipCache
 from clip_constants import CLIP_CACHE_DIRECTORY
 from utility.http.request import http_get_list_completed_jobs
+from utility.http.external_images_request import http_get_external_image_list, http_get_extract_image_list
 
 class Phrase:
     def __init__(self, id, phrase):
@@ -34,14 +36,13 @@ class ClipServer:
         self.phrase_dictionary = {}
         self.clip_vector_dictionary = {}
         self.image_clip_vector_cache = {}
-        self.clip_model = ClipModel(device=device)
+        self.clip_model = KandinskyCLIPTextEmbedder(device=device)
         self.kandinsky_clip_model= KandinskyCLIPImageEncoder(device=device)
         self.device = device
         self.clip_cache = ClipCache(device, minio_client, CLIP_CACHE_DIRECTORY)
 
     def load_clip_model(self):
-        self.clip_model.load_clip()
-        self.clip_model.load_tokenizer()
+        self.clip_model.load_submodels()
         self.kandinsky_clip_model.load_submodels()
 
     def generate_id(self):
@@ -95,8 +96,8 @@ class ClipServer:
 
         return None
 
-    def get_image_clip_vector(self, image_path):
-        return self.clip_cache.get_clip_vector(image_path)
+    def get_image_clip_vector(self, bucket, image_path):
+        return self.clip_cache.get_clip_vector(bucket, image_path)
 
     def get_phrase_list(self, offset, limit):
         result = []
@@ -123,8 +124,10 @@ class ClipServer:
         base_path = image_path.rstrip(image_path[-4:])
 
         # finds the clip file associated with the image
-        # example image => image_clip.msgpack
-        image_clip_vector_path = f'{base_path}_clip.msgpack'
+        if bucket_name == "extracts":
+            image_clip_vector_path = f'{base_path}_clip-h.msgpack'
+        elif bucket_name in ['datasets', 'external']:
+            image_clip_vector_path = f'{base_path}_clip_kandinsky.msgpack'
 
         print(f'image clip vector path : {image_clip_vector_path}')
         # get the clip.msgpack from minio
@@ -157,7 +160,7 @@ class ClipServer:
         return None
 
 
-    def compute_cosine_match_value(self, phrase, image_path):
+    def compute_cosine_match_value(self, phrase, bucket, image_path):
         print('computing cosine match value for ', phrase, ' and ', image_path)
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
@@ -168,7 +171,7 @@ class ClipServer:
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
-        image_clip_vector_numpy = self.get_image_clip_vector(image_path)
+        image_clip_vector_numpy = self.get_image_clip_vector(bucket, image_path)
 
         # the score is zero if we cant find the image clip vector
         if image_clip_vector_numpy is None:
@@ -180,8 +183,8 @@ class ClipServer:
         image_clip_vector = torch.tensor(image_clip_vector_numpy, dtype=torch.float32, device=self.device)
 
         #check the vector size
-        assert phrase_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {phrase_clip_vector.size()}"
-        assert image_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {image_clip_vector.size()}"
+        assert phrase_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {phrase_clip_vector.size()}"
+        assert image_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {image_clip_vector.size()}"
 
         # removing the extra dimension
         # from shape (1, 768) => (768)
@@ -208,7 +211,7 @@ class ClipServer:
 
         return similarity.item()
 
-    def compute_cosine_match_value_list(self, phrase, image_path_list):
+    def compute_cosine_match_value_list(self, phrase, bucket, image_path_list):
 
         num_images = len(image_path_list)
 
@@ -231,7 +234,7 @@ class ClipServer:
         phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
 
          #check the vector size
-        assert phrase_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {phrase_clip_vector.size()}"
+        assert phrase_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {phrase_clip_vector.size()}"
 
         # Normalizing the tensor
         normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector, p=2, dim=1)
@@ -243,7 +246,7 @@ class ClipServer:
         # for each batch do
         for image_index in range(0, num_images):
             image_path = image_path_list[image_index]
-            image_clip_vector = self.get_image_clip_vector(image_path)
+            image_clip_vector = self.get_image_clip_vector(bucket, image_path)
             # if the clip_vector was not found
             # or couldn't load for some network reason
             # we must provide an empty vector as replacement
@@ -256,7 +259,7 @@ class ClipServer:
             image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)
 
             #check the vector size
-            assert image_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {image_clip_vector.size()}"
+            assert image_clip_vector.size() == (1, 1280), f"Expected size (1, 1280), but got {image_clip_vector.size()}"
 
             normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector, p=2, dim=1)
             # removing the extra dimension
@@ -291,7 +294,7 @@ class ClipServer:
         return cosine_match_list
 
     def compute_clip_vector(self, text):
-        clip_vector_gpu = self.clip_model.get_text_features(text)
+        _, clip_vector_gpu, _ = self.clip_model.compute_embeddings(text)
         clip_vector_cpu = clip_vector_gpu.cpu()
 
         del clip_vector_gpu
@@ -299,12 +302,22 @@ class ClipServer:
         clip_vector = clip_vector_cpu.tolist()
         return clip_vector
 
-    def download_all_clip_vectors(self):
+    def download_all_clip_vectors(self, bucket):
 
         print('Starting to download all clip vectors')
 
         print('Getting list of completed jobs')
-        completed_jobs = http_get_list_completed_jobs()
+        
+        if bucket=="datasets":
+            completed_jobs = http_get_list_completed_jobs()
+        elif bucket=="external":
+            completed_jobs = http_get_external_image_list()
+        elif bucket=="extracts":
+            completed_jobs = http_get_extract_image_list()
+        else:
+            print(f"Bucket name {bucket} not recognized")
+            return None
+        
         print('Finished getting list of completed jobs')
 
         if completed_jobs is None:
@@ -315,30 +328,33 @@ class ClipServer:
         job_index = 0
         for job in completed_jobs:
             print(f'processing job {job_index} our of {num_jobs}')
-
             job_index = job_index + 1
-            input_dict = job['task_input_dict']
+            if bucket=="datasets":
+                input_dict = job['task_input_dict']
 
-            # Jobs must have input dictionary
-            if input_dict is None:
-                continue
+                # Jobs must have input dictionary
+                if input_dict is None:
+                    continue
 
-            # Jobs must have target dataset
-            if 'dataset' not in input_dict:
-                continue
+                # Jobs must have target dataset
+                if 'dataset' not in input_dict:
+                    continue
 
-            # Jobs must have output image path
-            if 'file_path' not in input_dict:
-                continue
+                # Jobs must have output image path
+                if 'file_path' not in input_dict:
+                    continue
 
-            dataset = input_dict['dataset']
-            file_path = input_dict['file_path']
+                dataset = input_dict['dataset']
+                file_path = input_dict['file_path']
 
-            image_path = f'{dataset}/{file_path}'
+                image_path = f'{dataset}/{file_path}'
+
+            elif bucket in ['external', 'extracts']:
+                _ , image_path = separate_bucket_and_file_path(job['file_path'])
 
             # this will download the clip vector from minio
             # and will also add it to clip cache
-            self.clip_cache.get_clip_vector(image_path)
+            self.clip_cache.get_clip_vector(bucket, image_path)
 
 
 

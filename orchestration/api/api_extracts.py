@@ -818,7 +818,7 @@ async def get_random_external_image_similarity(
             image.pop('_id', None)  # Remove the auto-generated field
             image_path_list.append(image['file_path'])
 
-        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("extracts" ,image_path_list, phrase)
         print(similarity_score_list)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:

@@ -10,13 +10,15 @@ from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
 from orchestration.api.mongo_schema.pseudo_tag_schemas import ImagePseudoTag
+from orchestration.api.mongo_schemas import VideoMetaData
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
 from typing import List, Union
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+
 
 class IrrelevantResponse(BaseModel):
     uuid: str
@@ -526,6 +528,14 @@ class CountLastHour(BaseModel):
 def get_id(bucket: str, dataset: str) -> str:
     return '{}_{}'.format(bucket, dataset)
 
+def get_file_extension(file_format: str) -> str:
+    file_format = file_format.lower()
+    if file_format in ["jpg", "jpeg"]:
+        file_format = "jpg"
+
+    return file_format
+
+
 def get_minio_file_path(seq_id, bucket_name, dataset_name, format, sample_size = 1000):
 
     folder_id = (seq_id // sample_size) + 1
@@ -533,7 +543,8 @@ def get_minio_file_path(seq_id, bucket_name, dataset_name, format, sample_size =
     
     folder_name = f"{folder_id:04d}"
     file_name = f"{file_id:06d}"
-
+    format = get_file_extension(format)
+    
     path = f'{bucket_name}/{dataset_name}/{folder_name}/{file_name}'
 
     return f'{path}.{format}'
@@ -559,3 +570,27 @@ def update_external_dataset_seq_id(request: Request, bucket:str, dataset: str, s
             {"$set": {"count": seq_id}})
     except Exception as e:
         raise Exception("Updating of external image sequential id failed: {}".format(e))
+    
+def get_video_short_hash_from_url(url: str) -> str:    
+    # Parse the URL using urlparse
+    parsed_url = urlparse(url=url)
+
+    # Extract the query parameters using parse_qs
+    query_params = parse_qs(qs=parsed_url.query)
+    # Get the value of the 'v' parameter
+    video_short_hash = query_params.get('v', [""])[0]
+
+    if not video_short_hash:
+        raise ValueError("The video short hash is empty.")
+    
+    return video_short_hash
+
+def get_ingress_video_path(bucket:str, video_metadata: VideoMetaData) -> str:
+    fname = '{}_{}p{}fps'\
+        .format(get_video_short_hash_from_url(video_metadata.source_url),
+                video_metadata.video_resolution.split('x')[1],
+                video_metadata.video_frame_rate)
+    path = f'{bucket}/{video_metadata.dataset}/{fname}'
+    
+    return f'{path}.{video_metadata.file_type}'
+    

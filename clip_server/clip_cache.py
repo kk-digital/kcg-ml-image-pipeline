@@ -63,7 +63,7 @@ class ClipFile:
 class ClipCache:
     def __init__(self, device, minio_client, clip_cache_directory):
         self.minio_client = minio_client
-        self.clip_model = ClipModel(device=device)
+        # self.clip_model = ClipModel(device=device)
         self.device = device
         self.clip_cache_directory = clip_cache_directory
         self.clip_vector_dictionary_lock = threading.Lock()
@@ -79,21 +79,21 @@ class ClipCache:
             if image_path not in self.clip_vector_dictionary:
                 self.clip_vector_dictionary[image_path] = clip_vector
 
-    def get_clip_vector(self, image_path):
+    def get_clip_vector(self, bucket, image_path):
         # if its already in the cache just return it
         with self.clip_vector_dictionary_lock:
             if image_path in self.clip_vector_dictionary:
                 return self.clip_vector_dictionary[image_path]
 
-        image_clip_vector_numpy = self.get_clip_vector_from_minio(image_path)
+        image_clip_vector_numpy = self.get_clip_vector_from_minio(bucket, image_path)
 
         return image_clip_vector_numpy
 
-    def get_clip_vector_from_minio(self, image_path):
+    def get_clip_vector_from_minio(self, bucket, image_path):
         # if its not in the cache
         # get the clip vector from minio
         # and store it in the clip cache
-        image_clip_vector_numpy = get_image_clip_from_minio(self.minio_client, image_path, BUCKET_NAME)
+        image_clip_vector_numpy = get_image_clip_from_minio(self.minio_client, image_path, bucket)
 
         if image_clip_vector_numpy is None:
             # could not find clip vector for image

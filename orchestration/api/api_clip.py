@@ -82,9 +82,10 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
     return None
 
 
-def http_clip_server_get_cosine_similarity(image_path: str,
+def http_clip_server_get_cosine_similarity(bucket: str,
+                                           image_path: str,
                                            phrase: str):
-    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity?image_path={image_path}&phrase={phrase}'
+    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity?bucket={bucket}&image_path={image_path}&phrase={phrase}'
     response = None
     try:
         response = requests.get(url)
@@ -102,8 +103,8 @@ def http_clip_server_get_cosine_similarity(image_path: str,
 
     return None
 
-def http_clip_server_get_cosine_similarity_list(image_path_list: List[str], phrase: str):
-    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity-list?phrase={phrase}'
+def http_clip_server_get_cosine_similarity_list(bucket: str, image_path_list: List[str], phrase: str):
+    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity-list?bucket={bucket}&phrase={phrase}'
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     
     # Use json.dumps to convert the list to a JSON-formatted string and print it
@@ -309,7 +310,7 @@ def get_random_image_similarity_date_range(
 
         image_path_list.append(image_path)
 
-    similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+    similarity_score_list = http_clip_server_get_cosine_similarity_list("datasets", image_path_list, phrase)
 
     print(similarity_score_list)
 
@@ -607,7 +608,7 @@ async def get_random_image_similarity_date_range(
             image_path = output_file_dictionary['output_file_path'].replace("datasets/", "")
             image_path_list.append(image_path)
 
-        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("datasets", image_path_list, phrase)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
             return response_handler.create_error_response_v1(

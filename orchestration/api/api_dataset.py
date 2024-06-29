@@ -75,6 +75,19 @@ def delete_sequential_id(request: Request, dataset_name: str):
 
     return True
 
+@router.delete("/dataset/delete-external-sequential-id", 
+               tags = ['deprecated3'],
+               description="delete the sequential id of an external dataset")
+def delete_sequential_id(request: Request, bucket_name: str, dataset_name: str):
+
+    res= request.app.external_dataset_sequential_id.delete_one({"bucket": bucket_name, 
+                                                            "dataset": dataset_name})
+
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No sequential id was found for that bucket and dataset")
+
+    return True
+
 
 @router.delete("/dataset/clear-self-training-sequential-id", tags = ['deprecated3'], description= "changed with /datasets/clear-all-self-training-sequential-ids" )
 def clear_self_training_sequential_id_jobs(request: Request):

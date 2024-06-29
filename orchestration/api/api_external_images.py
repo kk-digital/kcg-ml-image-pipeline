@@ -1,8 +1,9 @@
 
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
+from utility.path import separate_bucket_and_file_path
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse, TagListForImagesV1
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1,ListExternalImageDataV2, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset, ListDataset
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -127,6 +128,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
 
                 next_seq_id = get_next_external_dataset_seq_id(request, bucket="external", dataset=image_data.dataset)
                 image_data_dict['file_path'] = get_minio_file_path(next_seq_id, 
+                                                        "external",
                                                         image_data.dataset, 
                                                         image_data.image_format)
                 
@@ -1006,9 +1008,10 @@ async def get_random_external_image_similarity(
         image_path_list = []
         for image in images:
             image.pop('_id', None)  # Remove the auto-generated field
-            image_path_list.append(image['file_path'])
+            bucket_name, file_path= separate_bucket_and_file_path(image['file_path'])
+            image_path_list.append(file_path)
 
-        similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("external", image_path_list, phrase)
         print(similarity_score_list)
 
         if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
