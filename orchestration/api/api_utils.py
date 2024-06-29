@@ -152,6 +152,21 @@ class JsonContentResponse(BaseModel):
 class ModelResponse(BaseModel):
     models: List[SingleModelResponse]
 
+class TagDefinitionV1(BaseModel):
+    file_hash: str
+    tag_id: int
+    tag_string: str
+    tag_category_id: int
+    tag_description: str 
+    tag_vector_index: int
+    deprecated: bool 
+    user_who_created: str 
+    creation_time: str
+
+class TagListForImagesV1:
+    images: List[TagDefinitionV1]
+
+
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]
 

@@ -395,6 +395,9 @@ class ExtractImageDataV1(BaseModel):
 class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 
 
+class ListExtractImageDataV1(BaseModel):
+    images: List[ExtractImageData]     
+
 class ExtractImageDataWithScore(BaseModel):
     uuid: str
     image_hash: str

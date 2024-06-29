@@ -1999,18 +1999,3 @@ async def get_completed_job_count(request: Request):
     
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
 
-
-@router.get("/test-count",
-            response_model=StandardSuccessResponseV1,
-            status_code=200,
-            tags=["jobs-standardized"],
-            description="Count the pending jobs where task_type is clip_calculation_task_kandinsky.")
-async def count_clip_calculation_jobs(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    
-    count = request.app.pending_jobs_collection.count_documents({"task_type": "clip_calculation_task_kandinsky"})
-    
-    return response_handler.create_success_response_v1(
-        response_data={"count": count},
-        http_status_code=200
-    )

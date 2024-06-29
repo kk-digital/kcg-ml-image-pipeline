@@ -21,7 +21,7 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
-@router.get("/queue/inpainting-generation/get-job", tags=["deprecated3"], description="changed with /queue/inpainting-generation/set-pending-job-as-in-progress ")
+@router.get("/queue/inpainting-generation/get-job", tags=["deprecated3"], description="changed with/queue/inpainting-generation/move-job-to-in-progress ")
 def get_job(request: Request, task_type= None, model_type=""):
     query = {}
 
@@ -47,53 +47,6 @@ def get_job(request: Request, task_type= None, model_type=""):
 
     return job
 
-@router.get("/queue/inpainting-generation/set-pending-job-as-in-progress", 
-            tags=["inpainting jobs"],
-            description="Update in pending inpainting job and mark as in progress.",
-            response_model=StandardSuccessResponseV1[Task],
-            responses=ApiResponseHandlerV1.listErrors([400, 500]))
-def get_job(request: Request, task_type= None, model_type=""):
-    api_response_handler = ApiResponseHandlerV1(request)
-
-    try:
-    
-        query = {}
-
-        if task_type:
-            query["task_type"] = task_type
-
-        if model_type:    
-            query["task_type"] = {"$regex": model_type}
-
-        # Query to find the n newest elements based on the task_completion_time
-        job = request.app.pending_inpainting_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
-
-        if job is None:
-            return api_response_handler.create_error_response_v1(
-                    error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                    error_string="Job not found in in-progress collection",
-                    http_status_code=400
-                )
-
-        # delete from pending
-        request.app.pending_inpainting_jobs_collection.delete_one({"uuid": job["uuid"]})
-        # add to in progress
-        request.app.in_progress_inpainting_jobs_collection.insert_one(job)
-
-        # remove the auto generated field
-        job.pop('_id', None)
-
-        return api_response_handler.create_success_response_v1(
-                response_data=job,
-                http_status_code=200
-            )
-    
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
 
  # --------------------- Add ---------------------------
 

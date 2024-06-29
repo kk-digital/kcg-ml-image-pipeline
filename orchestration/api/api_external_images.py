@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse, TagListForImagesV1
 from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1,ListExternalImageDataV2, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset, ListDataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
@@ -43,12 +43,11 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         # Check if the dataset exists
         dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
         if not dataset_result:
-            # Create a new dataset if it does not exist
-            new_dataset = {
-                "dataset_name": image_data.dataset
-            }
-            request.app.external_datasets_collection.insert_one(new_dataset)
-            print(f"Created new dataset with name {image_data.dataset}")
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"{image_data.dataset} dataset does not exist",
+                http_status_code=422
+            )
 
         # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
@@ -98,9 +97,18 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-    updaded_image_data_list = []
+    updated_image_data_list = []
     try:
         for image_data in image_data_list:
+            # Check if the dataset exists
+            dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+            if not dataset_result:
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                    error_string=f"Dataset {image_data.dataset} does not exist",
+                    http_status_code=422
+                )
+            
             existed = request.app.external_images_collection.find_one({
                 "image_hash": image_data.image_hash
             })
@@ -128,13 +136,12 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
 
                 # add updated image_data into updated_image_data_list
-                updaded_image_data_list.append(image_data_dict)
+                updated_image_data_list.append(image_data_dict)
 
         # Remove the _id field from the response data
-        response_data = [image_data_dict for image_data_dict in updaded_image_data_list]
+        response_data = [image_data_dict for image_data_dict in updated_image_data_list]
         for data in response_data:
             data.pop('_id', None)
-
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": response_data},
@@ -1114,7 +1121,7 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
 
 
 @router.post("/external-images/get-tag-list-for-multiple-external-images", 
-             response_model=StandardSuccessResponseV1[List[TagListForImages]], 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
              description="Get tag lists for multiple images",
              tags=["external-images"],
              status_code=200,

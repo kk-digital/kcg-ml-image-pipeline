@@ -1,8 +1,8 @@
 
 from fastapi import APIRouter, Request,  Query
-from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
+from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
 from pymongo import ReturnDocument
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
 from typing import Optional
@@ -103,8 +103,8 @@ async def remove_current_data_batch_sequential_id(request: Request, dataset: str
                                                        )
 
 @router.post("/extracts/add-extracted-image", 
-            description="Add an extracted image data",
-            tags=["extracts"],  
+            description="changed with /extracts/add-extracted-image-v1 ",
+            tags=["deprecated3"],  
             response_model=StandardSuccessResponseV1[ListExtractImageData],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_extract(request: Request, image_data: ExtractImageData):
@@ -171,11 +171,11 @@ async def add_extract(request: Request, image_data: ExtractImageDataV1):
     try:
         dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
         if not dataset_result:
-            new_dataset = {
-                "dataset_name": image_data.dataset
-            }
-            request.app.extract_datasets_collection.insert_one(new_dataset)
-            print(f"Created new dataset with name {image_data.dataset}")
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"{image_data.dataset} dataset does not exist",
+                http_status_code=422
+            )
 
         existed = request.app.extracts_collection.find_one({
             "image_hash": image_data.image_hash
@@ -662,7 +662,7 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
 @router.get("/extract-images/list-images",
             status_code=200,
             tags=["extracts"],
-            response_model=StandardSuccessResponseV1[ListExtractImageData],
+            response_model=StandardSuccessResponseV1[ListExtractImageDataV1],
             description="List extracts images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def list_extract_images_v1(
@@ -852,7 +852,7 @@ async def get_random_external_image_similarity(
         )
 
 @router.post("/extract-images/get-tag-list-for-multiple-extract-images", 
-             response_model=StandardSuccessResponseV1[List[TagListForImages]], 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
              description="Get tag lists for multiple images",
              tags=["extracts"],
              status_code=200,

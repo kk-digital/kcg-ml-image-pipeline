@@ -4,7 +4,7 @@ from typing import List, Dict
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagListForImagesV1, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
 import traceback
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -657,7 +657,7 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
         )
 
 @router.post("/tags/get-tag-list-for-multiple-images", 
-             response_model=StandardSuccessResponseV1[List[TagListForImages]], 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
              description="Get tag lists for multiple images",
              tags=["tags"],
              status_code=200,

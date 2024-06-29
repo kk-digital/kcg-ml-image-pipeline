@@ -512,8 +512,8 @@ def list_ranking_datapoints(request: Request):
     )
 
 @router.get("/rank-training/sort-ranking-data-by-date", 
-            description="Sort rank data by date",
-            tags=["rank-training"],
+            description="changed with /rank-training/sort-ranking-data-by-date-v1",
+            tags=["deprecated3"],
             response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
@@ -576,7 +576,7 @@ async def sort_ranking_data_by_date_v2(
             tags=["rank-training"],
             response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def sort_ranking_data_by_date_v2(
+async def sort_ranking_data_by_date_v3(
     request: Request,
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
     rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),

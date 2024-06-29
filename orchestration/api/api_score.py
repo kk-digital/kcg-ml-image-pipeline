@@ -169,17 +169,6 @@ def get_image_rank_scores_by_model_id(request: Request, rank_model_id: str):
     )
 
 
-@router.delete("/score/delete-image-rank-scores-by-model-id", tags = ['deprecated3'], description= "delete scores accoridng model id")
-def delete_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int):
-    # check if exist
-    query = {"rank_model_id": rank_model_id}
-    res = request.app.image_scores_collection.delete_many(query)
-    print(res.deleted_count, " documents deleted.")
-
-    return None
-
-
-
 @router.delete("/image-scores/scores/delete-image-rank-score", 
                description="Delete image rank score by specific hash.",
                status_code=200,
