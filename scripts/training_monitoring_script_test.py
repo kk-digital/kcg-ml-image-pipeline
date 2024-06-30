@@ -34,21 +34,26 @@ with open(log_file, "w") as f:
     json.dump(training_logs, f, indent=4)
 
 # MinIO configuration
-minio_client = cmd.get_minio_client("v048BpXpWrsVIHUfdAix",
-            "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu",
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
             None)
 
 bucket_name = "datasets/environmental/output/my_tests"
 object_name = "training_log.json"
 
-
+# # Ensure the bucket exists
+# found = minio_client.bucket_exists(bucket_name)
+# if not found:
+#     minio_client.make_bucket(bucket_name)
+# else:
+#     print(f"Bucket '{bucket_name}' already exists.")
 
 # Upload the JSON file to MinIO
-try:
-    minio_client.fput_object(bucket_name, object_name, log_file)
-    print(f"'{log_file}' is successfully uploaded as '{object_name}' to bucket '{bucket_name}'.")
-except S3Error as e:
-    print(f"Error occurred: {e}")
+# try:
+#     minio_client.fput_object(bucket_name, object_name, log_file)
+#     print(f"'{log_file}' is successfully uploaded as '{object_name}' to bucket '{bucket_name}'.")
+# except S3Error as e:
+#     print(f"Error occurred: {e}")
 
 # Clean up the local JSON file if needed
 os.remove(log_file)
