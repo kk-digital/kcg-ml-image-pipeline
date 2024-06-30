@@ -34,8 +34,8 @@ with open(log_file, "w") as f:
     json.dump(training_logs, f, indent=4)
 
 # MinIO configuration
-minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+minio_client = cmd.get_minio_client("v048BpXpWrsVIHUfdAix",
+            "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu",
             None)
 
 bucket_name = "datasets/environmental/output/my_tests"
