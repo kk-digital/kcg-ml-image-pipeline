@@ -262,9 +262,15 @@ class RankingScore(BaseModel):
             "image_hash": self.image_hash,
             "score": self.score,
         }
-    
+
 class ResponseRankingScore(BaseModel):
-    scores: List[RankingScore]  
+    rank_model_id: int
+    image_hash: str
+    score: float    
+    image_source: str
+
+class ListRankingScore(BaseModel):
+    scores: List[ResponseRankingScore]  
 
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]

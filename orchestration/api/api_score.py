@@ -1,5 +1,6 @@
-from fastapi import Request, APIRouter, HTTPException
-from orchestration.api.mongo_schemas import RankingScore, ResponseRankingScore
+from fastapi import Request, APIRouter, HTTPException, Query
+from typing import Optional
+from orchestration.api.mongo_schemas import RankingScore, ResponseRankingScore, ListRankingScore
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 
 router = APIRouter()
@@ -22,7 +23,7 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
              status_code=201,
              description="Sets the rank score of an image. The score can only be set one time per image/model combination",
              tags=["image scores"],  
-             response_model=StandardSuccessResponseV1[RankingScore],
+             response_model=StandardSuccessResponseV1[ResponseRankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
 @router.post("/score/set-rank-score", 
              status_code=201,
@@ -30,7 +31,11 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
              tags=["deprecated2"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422])) 
-async def set_image_rank_score(request: Request, ranking_score: RankingScore):
+async def set_image_rank_score(
+    request: Request, 
+    ranking_score: RankingScore, 
+    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")
+):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Check if rank_model_id exists in rank_model_models_collection
@@ -58,11 +63,36 @@ async def set_image_rank_score(request: Request, ranking_score: RankingScore):
             http_status_code=400
         )
 
+    # Determine the appropriate collection based on image_source
+    if image_source == "generated_image":
+        collection = request.app.completed_jobs_collection
+    elif image_source == "extract_image":
+        collection = request.app.extracts_collection
+    elif image_source == "external_image":
+        collection = request.app.external_images_collection
+    else:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Invalid image source provided.",
+            http_status_code=422
+        )
+
+    # Fetch additional data from the determined collection
+    image_data = collection.find_one({"image_hash": ranking_score.image_hash})
+    if not image_data:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string=f"Image with hash {ranking_score.image_hash} not found in {image_source} collection.",
+            http_status_code=422
+        )
+
     # Insert the new ranking score
-    request.app.image_scores_collection.insert_one(ranking_score.dict())
+    ranking_score_data = ranking_score.dict()
+    ranking_score_data['image_source'] = image_source
+    request.app.image_scores_collection.insert_one(ranking_score_data)
 
     return api_response_handler.create_success_response_v1(
-        response_data=ranking_score.dict(),
+        response_data=ranking_score_data,
         http_status_code=201  
     )
 
@@ -87,7 +117,7 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, rank_model_i
             description="Get image rank score by hash",
             status_code=200,
             tags=["image scores"],  
-            response_model=StandardSuccessResponseV1[RankingScore],  
+            response_model=StandardSuccessResponseV1[ResponseRankingScore],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 @router.get("/score/image-rank-score-by-hash", 
             description="deprectaed: use /image-scores/scores/get-image-rank-score ",
@@ -141,24 +171,25 @@ def get_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int)
             description="Get image rank scores by model id. Returns as descending order of scores",
             status_code=200,
             tags=["image scores"],  
-            response_model=StandardSuccessResponseV1[ResponseRankingScore],  
+            response_model=StandardSuccessResponseV1[ListRankingScore],  
             responses=ApiResponseHandlerV1.listErrors([422]))
-@router.get("/score/image-rank-scores-by-model-id",
-            description="deprecated: use /image-scores/scores/list-image-rank-scores-by-model-id",
-            status_code=200,
-            tags=["deprecated2"],  
-            response_model=StandardSuccessResponseV1[ResponseRankingScore],  
-            responses=ApiResponseHandlerV1.listErrors([404, 422]))
-def get_image_rank_scores_by_model_id(request: Request, rank_model_id: str):
+def get_image_rank_scores_by_model_id(
+    request: Request, 
+    rank_model_id: str, 
+    image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$")
+):
     api_response_handler = ApiResponseHandlerV1(request)
     
-    # check if exist
+    # Check if exist
     query = {"rank_model_id": rank_model_id}
+    if image_source:
+        query["image_source"] = image_source
+
     items = list(request.app.image_scores_collection.find(query).sort("score", -1))
     
     score_data = []
     for item in items:
-        # remove the auto generated '_id' field
+        # Remove the auto generated '_id' field
         item.pop('_id', None)
         score_data.append(item)
     
