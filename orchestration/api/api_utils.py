@@ -165,7 +165,7 @@ class TagDefinitionV1(BaseModel):
     user_who_created: str 
     creation_time: str
 
-class TagListForImagesV1:
+class TagListForImagesV1(BaseModel):
     images: List[TagDefinitionV1]
 
 
