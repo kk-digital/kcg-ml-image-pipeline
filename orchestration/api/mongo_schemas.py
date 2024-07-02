@@ -253,20 +253,25 @@ class RankingModel(BaseModel):
 
 class RankingScore(BaseModel):
     rank_model_id: int
+    uuid: str
     image_hash: str
     score: float
+    sigma_score: float
 
     def to_dict(self):
         return {
             "rank_model_id": self.rank_model_id,
+            "uuid": self.uuid,
             "image_hash": self.image_hash,
             "score": self.score,
+            "sigma_score": self.sigma_score
         }
 
 class ResponseRankingScore(BaseModel):
     rank_model_id: int
     image_hash: str
     score: float    
+    sigma_score: float
     image_source: str
 
 class ListRankingScore(BaseModel):

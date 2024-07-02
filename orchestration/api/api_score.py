@@ -45,21 +45,22 @@ async def set_image_rank_score(
     )
     if not model_exists:
         return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
+            error_code="INVALID_PARAMS",
             error_string="The provided rank_model_id does not exist in rank_model_models_collection.",
             http_status_code=400
         )
 
     # Check if the score already exists in image_scores_collection
     query = {
+        "uuid": ranking_score.uuid,
         "image_hash": ranking_score.image_hash,
         "rank_model_id": ranking_score.rank_model_id
     }
     count = request.app.image_scores_collection.count_documents(query)
     if count > 0:
         return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specific rank_model_id and image_hash already exists.",
+            error_code="INVALID_PARAMS",
+            error_string="Score for specific uuid, rank_model_id and image_hash already exists.",
             http_status_code=400
         )
 
@@ -72,19 +73,32 @@ async def set_image_rank_score(
         collection = request.app.external_images_collection
     else:
         return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
+            error_code="INVALID_PARAMS",
             error_string="Invalid image source provided.",
             http_status_code=422
         )
 
     # Fetch additional data from the determined collection
-    image_data = collection.find_one({"image_hash": ranking_score.image_hash})
-    if not image_data:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string=f"Image with hash {ranking_score.image_hash} not found in {image_source} collection.",
-            http_status_code=422
+    if image_source == "generated_image":
+        image_data = collection.find_one(
+            {"uuid": ranking_score.uuid},
+            {"task_output_file_dict.output_file_hash": 1}
         )
+        if not image_data or 'task_output_file_dict' not in image_data or 'output_file_hash' not in image_data['task_output_file_dict']:
+            return api_response_handler.create_error_response_v1(
+                error_code="INVALID_PARAMS",
+                error_string=f"Image with UUID {ranking_score.uuid} not found or missing 'output_file_hash' in task_output_file_dict.",
+                http_status_code=422
+            )
+        ranking_score.image_hash = image_data['task_output_file_dict']['output_file_hash']
+    else:
+        image_data = collection.find_one({"image_hash": ranking_score.image_hash})
+        if not image_data:
+            return api_response_handler.create_error_response_v1(
+                error_code="INVALID_PARAMS",
+                error_string=f"Image with hash {ranking_score.image_hash} not found in {image_source} collection.",
+                http_status_code=422
+            )
 
     # Insert the new ranking score
     ranking_score_data = ranking_score.dict()
@@ -95,22 +109,6 @@ async def set_image_rank_score(
         response_data=ranking_score_data,
         http_status_code=201  
     )
-
-
-@router.get("/score/get-image-rank-score-by-hash", tags = ['deprecated3'], description= "changed with /image-scores/scores/get-image-rank-score")
-def get_image_rank_score_by_hash(request: Request, image_hash: str, rank_model_id: int):
-    # check if exist
-    query = {"image_hash": image_hash,
-             "rank_model_id": rank_model_id}
-
-    item = request.app.image_scores_collection.find_one(query)
-    if item is None:
-        return None
-
-    # remove the auto generated field
-    item.pop('_id', None)
-
-    return item
 
 
 @router.get("/image-scores/scores/get-image-rank-score", 
