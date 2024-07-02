@@ -4,7 +4,7 @@ from typing import List, Dict
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagListForImagesV1, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
 import traceback
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -646,6 +646,62 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
         # Return the list of tags including 'deprecated_tag_category'
         return response_handler.create_success_response_v1(
             response_data={"tags": tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.post("/tags/get-tag-list-for-multiple-images", 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             description="Get tag lists for multiple images",
+             tags=["tags"],
+             status_code=200,
+             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[str]):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        all_tags_list = []
+        
+        for file_hash in file_hashes:
+            # Fetch image tags based on image_hash
+            image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": generated_image})
+            
+            # Process the results
+            tags_list = []
+            for tag_data in image_tags_cursor:
+                # Find the tag definition
+                tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+                if tag_definition:
+                    # Find the tag category and determine if it's deprecated
+                    category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                    deprecated_tag_category = category['deprecated'] if category else False
+                    
+                    # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                    tag_definition_dict = {
+                        "tag_id": tag_definition["tag_id"],
+                        "tag_string": tag_definition["tag_string"],
+                        "tag_type": tag_data.get("tag_type"),
+                        "tag_category_id": tag_definition.get("tag_category_id"),
+                        "tag_description": tag_definition["tag_description"],
+                        "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                        "deprecated": tag_definition.get("deprecated", False),
+                        "deprecated_tag_category": deprecated_tag_category,
+                        "user_who_created": tag_definition["user_who_created"],
+                        "creation_time": tag_definition.get("creation_time", None)
+                    }
+
+                    tags_list.append(tag_definition_dict)
+
+            all_tags_list.append({"file_hash": file_hash, "tags": tags_list})
+        
+        # Return the list of tag lists for each image
+        return response_handler.create_success_response_v1(
+            response_data={"images": all_tags_list},
             http_status_code=200,
         )
     except Exception as e:

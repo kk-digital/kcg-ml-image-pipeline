@@ -8,7 +8,7 @@ MINIO_ENDPOINT = "192.168.3.5:9000"
 MINIO_ACCESS_KEY = "v048BpXpWrsVIHUfdAix"
 MINIO_SECRET_KEY = "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu"
 BUCKET_NAME = "datasets"
-SPECIFIC_PATH = "ranks/00010/data"  
+SPECIFIC_PATH = "ranks/00008/data"  
 
 # New field to add
 NEW_FIELD = "image_source"
@@ -39,6 +39,11 @@ def update_minio_objects():
             json_data = json.loads(data)
         except json.JSONDecodeError:
             print(f"Skipping non-JSON object: {obj.object_name}")
+            continue
+
+        # Check if the new field already exists
+        if NEW_FIELD in json_data:
+            print(f"Skipping object: {obj.object_name} as it already contains the field '{NEW_FIELD}'.")
             continue
 
         # Create an OrderedDict to maintain the order and add the new field before "datetime"

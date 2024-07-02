@@ -401,7 +401,7 @@ async def random_queue_pair(request: Request, rank_model_id: Optional[int] = Non
              tags=['rank-training'],
              response_model=StandardSuccessResponseV1[ResponseRankSelection],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_datapoints(request: Request, selection: RankSelection):
+async def add_datapoints(request: Request, selection: RankSelection, image_source: str = Query(..., description="Image source to filter by", regex="^(generated_image|external_image|extract_image)$")):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
@@ -437,7 +437,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             *dict_data.items(),  # Unpack the rest of dict_data
-            ("image_source", generated_image),
+            ("image_source", image_source),
             ("datetime", current_time)
         ])
 
@@ -512,8 +512,8 @@ def list_ranking_datapoints(request: Request):
     )
 
 @router.get("/rank-training/sort-ranking-data-by-date", 
-            description="Sort rank data by date",
-            tags=["rank-training"],
+            description="changed with /rank-training/sort-ranking-data-by-date-v1",
+            tags=["deprecated3"],
             response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
@@ -570,7 +570,67 @@ async def sort_ranking_data_by_date_v2(
         )
 
   
-    
+
+@router.get("/rank-training/sort-ranking-data-by-date-v1", 
+            description="Sort rank data by date",
+            tags=["rank-training"],
+            response_model=StandardSuccessResponseV1[ListResponseRankSelection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v3(
+    request: Request,
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: Optional[int] = Query(None, description="Rank model ID to filter by"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$"),
+    image_source: str = Query(..., description="Image source to filter by", regex="^(generated_image|external_image|extract_image)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query_filter = {"image_source": image_source}
+        date_filter = {}
+
+        if rank_model_id is not None:
+            query_filter["rank_model_id"] = rank_model_id
+
+        if start_date:
+            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+
+        if date_filter:
+            query_filter["datetime"] = date_filter
+
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+        cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        ranking_data = []
+        for doc in cursor:
+            doc.pop('_id', None)  # Correctly remove '_id' field from each document
+            
+            # Ensure all fields are present, set default values if not
+            doc.setdefault('flagged', None)
+            doc.setdefault('flagged_by_user', None)
+            doc.setdefault('flagged_time', None)
+            
+            ranking_data.append(doc)
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": ranking_data}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        print("Error during API execution:", str(e))
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )
+
+
 
 @router.get("/rank-training/count-ranking-data-points", 
             description="Count ranking data points based on specific rank models or policies",
@@ -1243,91 +1303,5 @@ async def get_datapoints_count_per_day(
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=f"An error occurred: {str(e)}",
-            http_status_code=500
-        )
-
-
-@router.post("/rank-training/add-extract-ranking-data-point", 
-             status_code=201,
-             tags=['rank-training'],
-             response_model=StandardSuccessResponseV1[ResponseRankSelection],
-             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_datapoints(request: Request, selection: RankSelection):
-    api_handler = await ApiResponseHandlerV1.createInstance(request)
-    
-    try:
-        rank = request.app.rank_model_models_collection.find_one(
-            {"rank_model_id": selection.rank_model_id}
-        )
-
-        if not rank:
-            return api_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Rank with ID {selection.rank_model_id} not found",
-                http_status_code=404
-            )
-
-        policy = None
-        if selection.rank_active_learning_policy_id:
-            policy = request.app.rank_active_learning_policies_collection.find_one(
-                {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
-            )
-
-        # Extract policy details only if policy is not None
-        rank_active_learning_policy = policy.get("rank_active_learning_policy", None) if policy else None
-
-        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-        file_name = f"{current_time}-{selection.username}.json"
-        dataset = selection.image_1_metadata.file_path.split('/')[1]
-        rank_model_string = rank.get("rank_model_string", None)
-        extract_image = "extract_image"
-
-        dict_data = selection.to_dict()
-
-        # Prepare ordered data for MongoDB insertion
-        mongo_data = OrderedDict([
-            ("_id", ObjectId()),  # Generate new ObjectId
-            ("file_name", file_name),
-            *dict_data.items(),  # Unpack the rest of dict_data
-            ("image_source", extract_image )
-            ("datetime", current_time)
-        ])
-
-        # Insert the ordered data into MongoDB
-        request.app.ranking_datapoints_collection.insert_one(mongo_data)
-
-        formatted_rank_model_id = f"{selection.rank_model_id:05d}"
-        # Prepare data for MinIO upload (excluding the '_id' field)
-        minio_data = mongo_data.copy()
-        minio_data.pop("_id")
-        minio_data.pop("file_name")
-        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-        full_path = os.path.join(path, file_name)
-        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-        data = BytesIO(json_data)
-
-        # Upload data to MinIO
-        try:
-            cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
-            print(f"Uploaded successfully to MinIO: {full_path}")
-        except Exception as e:
-            print(f"Error uploading to MinIO: {str(e)}")
-            return api_handler.create_error_response_v1(
-                error_code=ErrorCode.OTHER_ERROR,
-                error_string=f"Failed to upload file to MinIO: {str(e)}",
-                http_status_code=500
-            )
-
-        mongo_data.pop("_id")
-        # Return a success response
-        return api_handler.create_success_response_v1(
-            response_data=mongo_data,
-            http_status_code=201
-        )
-
-    except Exception as e:
-        return api_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
             http_status_code=500
         )

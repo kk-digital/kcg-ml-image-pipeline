@@ -24,7 +24,7 @@ import io
 router = APIRouter()
 
 
-@router.get("/ranking/list-selection-policies")
+@router.get("/ranking/list-selection-policies", tags = ['deprecated3'], description="no replacement yet")
 def list_policies(request: Request):
     # hard code policies for now
     policies = ["random-uniform",
