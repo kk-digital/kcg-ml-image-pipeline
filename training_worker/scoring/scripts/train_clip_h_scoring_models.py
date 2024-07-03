@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
+    parser.add_argument('--input-type', type=str, help='input type for the model', default="input_clip")
+    parser.add_argument('--output-type', type=str, help='output type for the model', default="sigma_score")
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -38,6 +40,8 @@ class ABRankingFcTrainingPipeline:
                     minio_secret_key,
                     dataset,
                     model_type,
+                    input_type,
+                    output_type,
                     kandinsky_batch_size=5,
                     training_batch_size=64,
                     num_samples=10000,
@@ -62,6 +66,8 @@ class ABRankingFcTrainingPipeline:
         self.learning_rate= learning_rate
         self.epochs= epochs
         self.model_type= model_type
+        self.input_type= input_type
+        self.output_type= output_type
 
     def train(self):
         inputs=[]
@@ -84,35 +90,51 @@ class ABRankingFcTrainingPipeline:
             self_training_data = msgpack.loads(content)
             
             # append the self training data to list of data
-            self_training_inputs, self_training_outputs= self.load_self_training_data(self_training_data)
+            self_training_inputs, self_training_outputs= self.load_self_training_data(self_training_data, self.input_type, self.output_type)
             inputs.extend(self_training_inputs)
             outputs.extend(self_training_outputs)
         
         # training and saving the model
         if self.model_type == "fc" or self.model_type == "all":
             print(f"training an fc model for the {self.dataset} dataset")
-            model= ScoringFCNetwork(minio_client=self.minio_client, dataset=self.dataset)
+            model= ScoringFCNetwork(minio_client=self.minio_client, 
+                                    dataset=self.dataset, 
+                                    input_type=self.input_type, 
+                                    output_type=self.output_type)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
         if self.model_type == "treeconnect" or self.model_type == "all":
             print(f"training a treeconnect model for the {self.dataset} dataset")
-            model= ScoringTreeConnectNetwork(minio_client=self.minio_client, dataset=self.dataset)
+            model= ScoringTreeConnectNetwork(minio_client=self.minio_client, 
+                                             dataset=self.dataset, 
+                                             input_type=self.input_type, 
+                                             output_type=self.output_type)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
         if self.model_type=="xgboost" or self.model_type == "all":
             print(f"training an xgboost model for the {self.dataset} dataset")
-            model= ScoringXgboostModel(minio_client=self.minio_client, dataset=self.dataset)
+            model= ScoringXgboostModel(minio_client=self.minio_client, 
+                                        dataset=self.dataset, 
+                                        input_type=self.input_type, 
+                                        output_type=self.output_type)
+            
             loss=model.train(inputs, outputs)
             model.save_model()
     
-    def load_self_training_data(self, data):
+    def load_self_training_data(self, data, input_type, output_type):
         inputs=[]
         outputs=[]
+        
+        if output_type == "sigma_score":
+            output_field= "output_clip_score"
+        elif output_type == "output_clip":
+            output_field = "output_clip"
+
         for d in data:
-            inputs.append(d['input_clip'][0])
-            outputs.append(d['output_clip_score'])
+            inputs.append(d[input_type][0])
+            outputs.append(d[output_field])
         
         return inputs, outputs
 
@@ -125,6 +147,8 @@ def main():
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= args.dataset,
                                     model_type= args.model_type,
+                                    input_type= args.input_type,
+                                    output_type= args.output_type,
                                     kandinsky_batch_size=args.kandinsky_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     num_samples= args.num_samples,
