@@ -9,7 +9,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
-from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
+# from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
 from training_worker.scoring.models.scoring_treeconnect import ScoringTreeConnectNetwork
 from utility.http import request
 from utility.minio import cmd
@@ -123,17 +123,17 @@ class ABRankingFcTrainingPipeline:
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
-        if self.model_type=="xgboost" or self.model_type == "all":
-            print(f"training an xgboost model for the {self.dataset} dataset")
-            model= ScoringXgboostModel(minio_client=self.minio_client, 
-                                        dataset=self.dataset, 
-                                        input_type=self.input_type, 
-                                        output_type=self.output_type,
-                                        input_size= self.input_size,
-                                        output_size= self.output_size)
+        # if self.model_type=="xgboost" or self.model_type == "all":
+        #     print(f"training an xgboost model for the {self.dataset} dataset")
+        #     model= ScoringXgboostModel(minio_client=self.minio_client, 
+        #                                 dataset=self.dataset, 
+        #                                 input_type=self.input_type, 
+        #                                 output_type=self.output_type,
+        #                                 input_size= self.input_size,
+        #                                 output_size= self.output_size)
             
-            loss=model.train(inputs, outputs)
-            model.save_model()
+        #     loss=model.train(inputs, outputs)
+        #     model.save_model()
     
     def load_self_training_data(self, data, input_type, output_type):
         inputs=[]
