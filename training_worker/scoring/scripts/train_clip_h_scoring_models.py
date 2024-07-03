@@ -26,6 +26,8 @@ def parse_args():
     parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
     parser.add_argument('--input-type', type=str, help='input type for the model', default="input_clip")
     parser.add_argument('--output-type', type=str, help='output type for the model', default="sigma_score")
+    parser.add_argument('--input-size', type=int, help='size of input', default=1280)
+    parser.add_argument('--output-size', type=int, help='size of output', default=1)
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -42,6 +44,8 @@ class ABRankingFcTrainingPipeline:
                     model_type,
                     input_type,
                     output_type,
+                    input_size,
+                    output_size,
                     kandinsky_batch_size=5,
                     training_batch_size=64,
                     num_samples=10000,
@@ -68,6 +72,8 @@ class ABRankingFcTrainingPipeline:
         self.model_type= model_type
         self.input_type= input_type
         self.output_type= output_type
+        self.input_size= input_size
+        self.output_size= output_size
 
     def train(self):
         inputs=[]
@@ -100,7 +106,9 @@ class ABRankingFcTrainingPipeline:
             model= ScoringFCNetwork(minio_client=self.minio_client, 
                                     dataset=self.dataset, 
                                     input_type=self.input_type, 
-                                    output_type=self.output_type)
+                                    output_type=self.output_type,
+                                    input_size= self.input_size,
+                                    output_size= self.output_size)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
@@ -109,7 +117,9 @@ class ABRankingFcTrainingPipeline:
             model= ScoringTreeConnectNetwork(minio_client=self.minio_client, 
                                              dataset=self.dataset, 
                                              input_type=self.input_type, 
-                                             output_type=self.output_type)
+                                             output_type=self.output_type,
+                                             input_size= self.input_size,
+                                             output_size= self.output_size)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
@@ -118,7 +128,9 @@ class ABRankingFcTrainingPipeline:
             model= ScoringXgboostModel(minio_client=self.minio_client, 
                                         dataset=self.dataset, 
                                         input_type=self.input_type, 
-                                        output_type=self.output_type)
+                                        output_type=self.output_type,
+                                        input_size= self.input_size,
+                                        output_size= self.output_size)
             
             loss=model.train(inputs, outputs)
             model.save_model()
@@ -128,9 +140,11 @@ class ABRankingFcTrainingPipeline:
         outputs=[]
         
         if output_type == "sigma_score":
-            output_field= "output_clip_score"
+            output_type= "output_clip_score"
         elif output_type == "output_clip":
             output_field = "output_clip"
+        else:
+            raise Exception("output type not recognized")
 
         for d in data:
             inputs.append(d[input_type][0])
