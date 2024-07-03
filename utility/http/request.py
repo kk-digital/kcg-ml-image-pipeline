@@ -11,8 +11,8 @@ db = client['orchestration-job-db']
 # Access the specific collection
 comleted_jobs_collection = db["completed-jobs"]
 
-# SERVER_ADDRESS = 'http://123.176.98.90:8764'
-SERVER_ADDRESS = 'http://192.168.3.1:8111'
+SERVER_ADDRESS = 'http://123.176.98.90:8764'
+# SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
 def http_get_list_completed_jobs():
