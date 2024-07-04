@@ -14,7 +14,7 @@ def update_mongodb_documents():
     collection = db[COLLECTION_NAME]
 
     # Collections to check for uuids
-    completed_jobs_collection = db["completed_jobs"]
+    completed_jobs_collection = db["completed-jobs"] 
     extracts_collection = db["extracts"]
     external_images_collection = db["external_images"]
 
