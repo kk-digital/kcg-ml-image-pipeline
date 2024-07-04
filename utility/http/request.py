@@ -548,6 +548,35 @@ def http_get_tagged_images(tag_id):
 
     except Exception as e:
         print('request exception ', e)
+        
+
+def http_get_tagged_images_by_image_type(tag_id, image_type = "all_resolutions"):
+    url = SERVER_ADDRESS + "/tags/get-images-by-image-type/?tag_id={}&image_type={}".format(tag_id, image_type)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
+        
+
+def http_get_tagged_images_by_resolution(tag_id, source = None):
+    if source is None:
+        url = SERVER_ADDRESS + "/tags/get-images-by-resolution/?tag_id={}".format(tag_id)
+    else:
+        url = SERVER_ADDRESS + "/tags/get-images-by-resolution/?tag_id={}&source={}".format(tag_id, source)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
 
 
 def http_get_random_image_list(dataset, size):
