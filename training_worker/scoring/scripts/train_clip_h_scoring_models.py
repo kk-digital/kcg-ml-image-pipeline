@@ -17,6 +17,9 @@ from utility.minio import cmd
 DATA_MINIO_DIRECTORY="data/latent-generator"
 API_URL = "http://192.168.3.1:8111"
 
+def parse_list(option_string):
+    return [int(item) for item in option_string.split(',')]
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -24,7 +27,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
-    parser.add_argument('--hidden-layers', type=list, help='hidden layer sizes', default=[512, 256])
+    parser.add_argument('--hidden-layers', type=parse_list, help='List of hidden layer sizes, separated by commas', default=[512, 256])
     parser.add_argument('--loss-func', type=str, help='type of loss function used, L1 or cosine', default="L1")
     parser.add_argument('--input-type', type=str, help='input type for the model', default="input_clip")
     parser.add_argument('--output-type', type=str, help='output type for the model', default="sigma_score")
