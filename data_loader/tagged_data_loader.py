@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from utility.http import request
 from training_worker.ab_ranking.model import constants
@@ -87,7 +88,8 @@ class TaggedDatasetLoader:
         # get .msgpack data
         path = path.replace(".jpg", input_type_extension)
         path = path.replace("datasets/", "")
-        features_data = get_object(self.minio_client, path)
+        bucket_name, path = separate_bucket_and_file_path(path)
+        features_data = get_object_with_bucket(self.minio_client, bucket_name, path)
 
         features_data = msgpack.unpackb(features_data)
         features_vector = []
@@ -171,7 +173,7 @@ class TaggedDatasetLoader:
         return training_features, validation_features
 
 
-    def load_dataset(self):
+    def load_dataset(self, image_type="all_resolutions"): # resolution ['all_resolutions', '512*512_resolution']
         # get all data based on tag
         tag_list = request.http_get_tag_list()
 
@@ -183,7 +185,7 @@ class TaggedDatasetLoader:
         if tag_id is None:
             raise Exception("Tag name not found")
 
-        tagged_images = request.http_get_tagged_images(tag_id)
+        tagged_images = request.http_get_tagged_images_by_image_type(tag_id, image_type)
 
         positive_tagged_dataset = []
         negative_tagged_dataset = []
