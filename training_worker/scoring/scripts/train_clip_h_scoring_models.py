@@ -148,17 +148,17 @@ class ABRankingFcTrainingPipeline:
     def load_self_training_data(self, data, input_type, output_type):
         inputs=[]
         outputs=[]
-        
-        if output_type == "sigma_score":
-            output_type= "output_clip_score"
-        elif output_type == "output_clip":
-            output_field = "output_clip"
-        else:
-            raise Exception("output type not recognized")
 
-        for d in data:
-            inputs.append(d[input_type][0])
-            outputs.append(d[output_field])
+        for datapoint in data:
+            input_clip = datapoint[input_type][0]
+
+            if output_type == "sigma_score":
+                output_result= datapoint["output_clip_score"]
+            elif output_type == "output_clip":
+                output_result = datapoint["output_clip"][0]
+
+            inputs.append(input_clip)
+            outputs.append(output_result)
         
         return inputs, outputs
 
