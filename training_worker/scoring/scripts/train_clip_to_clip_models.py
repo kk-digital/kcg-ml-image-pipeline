@@ -85,8 +85,6 @@ class CliptoClipFcTrainingPipeline:
         self_training_files = self.minio_client.list_objects('datasets', prefix=self_training_path, recursive=True)
         self_training_files = [file.object_name for file in self_training_files]
 
-        index=10
-
         for file in self_training_files:
             print(file)
 
@@ -102,11 +100,6 @@ class CliptoClipFcTrainingPipeline:
             self_training_inputs, self_training_outputs= self.load_self_training_data(self_training_data, self.output_type)
             inputs.extend(self_training_inputs)
             outputs.extend(self_training_outputs)
-
-            index-=1
-
-            if index == 0:
-                break
         
         # training and saving the model
         if self.model_type == "fc" or self.model_type == "all":
