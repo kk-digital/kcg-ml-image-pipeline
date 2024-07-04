@@ -943,7 +943,7 @@ def get_tagged_images_v2(
                     if not image:
                         continue
                     
-                    if image['task_input_dict.image_width'] == 512 and image['task_input_dict.image_height'] == 512:
+                    if image['task_input_dict']['image_width'] == 512 and image['task_input_dict']['image_height'] == 512:
                         print("512*512", image, tag_data['image_hash'])
                         temp_image_tags_cursor.append(tag_data)
                         
@@ -969,6 +969,7 @@ def get_tagged_images_v2(
 
     except Exception as e:
         # Log the exception details here, if necessary
+        print(e)
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
         )
