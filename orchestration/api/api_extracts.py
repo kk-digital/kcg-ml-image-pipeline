@@ -311,7 +311,8 @@ async def delete_extract_dataset_data(request: Request, dataset: str):
 
 @router.post("/extracts/add-tag-to-extract",
              status_code=201,
-             tags=["extracts"],  
+             tags=["deprecated3"],  
+             description="changed with /tags/add-tag-to-image-v2",
              response_model=StandardSuccessResponseV1[ImageTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: int, user_who_created: str):
@@ -387,7 +388,8 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
 
 @router.delete("/extracts/remove-tag-from-extract",
                status_code=200,
-               tags=["extracts"],
+               tags=["deprecated3"],
+               description="changed with /tags/remove-tag-from-image-v1/{tag_id}",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
@@ -427,9 +429,9 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
 
 
 @router.get("/extracts/get-images-by-tag-id", 
-            tags=["extracts"], 
+            tags=["deprecated3"], 
             status_code=200,
-            description="Get extract images by tag_id",
+            description="changed with /tags/get-images-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[ListExternalImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_extracts_by_tag_id(
@@ -504,8 +506,8 @@ def get_extracts_by_tag_id(
 
 @router.get("/extracts/get-tag-list-for-image", 
             response_model=StandardSuccessResponseV1[TagListForImages], 
-            description="Get tag list for image",
-            tags=["extracts"],
+            description="changed with /tags/get-tag-list-for-image-v2",
+            tags=["deprecated3"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def get_tag_list_for_extract_image(request: Request, file_hash: str):
@@ -557,8 +559,8 @@ def get_tag_list_for_extract_image(request: Request, file_hash: str):
 
 @router.get("/extracts/get-images-count-by-tag-id",
             status_code=200,
-            tags=["extracts"],
-            description="Get count of extract images with a specific tag",
+            tags=["deprecated3"],
+            description="changed with tags/get-images-count-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_images_count_by_tag_id(request: Request, tag_id: int):
@@ -853,8 +855,8 @@ async def get_random_external_image_similarity(
 
 @router.post("/extract-images/get-tag-list-for-multiple-extract-images", 
              response_model=StandardSuccessResponseV1[TagListForImagesV1], 
-             description="Get tag lists for multiple images",
-             tags=["extracts"],
+             description="changed with /tags/get-tag-list-for-multiple-images-v1",
+             tags=["deprecated3"],
              status_code=200,
              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[str]):
