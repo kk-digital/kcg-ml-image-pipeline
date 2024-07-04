@@ -363,9 +363,9 @@ class ScoringFCNetwork(nn.Module):
             for inputs, _ in loader:
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
-                predictions.append(outputs)
                 predictions.append(outputs.cpu()) 
                 torch.cuda.empty_cache() 
+                
         return torch.cat(predictions).squeeze()
 
     def load_model(self):
