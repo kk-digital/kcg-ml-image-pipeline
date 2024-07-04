@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torch.utils.data.dataloader import DataLoader
+import torch.nn.functional as F
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -44,9 +45,21 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
+class CosineSimilarityLoss(nn.Module):
+    def __init__(self):
+        super(CosineSimilarityLoss, self).__init__()
+
+    def forward(self, outputs, targets):
+        # Normalize vectors to have unit norm
+        outputs = F.normalize(outputs, p=2, dim=1)
+        targets = F.normalize(targets, p=2, dim=1)
+        # Calculate cosine similarity and convert to loss
+        cosine_loss = 1 - F.cosine_similarity(outputs, targets)
+        return cosine_loss.mean()
+
 class ScoringFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1280, hidden_sizes=[512, 256], input_type="input_clip" , output_size=1, 
-                 output_type="sigma_score", dataset="environmental"):
+                 output_type="sigma_score", dataset="environmental", loss_func="L1"):
         
         super(ScoringFCNetwork, self).__init__()
         # set device
@@ -73,6 +86,7 @@ class ScoringFCNetwork(nn.Module):
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
+        self.loss_func= loss_func
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
 
@@ -94,7 +108,12 @@ class ScoringFCNetwork(nn.Module):
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-        criterion = nn.L1Loss()  # Define the loss function
+        # Select the loss function based on the type specified
+        if self.loss_func == 'cosine':
+            criterion = CosineSimilarityLoss()
+        else:
+            criterion = nn.L1Loss()
+
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
@@ -156,17 +175,17 @@ class ScoringFCNetwork(nn.Module):
         print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
 
         # Extract the true values from the datasets
-        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset]).to(self._device)
-        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset]).to(self._device)
+        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset])
+        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset])
 
         # Calculate residuals
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
 
-        val_preds= val_preds.cpu().numpy()
-        y_val= y_val.cpu().numpy()
-        val_residuals= val_residuals.cpu().numpy()
-        train_residuals= train_residuals.cpu().numpy()
+        val_preds= val_preds.numpy()
+        y_val= y_val.numpy()
+        val_residuals= val_residuals.numpy()
+        train_residuals= train_residuals.numpy()
         
         self.save_graph_report(train_loss, val_loss, 
                                val_residuals, train_residuals, 
@@ -345,6 +364,8 @@ class ScoringFCNetwork(nn.Module):
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
                 predictions.append(outputs)
+                predictions.append(outputs.cpu()) 
+                torch.cuda.empty_cache() 
         return torch.cat(predictions).squeeze()
 
     def load_model(self):

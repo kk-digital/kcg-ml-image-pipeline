@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
+    parser.add_argument('--hidden-layers', type=list, help='hidden layer sizes', default=[512, 256])
+    parser.add_argument('--loss-func', type=str, help='type of loss function used, L1 or cosine', default="L1")
     parser.add_argument('--input-type', type=str, help='input type for the model', default="input_clip")
     parser.add_argument('--output-type', type=str, help='output type for the model', default="sigma_score")
     parser.add_argument('--input-size', type=int, help='size of input', default=1280)
@@ -42,10 +44,12 @@ class ABRankingFcTrainingPipeline:
                     minio_secret_key,
                     dataset,
                     model_type,
+                    hidden_layers,
                     input_type,
                     output_type,
                     input_size,
                     output_size,
+                    loss_func,
                     kandinsky_batch_size=5,
                     training_batch_size=64,
                     num_samples=10000,
@@ -74,6 +78,8 @@ class ABRankingFcTrainingPipeline:
         self.output_type= output_type
         self.input_size= input_size
         self.output_size= output_size
+        self.hidden_layers = hidden_layers
+        self.loss_func = loss_func
 
     def train(self):
         inputs=[]
@@ -108,7 +114,9 @@ class ABRankingFcTrainingPipeline:
                                     input_type=self.input_type, 
                                     output_type=self.output_type,
                                     input_size= self.input_size,
-                                    output_size= self.output_size)
+                                    output_size= self.output_size,
+                                    hidden_sizes= self.hidden_layers,
+                                    loss_func= self.loss_func)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
@@ -119,7 +127,9 @@ class ABRankingFcTrainingPipeline:
                                              input_type=self.input_type, 
                                              output_type=self.output_type,
                                              input_size= self.input_size,
-                                             output_size= self.output_size)
+                                             output_size= self.output_size,
+                                             hidden_sizes= self.hidden_layers,
+                                             loss_func= self.loss_func)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
         
@@ -161,10 +171,12 @@ def main():
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= args.dataset,
                                     model_type= args.model_type,
+                                    hidden_layers= args.hidden_layers,
                                     input_type= args.input_type,
                                     output_type= args.output_type,
                                     input_size= args.input_size,
                                     output_size= args.output_size,
+                                    loss_func= args.loss_func,
                                     kandinsky_batch_size=args.kandinsky_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     num_samples= args.num_samples,
@@ -190,10 +202,12 @@ def main():
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= dataset,
                                     model_type=args.model_type,
+                                    hidden_layers= args.hidden_layers,
                                     input_size= args.input_size,
                                     input_type= args.input_type,
                                     output_type= args.output_type,
                                     output_size= args.output_size,
+                                    loss_func= args.loss_func,
                                     kandinsky_batch_size=args.kandinsky_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     num_samples= args.num_samples,
