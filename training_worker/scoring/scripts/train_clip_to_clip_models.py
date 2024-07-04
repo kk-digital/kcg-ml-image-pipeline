@@ -8,6 +8,7 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
+from training_worker.scoring.models.clip_to_clip_fc import CliptoClipFCNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 # from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
 from training_worker.scoring.models.scoring_treeconnect import ScoringTreeConnectNetwork
@@ -27,8 +28,8 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
-    parser.add_argument('--hidden-layers', type=parse_list, help='List of hidden layer sizes, separated by commas', default=[512, 256])
-    parser.add_argument('--output-type', type=str, help='output type for the model', default="sigma_score")
+    parser.add_argument('--hidden-layers', type=parse_list, help='List of hidden layer sizes, separated by commas', default=[2048, 1024, 512])
+    parser.add_argument('--output-type', type=str, help='output type for the model', default="output_clip")
     parser.add_argument('--output-size', type=int, help='size of output', default=1)
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
@@ -38,7 +39,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class ABRankingFcTrainingPipeline:
+class CliptoClipFcTrainingPipeline:
     def __init__(self,
                     minio_access_key,
                     minio_secret_key,
@@ -110,35 +111,13 @@ class ABRankingFcTrainingPipeline:
         # training and saving the model
         if self.model_type == "fc" or self.model_type == "all":
             print(f"training an fc model for the {self.dataset} dataset")
-            model= ScoringFCNetwork(minio_client=self.minio_client, 
+            model= CliptoClipFCNetwork(minio_client=self.minio_client, 
                                     dataset=self.dataset, 
                                     output_type=self.output_type,
                                     output_size= self.output_size,
                                     hidden_sizes= self.hidden_layers)
             loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
             model.save_model()
-        
-        if self.model_type == "treeconnect" or self.model_type == "all":
-            print(f"training a treeconnect model for the {self.dataset} dataset")
-            model= ScoringTreeConnectNetwork(minio_client=self.minio_client, 
-                                             dataset=self.dataset, 
-                                             output_type=self.output_type,
-                                             output_size= self.output_size,
-                                             hidden_sizes= self.hidden_layers)
-            loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
-            model.save_model()
-        
-        # if self.model_type=="xgboost" or self.model_type == "all":
-        #     print(f"training an xgboost model for the {self.dataset} dataset")
-        #     model= ScoringXgboostModel(minio_client=self.minio_client, 
-        #                                 dataset=self.dataset, 
-        #                                 input_type=self.input_type, 
-        #                                 output_type=self.output_type,
-        #                                 input_size= self.input_size,
-        #                                 output_size= self.output_size)
-            
-        #     loss=model.train(inputs, outputs)
-        #     model.save_model()
     
     def load_self_training_data(self, data, output_type):
         inputs=[]
@@ -147,8 +126,8 @@ class ABRankingFcTrainingPipeline:
         for datapoint in data:
             input_clip = datapoint["input_clip"][0]
 
-            if output_type == "sigma_score":
-                output_result= datapoint["output_clip_score"]
+            if output_type == "output_clip":
+                output_result= datapoint["output_clip"][0]
 
             inputs.append(input_clip)
             outputs.append(output_result)
@@ -160,7 +139,7 @@ def main():
     global DATA_MINIO_DIRECTORY
 
     if args.dataset != "all":
-        training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
+        training_pipeline=CliptoClipFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= args.dataset,
                                     model_type= args.model_type,
@@ -188,7 +167,7 @@ def main():
             
             try:
                 # initialize training pipeline
-                training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
+                training_pipeline=CliptoClipFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= dataset,
                                     model_type=args.model_type,
@@ -209,5 +188,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-            

@@ -44,11 +44,23 @@ class DatasetLoader(Dataset):
         sample_label = self.labels[idx]
         return sample_features, sample_label
 
-class ScoringFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1280, hidden_sizes=[512, 256], input_type="input_clip" , output_size=1, 
-                 output_type="sigma_score", dataset="environmental"):
+class CosineSimilarityLoss(nn.Module):
+    def __init__(self):
+        super(CosineSimilarityLoss, self).__init__()
+
+    def forward(self, outputs, targets):
+        # Normalize vectors to have unit norm
+        outputs = F.normalize(outputs, p=2, dim=1)
+        targets = F.normalize(targets, p=2, dim=1)
+        # Calculate cosine similarity and convert to loss
+        cosine_loss = 1 - F.cosine_similarity(outputs, targets)
+        return cosine_loss.mean()
+
+class CliptoClipFCNetwork(nn.Module):
+    def __init__(self, minio_client, input_size=1280, hidden_sizes=[2048, 1024, 512], input_type="input_clip" , output_size=1280, 
+                 output_type="output_clip", dataset="environmental", loss_func="cosine"):
         
-        super(ScoringFCNetwork, self).__init__()
+        super(CliptoClipFCNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -73,6 +85,7 @@ class ScoringFCNetwork(nn.Module):
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
+        self.loss_func= loss_func
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
 
@@ -94,7 +107,12 @@ class ScoringFCNetwork(nn.Module):
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-        criterion = nn.L1Loss()
+        # Select the loss function based on the type specified
+        if self.loss_func == 'cosine':
+            criterion = CosineSimilarityLoss()
+        else:
+            criterion = nn.MSELoss()
+
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
@@ -148,29 +166,16 @@ class ScoringFCNetwork(nn.Module):
 
         start = time.time()
         # Inference and calculate residuals on the training and validation set
-        val_preds = self.inference(val_dataset, batch_size)
-        train_preds = self.inference(train_dataset, batch_size)
+        val_cosine_similarities = self.get_cosine_similarities(val_dataset, batch_size).numpy()
+        train_cosine_similarities = self.get_cosine_similarities(train_dataset, batch_size).numpy()
         
         end = time.time()
         inference_speed=(train_size + val_size)/(end - start)
         print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
 
-        # Extract the true values from the datasets
-        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset])
-        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset])
-
-        # Calculate residuals
-        val_residuals = y_val - val_preds
-        train_residuals = y_train - train_preds
-
-        val_preds= val_preds.numpy()
-        y_val= y_val.numpy()
-        val_residuals= val_residuals.numpy()
-        train_residuals= train_residuals.numpy()
-        
         self.save_graph_report(train_loss, val_loss, 
-                               val_residuals, train_residuals, 
-                               val_preds, y_val,
+                               train_cosine_similarities,
+                               val_cosine_similarities,
                                train_size, val_size)
         
         self.save_model_report(num_training=train_size,
@@ -180,7 +185,7 @@ class ScoringFCNetwork(nn.Module):
                               val_loss=val_loss, 
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
-        
+    
         return val_loss[-1]
         
     def save_model_report(self,num_training,
@@ -190,9 +195,8 @@ class ScoringFCNetwork(nn.Module):
                               val_loss, 
                               inference_speed,
                               learning_rate):
-        if self.input_type=="output_clip":
-            input_type="[output_image_clip_vector[1280]]"
-        elif self.input_type=="input_clip":
+
+        if self.input_type=="input_clip":
             input_type="[input_clip_vector[1280]]"
 
         report_text = (
@@ -200,7 +204,7 @@ class ScoringFCNetwork(nn.Module):
             f"Number of training datapoints: {num_training} \n"
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
-            "Loss Function: L1 \n"
+            f"Loss Function: {self.loss_func} \n"
             f"Learning Rate: {learning_rate} \n"
             f"Training Loss: {train_loss[-1]} \n"
             f"Validation Loss: {val_loss[-1]} \n"
@@ -231,11 +235,11 @@ class ScoringFCNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
-                          val_residuals, train_residuals, 
-                          predicted_values, actual_values,
+    def save_graph_report(self, train_loss_per_round, val_loss_per_round, 
+                          train_cosine_similarities,
+                          val_cosine_similarities,
                           training_size, validation_size):
-        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
+        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
         
         #info text about the model
         plt.figtext(0.02, 0.7, "Date = {}\n"
@@ -256,47 +260,29 @@ class ScoringFCNetwork(nn.Module):
                                                             self.output_type,
                                                             training_size,
                                                             validation_size,
-                                                            train_mae_per_round[-1],
-                                                            val_mae_per_round[-1],
+                                                            train_loss_per_round[-1],
+                                                            val_loss_per_round[-1],
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
-        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
-        axs[0][0].set_title('MAE per Round')
+        axs[0][0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
+        axs[0][0].set_title('Loss per Round')
         axs[0][0].set_ylabel('Loss')
         axs[0][0].set_xlabel('Rounds')
         axs[0][0].legend(['Training loss', 'Validation loss'])
 
-        # Scatter Plot of actual values vs predicted values
-        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
-        axs[0][1].set_title('Predicted values vs actual values')
-        axs[0][1].set_ylabel('True')
-        axs[0][1].set_xlabel('Predicted')
-
         # plot histogram of training residuals
-        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].hist(train_cosine_similarities, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Cosine Similarity')
         axs[1][0].set_ylabel('Frequency')
-        axs[1][0].set_title('Training Residual Histogram')
-
-        # plot histogram of validation residuals
-        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1][1].set_xlabel('Residuals')
-        axs[1][1].set_ylabel('Frequency')
-        axs[1][1].set_title('Validation Residual Histogram')
-        
-        # plot histogram of predicted values
-        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
-        axs[2][0].set_xlabel('Predicted Values')
+        axs[1][0].set_title('Training Cosine Similarity Histogram')
+       
+        # plot histogram of training residuals
+        axs[2][0].hist(val_cosine_similarities, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Cosine Similarity')
         axs[2][0].set_ylabel('Frequency')
-        axs[2][0].set_title('Validation Predicted Values Histogram')
-        
-        # plot histogram of true values
-        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
-        axs[2][1].set_xlabel('Actual values')
-        axs[2][1].set_ylabel('Frequency')
-        axs[2][1].set_title('Validation True Values Histogram')
+        axs[2][0].set_title('Validation Cosine Similarity Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
@@ -336,18 +322,22 @@ class ScoringFCNetwork(nn.Module):
 
         return predictions         
 
-    def inference(self, dataset, batch_size=64):
+    def get_cosine_similarities(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
-        predictions = []
+        cosine_similarities = []
         with torch.no_grad():
-            for inputs, _ in loader:
+            for inputs, targets in loader:
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
-                predictions.append(outputs.cpu()) 
-                torch.cuda.empty_cache() 
+                # Normalize vectors to have unit norm
+                outputs = F.normalize(outputs, p=2, dim=1)
+                targets = F.normalize(targets, p=2, dim=1)
+                # Calculate cosine similarity and convert to loss
+                cosine_sim = F.cosine_similarity(outputs, targets)
+                cosine_similarities.append(cosine_sim) 
                 
-        return torch.cat(predictions).squeeze()
+        return torch.cat(cosine_similarities).squeeze()
 
     def load_model(self):
         # get model file data from MinIO
