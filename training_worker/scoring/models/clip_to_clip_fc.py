@@ -265,24 +265,24 @@ class CliptoClipFCNetwork(nn.Module):
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
-        axs[0][0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
-        axs[0][0].set_title('Loss per Round')
-        axs[0][0].set_ylabel('Loss')
-        axs[0][0].set_xlabel('Rounds')
-        axs[0][0].legend(['Training loss', 'Validation loss'])
+        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
+        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
+        axs[0].set_title('Loss per Round')
+        axs[0].set_ylabel('Loss')
+        axs[0].set_xlabel('Rounds')
+        axs[0].legend(['Training loss', 'Validation loss'])
 
         # plot histogram of training residuals
-        axs[1][0].hist(train_cosine_similarities, bins=30, color='blue', alpha=0.7)
-        axs[1][0].set_xlabel('Cosine Similarity')
-        axs[1][0].set_ylabel('Frequency')
-        axs[1][0].set_title('Training Cosine Similarity Histogram')
+        axs[1].hist(train_cosine_similarities, bins=30, color='blue', alpha=0.7)
+        axs[1].set_xlabel('Cosine Similarity')
+        axs[1].set_ylabel('Frequency')
+        axs[1].set_title('Training Cosine Similarity Histogram')
        
         # plot histogram of training residuals
-        axs[2][0].hist(val_cosine_similarities, bins=30, color='blue', alpha=0.7)
-        axs[2][0].set_xlabel('Cosine Similarity')
-        axs[2][0].set_ylabel('Frequency')
-        axs[2][0].set_title('Validation Cosine Similarity Histogram')
+        axs[2].hist(val_cosine_similarities, bins=30, color='blue', alpha=0.7)
+        axs[2].set_xlabel('Cosine Similarity')
+        axs[2].set_ylabel('Frequency')
+        axs[2].set_title('Validation Cosine Similarity Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
