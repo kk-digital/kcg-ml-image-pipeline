@@ -329,12 +329,12 @@ class CliptoClipFCNetwork(nn.Module):
         with torch.no_grad():
             for inputs, targets in loader:
                 inputs= inputs.to(self._device)
-                outputs = self.model(inputs)
+                outputs = self.model(inputs).squeeze(1)
                 # Normalize vectors to have unit norm
                 outputs = F.normalize(outputs, p=2, dim=1)
                 targets = F.normalize(targets, p=2, dim=1)
                 # Calculate cosine similarity and convert to loss
-                cosine_sim = F.cosine_similarity(outputs, targets)
+                cosine_sim = F.cosine_similarity(outputs.cpu(), targets.cpu())
                 cosine_similarities.append(cosine_sim) 
                 
         return torch.cat(cosine_similarities).squeeze()
