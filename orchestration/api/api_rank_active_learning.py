@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
-from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse
+from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse, IrrelevantResponseV1
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
 import os
@@ -848,6 +848,89 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
         http_status_code=200
     )
 
+@router.post("/rank-training/add-irrelevant-image-v1",
+             description="Adds an image UUID to the irrelevant images collection",
+             status_code=200,
+             response_model=StandardSuccessResponseV1[IrrelevantResponseV1],
+             tags=["rank-training"],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def add_irrelevant_image_v1(
+    request: Request,
+    job_uuid: str = Query(...),
+    rank_model_id: int = Query(...),
+    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")
+):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # Determine the appropriate collection based on image_source
+    if image_source == "generated_image":
+        collection = request.app.completed_jobs_collection
+        projection = {"task_output_file_dict.output_file_hash": 1}
+    elif image_source == "extract_image":
+        collection = request.app.extracts_collection
+        projection = {"image_hash": 1}
+    elif image_source == "external_image":
+        collection = request.app.external_images_collection
+        projection = {"image_hash": 1}
+    else:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Invalid image source provided.",
+            http_status_code=422
+        )
+
+    # Fetch the image details from the determined collection
+    job = collection.find_one({"uuid": job_uuid}, projection)
+    if not job:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Job with UUID {job_uuid} not found in the {image_source} collection",
+            http_status_code=404
+        )
+
+    rank = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_id})
+    if not rank:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"Rank model not found in the rank models collection",
+            http_status_code=404
+        )
+
+    # Check if the image is already marked as irrelevant
+    existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
+    if existing_entry:
+        existing_entry.pop('_id')
+        return api_response_handler.create_success_response_v1(
+            response_data=existing_entry,
+            http_status_code=200
+        )
+
+    # Extract the relevant details
+    if image_source == "generated_image":
+        file_hash = job["task_output_file_dict"]["output_file_hash"]
+    else:
+        file_hash = job["image_hash"]
+
+    image_data = {
+        "uuid": job_uuid,
+        "file_hash": file_hash,
+        "rank_model_id": rank_model_id,
+        "image_source": image_source
+    }
+
+    # Insert the UUID data into the irrelevant_images_collection
+    inserted_id = request.app.irrelevant_images_collection.insert_one(image_data).inserted_id
+    inserted_image_data = request.app.irrelevant_images_collection.find_one({"_id": inserted_id})
+
+    # Remove the '_id' field from the response data
+    if '_id' in inserted_image_data:
+        inserted_image_data.pop('_id')
+
+    return api_response_handler.create_success_response_v1(
+        response_data=inserted_image_data,
+        http_status_code=200
+    )
+
 
 
 @router.get("/rank-training/list-irrelevant-images", 
@@ -877,6 +960,50 @@ def list_irrelevant_images(request: Request):
                                                          http_status_code=500,
                             
                                                          )
+
+@router.get("/rank-training/list-irrelevant-images-v1", 
+            description="List irrelevant images with optional rank filter and pagination",
+            tags=["rank-training"],
+            status_code=200,
+            response_model=StandardSuccessResponseV1[ListIrrelevantResponse],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def list_irrelevant_images_v1(
+    request: Request,
+    rank_model_id: Optional[int] = Query(None, description="Filter by rank model ID"),
+    limit: int = Query(20, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Build the query with optional rank_model_id filter
+        query = {}
+        if rank_model_id is not None:
+            query["rank_model_id"] = rank_model_id
+
+        # Decide the sort order based on the 'order' parameter
+        sort_order = -1 if order == "desc" else 1
+
+        # Query the irrelevant_images_collection with pagination
+        image_cursor = request.app.irrelevant_images_collection.find(query).sort("rank_model_id", sort_order).skip(offset).limit(limit)
+
+        # Convert each document to a dictionary and remove '_id' field
+        image_list = []
+        for doc in image_cursor:
+            doc.pop('_id', None)
+            image_list.append(doc)
+
+        return response_handler.create_success_response_v1(
+            response_data={"images": image_list}, 
+            http_status_code=200,
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error", 
+            http_status_code=500,
+        )
 
 
 @router.delete("/rank-training/remove-irrelevant-image",

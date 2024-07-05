@@ -24,6 +24,13 @@ class IrrelevantResponse(BaseModel):
     uuid: str
     file_hash: str
     rank_model_id: int
+    image_source: str
+
+class IrrelevantResponseV1(BaseModel):
+    uuid: str
+    file_hash: str
+    rank_model_id: int
+    image_source: str
 
 class GenerationCounts(BaseModel):
     character: int
@@ -55,7 +62,7 @@ class BoolIrrelevantResponse(BaseModel):
     irrelevant: bool    
 
 class ListIrrelevantResponse(BaseModel):
-    images: List[IrrelevantResponse]    
+    images: List[IrrelevantResponseV1]    
 
 class DoneResponse(BaseModel):
     Done: bool
