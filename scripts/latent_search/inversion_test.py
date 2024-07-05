@@ -343,9 +343,7 @@ class InversionPipeline:
       
 
         cosine_similarities = torch.stack(cosine_similarities, dim=0).squeeze()
-        print(cosine_similarities)
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
-        print(sorted_indices)
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
         sorted_indices_list = sorted_indices.tolist()
         image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
@@ -375,7 +373,7 @@ class InversionPipeline:
         for input_clip in tqdm(clip_vectors):
             # generate image
             image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
-                                                                 image_embeds= input_clip)
+                                                                 image_embeds= input_clip.unsqueeze(0))
             
             _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
             
