@@ -404,7 +404,7 @@ class InversionPipeline:
 
             # Normalize vectors to have unit norm
             outpus_norm = F.normalize(output_clip_vector, p=2, dim=1)
-            target_norm = F.normalize(target_vector.unsqueeze(), p=2, dim=1)
+            target_norm = F.normalize(target_vector.unsqueeze(0), p=2, dim=1)
 
             # Calculate cosine similarity and convert to loss
             cosine_sim = (outpus_norm * target_norm).sum(dim=1)
