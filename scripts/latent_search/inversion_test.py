@@ -307,7 +307,10 @@ class InversionPipeline:
                 optimizer.zero_grad()
 
                 # Compute ranking scores for the current batch of embeddings
-                outputs = self.output_clip_model.model(batch_embeddings).squeeze()
+                outputs = self.output_clip_model.model(batch_embeddings)
+
+                if outputs.dim() == 1:
+                    outputs = outputs.unsqueeze(0)
                 
                 # Compute the cosine similarities to the target clip vectors
                 # Normalize vectors to have unit norm
