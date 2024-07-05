@@ -361,9 +361,10 @@ class InversionPipeline:
         init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
         # generate each image
         for input_clip in tqdm(clip_vectors):
+            print(f"input clip shape: {input_clip.shape}")
             # generate image
             image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
-                                                                       image_embeds= input_clip)
+                                                                 image_embeds= input_clip)
             
             _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
 
