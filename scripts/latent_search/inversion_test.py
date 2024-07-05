@@ -288,9 +288,11 @@ class InversionPipeline:
         # sample random clip vectors
         clip_vectors = torch.normal(mean=self.clip_mean.repeat(num_images, 1),
                                         std=self.clip_std.repeat(num_images, 1))
-        
-        print(f"Unique check for initial clip vectors: ", torch.unique(clip_vectors).numel())
-        print(f"Unique check for target vectors: ", torch.unique(target_vectors).numel())
+
+        unique_targets= torch.unique(target_vectors).numel()
+
+        if unique_targets != num_images:
+            raise Exception(f"Duplicate clip vectors found {num_images - unique_targets}")
 
         # Calculate the total number of batches
         num_batches = num_images // self.batch_size + (0 if num_images % self.batch_size == 0 else 1)
