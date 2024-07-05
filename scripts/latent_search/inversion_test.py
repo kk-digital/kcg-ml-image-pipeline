@@ -322,6 +322,7 @@ class InversionPipeline:
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list)[sorted_indices]
         sorted_indices_list = sorted_indices.tolist()
+        print(sorted_indices_list)
         image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
 
         return sorted_clip_vectors, image_hashes_sorted
