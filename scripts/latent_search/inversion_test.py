@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import sys
 import numpy as np
 import torch
@@ -112,9 +113,10 @@ class InversionPipeline:
             if "perspective" in tag['tag_string'] or "topic" in tag['tag_string']:
                 tagged_images = request.http_get_tagged_extracts(tag["tag_id"])
 
-                if len(tagged_images)<20:
+                if len(tagged_images)<10:
                     continue
-               
+                
+                tagged_images = random.sample(tagged_images, 10)
                 print(f"loading clip vectors from the tag {tag['tag_string']}.........")
 
                 # get image hashes
