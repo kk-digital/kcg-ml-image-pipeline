@@ -343,7 +343,7 @@ class InversionPipeline:
             optimized_batch_embeddings = batch_embeddings.detach()
             cosine_sims = cosine_sims.detach()
             optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
-            cosine_similarities.extend(cosine_sims.tolist())
+            cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims.unsqueeze(1)])
       
         print(f"final vector shape: {optimized_embeddings_list[0].shape}")
         print(f"final cosine similarity shape: {cosine_similarities[0].shape}")
