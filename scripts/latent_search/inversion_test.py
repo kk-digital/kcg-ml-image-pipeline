@@ -281,20 +281,6 @@ class InversionPipeline:
 
         return inverted_clip
     
-    def check_duplicates(self, tensor):
-        # Flatten each vector in the tensor if they are multi-dimensional
-        if tensor.dim() > 2:
-            tensor = tensor.view(tensor.size(0), -1)
-        
-        # Use a set of tuples to check for duplicates since PyTorch doesn't directly support sets of tensors
-        seen = set()
-        for vec in tensor:
-            # Convert each tensor vector to a tuple
-            t_tuple = tuple(vec.tolist())
-            if t_tuple in seen:
-                return True  # Duplicate found
-            seen.add(t_tuple)
-        return False  # No duplicates found
     
     def optimize_datapoints(self, image_hashes, target_vectors):
         # get number of target vectors
@@ -303,9 +289,6 @@ class InversionPipeline:
         # sample random clip vectors
         clip_vectors = torch.normal(mean=self.clip_mean.repeat(num_images, 1),
                                         std=self.clip_std.repeat(num_images, 1))
-
-        if self.check_duplicates(target_vectors):
-            raise Exception(f"Duplicate target vectors found")
 
         # Calculate the total number of batches
         num_batches = num_images // self.batch_size + (0 if num_images % self.batch_size == 0 else 1)
@@ -319,6 +302,8 @@ class InversionPipeline:
             end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             target_batch = target_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
+
+            print("target batch:", target_batch)
             
             # Setup the optimizer for the current batch
             optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
