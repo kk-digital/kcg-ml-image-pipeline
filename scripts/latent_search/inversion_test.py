@@ -333,9 +333,11 @@ class InversionPipeline:
             print(f"optimizing images in the {key} category")
 
             images_hashes= data['image_hashes']
-            clip_vectors= data['clip_vectors']
+            target_vectors= data['clip_vectors']
 
-            sorted_clip_vectors, sorted_hashes= self.optimize_datapoints(images_hashes, clip_vectors)
+            print(f"target vectors shape: {target_vectors.shape}")
+
+            sorted_clip_vectors, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
 
 def main():
     args= parse_args()
