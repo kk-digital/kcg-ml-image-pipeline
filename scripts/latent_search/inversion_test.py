@@ -1,35 +1,21 @@
 import argparse
-from datetime import datetime
-import io
-import math
 import os
 import sys
-import imageio
-import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
 import torch.optim as optim
 import faiss
-import umap
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 import torch.nn.functional as F
-
-from utility.path import separate_bucket_and_file_path
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
-from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
-from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
-from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.clip_to_clip_fc import CliptoClipFCNetwork
 from utility.minio import cmd
 from utility.http import request
+from utility.path import separate_bucket_and_file_path
 
 def parse_args():
         parser = argparse.ArgumentParser()
