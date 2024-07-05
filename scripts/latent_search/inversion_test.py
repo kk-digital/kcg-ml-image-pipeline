@@ -7,6 +7,7 @@ from tqdm import tqdm
 import torch.optim as optim
 import faiss
 import torch.nn.functional as F
+from PIL import Image
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -16,6 +17,7 @@ from training_worker.scoring.models.clip_to_clip_fc import CliptoClipFCNetwork
 from utility.minio import cmd
 from utility.http import request
 from utility.path import separate_bucket_and_file_path
+from kandinsky.models.kandisky import KandinskyPipeline
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -60,8 +62,22 @@ class InversionPipeline:
             device = 'cpu'
         self.device = torch.device(device)
 
+        # load clip to output clip model
         self.output_clip_model= CliptoClipFCNetwork(minio_client=self.minio_client, dataset=dataset)
         self.output_clip_model.load_model()
+
+        # load kandinsky pipeline
+        self.kandisnky_generator = KandinskyPipeline(
+            device=self.device,
+            width= 512,
+            height= 512,
+            batch_size=1,
+            decoder_steps= 40,
+            strength= 0.75,
+            decoder_guidance_scale= 8
+        )
+
+        self.kandisnky_generator.load_models(task_type="img2img")
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
@@ -336,6 +352,22 @@ class InversionPipeline:
             target_vectors= data['clip_vectors']
 
             sorted_clip_vectors, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
+
+            self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors)
+
+    def generate_images(self, tag_name, clip_vectors):
+        print(f"generating images for the tag {tag_name}")
+
+        init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
+        # generate each image
+        for input_clip in tqdm(clip_vectors):
+            # generate image
+            image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
+                                                                       image_embeds= input_clip)
+            
+            _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
+
+            cmd.upload_data(self.minio_client, "extracts", f"{self.dataset}/output/{tag_name}", img_byte_arr)
 
 def main():
     args= parse_args()
