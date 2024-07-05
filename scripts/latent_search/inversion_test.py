@@ -320,6 +320,7 @@ class InversionPipeline:
                 target_norm = F.normalize(target_batch, p=2, dim=1)
                 # Calculate cosine similarity and convert to loss
                 cosine_sims = torch.mm(outputs_norm, target_norm.t()).squeeze()
+                print(f"cosine similarities shape during optimization: {cosine_sims}")
 
                 # Convert cosine similarities to loss
                 cosine_loss = 1 - cosine_sims
@@ -341,8 +342,9 @@ class InversionPipeline:
             cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims])
       
         print(f"final vector shape: {optimized_embeddings_list[0].shape}")
+        print(f"final cosien similarity shape: {cosine_similarities[0].shape}")
 
-        cosine_similarities = torch.stack(cosine_similarities).squeeze()
+        cosine_similarities = torch.stack(cosine_similarities)
         print(f"cosine similarities shape: {optimized_embeddings_list[0].shape}")
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
         print(f"sorted indices shape: {optimized_embeddings_list[0].shape}")
