@@ -286,9 +286,6 @@ class InversionPipeline:
         # sample random clip vectors
         clip_vectors = torch.normal(mean=self.clip_mean.repeat(num_images, 1),
                                         std=self.clip_std.repeat(num_images, 1))
-        
-        print(f"target vectors shape: {target_vectors.shape}")
-        print(f"initial vectors shape: {clip_vectors.shape}")
 
         # Calculate the total number of batches
         num_batches = num_images // self.batch_size + (0 if num_images % self.batch_size == 0 else 1)
@@ -302,9 +299,6 @@ class InversionPipeline:
             end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             target_batch = target_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
-
-            print(f"initial vectors batch shape: {batch_embeddings.shape}")
-            print(f"target vectors batch shape: {target_batch.shape}")
             
             # Setup the optimizer for the current batch
             optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
@@ -317,16 +311,11 @@ class InversionPipeline:
                 
                 # Compute the cosine similarities to the target clip vectors
                 # Normalize vectors to have unit norm
-                print("model outputs:",outputs.shape)
-                print("target outputs:",target_batch.shape)
                 outputs_norm = F.normalize(outputs, p=2, dim=1)
                 targets_norm = F.normalize(target_batch, p=2, dim=1)
-                print("norm model outputs:",outputs_norm.shape)
-                print("norm target outputs:",targets_norm.shape)
 
                 # Calculate cosine similarity and convert to loss
                 cosine_sims = (outputs_norm * targets_norm).sum(dim=1)
-                print(f"cosine similarities shape during optimization: {cosine_sims.shape}")
                 # Convert cosine similarities to loss
                 cosine_loss = 1 - cosine_sims
                         
@@ -338,7 +327,7 @@ class InversionPipeline:
 
                 optimizer.step()
 
-                # print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean cosine similarity: {cosine_sims.mean().item()}, Loss: {total_loss.item()}")
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean cosine similarity: {cosine_sims.mean().item()}, Loss: {total_loss.item()}")
 
             # After optimization, detach and add the optimized batch embeddings and their cosine similarities to the target to the list
             optimized_batch_embeddings = batch_embeddings.detach()
@@ -346,15 +335,10 @@ class InversionPipeline:
             optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
             cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims.unsqueeze(1)])
       
-        print(f"final vector shape: {optimized_embeddings_list[0].shape}")
-        print(f"final cosine similarity shape: {cosine_similarities[0].shape}")
 
         cosine_similarities = torch.stack(cosine_similarities)
-        print(f"cosine similarities shape: {cosine_similarities[0].shape}")
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
-        print(f"sorted indices shape: {optimized_embeddings_list[0].shape}")
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
-        print(f"final sorted vectors shape: {sorted_clip_vectors.shape}")
         sorted_indices_list = sorted_indices.tolist()[0]
         image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
 
