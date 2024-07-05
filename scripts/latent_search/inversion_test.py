@@ -303,6 +303,7 @@ class InversionPipeline:
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             target_batch = target_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
 
+            print("initial vector batch:", batch_embeddings)
             print("target batch:", target_batch)
             
             # Setup the optimizer for the current batch
