@@ -3,6 +3,7 @@ from io import BytesIO
 import os
 import random
 import sys
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 import msgpack
@@ -17,6 +18,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.scoring.models.clip_to_clip_fc import CliptoClipFCNetwork
+from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
 from utility.http import request
 from utility.path import separate_bucket_and_file_path
@@ -68,6 +70,10 @@ class InversionPipeline:
         # load clip to output clip model
         self.output_clip_model= CliptoClipFCNetwork(minio_client=self.minio_client, dataset=dataset)
         self.output_clip_model.load_model()
+
+        # load clip model
+        self.clip = KandinskyCLIPImageEncoder(device= self.device)
+        self.clip.load_submodels()
 
         # load kandinsky pipeline
         self.kandisnky_generator = KandinskyPipeline(
@@ -122,10 +128,10 @@ class InversionPipeline:
             if "perspective" in tag['tag_string'] or "topic" in tag['tag_string']:
                 tagged_images = request.http_get_tagged_extracts(tag["tag_id"])
 
-                if len(tagged_images)<10:
+                if len(tagged_images)<32:
                     continue
                 
-                tagged_images = random.sample(tagged_images, 10)
+                tagged_images = random.sample(tagged_images, 2)
                 print(f"loading clip vectors from the tag {tag['tag_string']}.........")
 
                 # get image hashes
@@ -361,6 +367,7 @@ class InversionPipeline:
     
     def image_inversion(self):
         target_images= self.get_tagged_images()
+        cosine_dict= {}
 
         for key, data in target_images.items():
             print(f"optimizing images in the {key} category")
@@ -371,20 +378,36 @@ class InversionPipeline:
             sorted_clip_vectors, sorted_indices = self.optimize_datapoints(target_vectors)
             images=[images[i] for i in sorted_indices]
 
-            self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors, images=images)
+            avg_cosine_similarity= self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors, target_vectors= target_vectors, images=images)
+            cosine_dict[key] = avg_cosine_similarity
+        
+        # plot the cosine similarity histogram
+        self.plot_cosine_similarity_histogram(cosine_dict)
 
-    def generate_images(self, tag_name, clip_vectors, images):
+
+    def generate_images(self, tag_name, clip_vectors, target_vectors, images):
         print(f"generating images for the tag {tag_name}")
 
+        cosine_similarities = []
         init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
         output_folder= f"{self.dataset}/output/inversion_test/"
         # generate each image
         index=0
-        for input_clip in tqdm(clip_vectors):
+        for input_clip, target_vector in tqdm(zip(clip_vectors, target_vectors)):
             # Generate the inverted image
             original_image = images[index]
             image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
                                                                 image_embeds=input_clip.unsqueeze(0))
+            
+            # get cosine similarity
+            output_clip_vector = self.clip.get_image_features(image)
+            # Normalize vectors to have unit norm
+            outpus_norm = F.normalize(output_clip_vector, p=2, dim=1)
+            target_norm = F.normalize(target_vector, p=2, dim=1)
+
+            # Calculate cosine similarity and convert to loss
+            cosine_sim = (outpus_norm * target_norm).sum(dim=1)
+            cosine_similarities.append(cosine_sim.item())
 
             # Combine original and generated images side by side
             total_width = original_image.width + image.width
@@ -400,6 +423,44 @@ class InversionPipeline:
                 combined_image.save(output, format="JPEG")
                 output.seek(0)
                 cmd.upload_data(self.minio_client, "datasets", output_path, output)
+        
+        return np.mean(cosine_similarities)
+    
+    def plot_cosine_similarity_histogram(self, cosine_dict):
+        # Prepare the data
+        tags = list(cosine_dict.keys())
+        similarities = list(cosine_dict.values())
+        
+        # Colors (one for each tag, cycling through a colormap if there are many tags)
+        colors = plt.cm.viridis(np.linspace(0, 1, len(tags)))
+
+        # Create the histogram
+        plt.figure(figsize=(10, 6))  # Set the figure size
+        plt.bar(tags, similarities, color=colors)  # Plot bars with a different color for each tag
+
+        # Adding titles and labels
+        plt.title('Average Cosine Similarity by Tag')
+        plt.xlabel('Tags')
+        plt.ylabel('Average Cosine Similarity')
+
+        # Create a legend
+        patches = [plt.Rectangle((0,0),1,1, color=colors[i]) for i in range(len(tags))]
+        plt.legend(patches, tags, loc='best', title='Tags')
+
+        # Save the plot to a BytesIO buffer
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)  # Rewind the buffer to the beginning so we can read its content
+
+        # Upload the plot to MinIO
+        output_path= f"{self.dataset}/output/inversion_test/cosine_histogram.jpg"
+        cmd.upload_data(self.minio_client, "datasets", output_path, buffer)
+
+        # Clear the current figure to free memory
+        plt.close()
+
+        # Close the buffer
+        buffer.close()
             
 
 def main():
