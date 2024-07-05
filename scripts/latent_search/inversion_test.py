@@ -69,7 +69,7 @@ class InversionPipeline:
     def get_clip_vectors(self, tagged_images):
         clip_vectors=[]
 
-        for image in tagged_images:
+        for image in tqdm(tagged_images):
             try:
                 file_path= image['file_path']
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
@@ -95,9 +95,14 @@ class InversionPipeline:
             if "perspective" in tag['tag_string'] or "topic" in tag['tag_string']:
                 tagged_images = request.http_get_tagged_extracts(tag["tag_id"])
 
+                if len(tagged_images)<20:
+                    continue
+               
+                print(f"loading clip vectors from the tag {tag['tag_string']}.........")
+
                 # get image hashes
                 image_hashes= [tag['image_hash'] for tag in tagged_images]
-
+                
                 # get clip vectors
                 clip_vectors= self.get_clip_vectors(tagged_images)
 
