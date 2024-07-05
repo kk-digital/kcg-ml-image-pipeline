@@ -83,7 +83,7 @@ class InversionPipeline:
             except Exception as e:
                 print(f"An excpection occured while loading clip vectors: {e}")
 
-        clip_vectors = torch.stack(clip_vectors).to(device=self.device)
+        clip_vectors = torch.stack(clip_vectors).squeeze().to(device=self.device)
         return clip_vectors
 
     def get_tagged_images(self):
@@ -334,8 +334,6 @@ class InversionPipeline:
 
             images_hashes= data['image_hashes']
             target_vectors= data['clip_vectors']
-
-            print(f"target vectors shape: {target_vectors.shape}")
 
             sorted_clip_vectors, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
 
