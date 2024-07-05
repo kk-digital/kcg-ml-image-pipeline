@@ -334,13 +334,13 @@ class InversionPipeline:
             optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
             cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims])
       
-        cosine_similarities = torch.stack(cosine_similarities)
+        cosine_similarities = torch.stack(cosine_similarities).squeeze()
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
-        sorted_clip_vectors =  torch.stack(optimized_embeddings_list)[sorted_indices]
+        sorted_clip_vectors =  torch.stack(optimized_embeddings_list).squeeze()[sorted_indices]
         sorted_indices_list = sorted_indices.tolist()[0]
         image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
 
-        return sorted_clip_vectors, image_hashes_sorted
+        return sorted_clip_vectors, cosine_sims, image_hashes_sorted
     
     def image_inversion(self):
         target_images= self.get_tagged_images()
