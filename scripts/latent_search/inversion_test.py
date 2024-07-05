@@ -131,7 +131,7 @@ class InversionPipeline:
                 if len(tagged_images)<32:
                     continue
                 
-                tagged_images = random.sample(tagged_images, 2)
+                tagged_images = random.sample(tagged_images, 32)
                 print(f"loading clip vectors from the tag {tag['tag_string']}.........")
 
                 # get image hashes
