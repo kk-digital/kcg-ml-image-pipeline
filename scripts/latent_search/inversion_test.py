@@ -45,7 +45,7 @@ def parse_args():
 
         return parser.parse_args()
 
-class RapidlyExploringTreeSearch:
+class InversionPipeline:
     def __init__(self,
                  minio_access_key,
                  minio_secret_key,
@@ -350,7 +350,7 @@ def main():
     args= parse_args()
 
     # initialize generator
-    generator= RapidlyExploringTreeSearch(minio_access_key=args.minio_access_key,
+    generator= InversionPipeline(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
                                         batch_size= args.batch_size,
