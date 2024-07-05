@@ -343,13 +343,13 @@ class InversionPipeline:
             optimized_batch_embeddings = batch_embeddings.detach()
             cosine_sims = cosine_sims.detach()
             optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
-            cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims])
+            cosine_similarities.extend(cosine_sims.list())
       
         print(f"final vector shape: {optimized_embeddings_list[0].shape}")
-        print(f"final cosien similarity shape: {cosine_similarities[0].shape}")
+        print(f"final cosine similarity shape: {cosine_similarities[0].shape}")
 
         cosine_similarities = torch.stack(cosine_similarities)
-        print(f"cosine similarities shape: {optimized_embeddings_list[0].shape}")
+        print(f"cosine similarities shape: {cosine_similarities[0].shape}")
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
         print(f"sorted indices shape: {optimized_embeddings_list[0].shape}")
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
