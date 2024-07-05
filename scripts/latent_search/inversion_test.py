@@ -353,6 +353,8 @@ class InversionPipeline:
 
             sorted_clip_vectors, cosine_similarities, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
 
+            print(f"input clip vectors shape: {sorted_clip_vectors.shape}")
+
             self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors)
 
     def generate_images(self, tag_name, clip_vectors):
