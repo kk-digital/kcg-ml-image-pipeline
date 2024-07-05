@@ -329,7 +329,7 @@ class InversionPipeline:
     def image_inversion(self):
         target_images= self.get_tagged_images()
 
-        for key, data in target_images.keys():
+        for key, data in target_images.items():
             print(f"optimizing images in the {key} category")
 
             images_hashes= data['image_hashes']
