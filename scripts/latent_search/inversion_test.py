@@ -302,9 +302,6 @@ class InversionPipeline:
             end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             target_batch = target_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
-
-            print("initial vector batch:", batch_embeddings)
-            print("target batch:", target_batch)
             
             # Setup the optimizer for the current batch
             optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
@@ -347,7 +344,9 @@ class InversionPipeline:
 
         cosine_similarities = torch.stack(cosine_similarities)
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
+        print(sorted_indices)
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
+        print(sorted_clip_vectors)
         sorted_indices_list = sorted_indices.tolist()[0]
         image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
 
