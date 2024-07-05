@@ -351,7 +351,7 @@ class InversionPipeline:
             images_hashes= data['image_hashes']
             target_vectors= data['clip_vectors']
 
-            sorted_clip_vectors, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
+            sorted_clip_vectors, cosine_similarities, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
 
             self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors)
 
