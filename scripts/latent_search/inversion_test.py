@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import numpy as np
 import torch
 import msgpack
 from tqdm import tqdm
@@ -379,6 +380,7 @@ class InversionPipeline:
 
         init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
         # generate each image
+        index=1
         for input_clip in tqdm(clip_vectors):
             print(f"input clip shape: {input_clip.shape}")
             # generate image
@@ -387,7 +389,8 @@ class InversionPipeline:
             
             _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
 
-            cmd.upload_data(self.minio_client, "extracts", f"{self.dataset}/output/{tag_name}", img_byte_arr)
+            cmd.upload_data(self.minio_client, "datasets", f"{self.dataset}/output/{tag_name}/{str(index).zfill(3)}", img_byte_arr)
+            index+=1
 
 def main():
     args= parse_args()
