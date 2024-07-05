@@ -401,9 +401,11 @@ class InversionPipeline:
             
             # get cosine similarity
             output_clip_vector = self.clip.get_image_features(image)
+            print("output shape:", output_clip_vector.shape)
+            print("target shape:", target_vector.shape)
             # Normalize vectors to have unit norm
             outpus_norm = F.normalize(output_clip_vector, p=2, dim=1)
-            target_norm = F.normalize(target_vector, p=2, dim=1)
+            target_norm = F.normalize(target_vector.squeeze(), p=2, dim=1)
 
             # Calculate cosine similarity and convert to loss
             cosine_sim = (outpus_norm * target_norm).sum(dim=1)
