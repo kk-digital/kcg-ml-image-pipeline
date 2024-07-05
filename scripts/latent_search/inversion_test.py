@@ -77,7 +77,7 @@ class InversionPipeline:
 
                 print(file_path)
                 
-                output_clip_path = file_path + "_clip_kandinsky.msgpack"
+                output_clip_path = file_path + "_clip-h.msgpack"
                 features_data = cmd.get_file_from_minio(self.minio_client, bucket_name, output_clip_path)
                 features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
                 output_clip_vector= torch.tensor(features_vector)
