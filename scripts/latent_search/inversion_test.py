@@ -74,8 +74,6 @@ class InversionPipeline:
                 file_path= image['file_path']
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
-
-                print(file_path)
                 
                 output_clip_path = file_path + "_clip-h.msgpack"
                 features_data = cmd.get_file_from_minio(self.minio_client, bucket_name, output_clip_path)
