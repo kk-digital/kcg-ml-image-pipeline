@@ -1,4 +1,5 @@
 import argparse
+from io import BytesIO
 import os
 import random
 import sys
@@ -84,8 +85,9 @@ class InversionPipeline:
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
 
-    def get_clip_vectors(self, tagged_images):
+    def get_images_and_clip_vectors(self, tagged_images):
         clip_vectors=[]
+        images=[]
 
         for image in tqdm(tagged_images):
             try:
@@ -98,11 +100,18 @@ class InversionPipeline:
                 features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
                 output_clip_vector= torch.tensor(features_vector)
                 clip_vectors.append(output_clip_vector)
+
+                response = self.minio_client.get_object(bucket_name, input_file_path)
+                image_data = BytesIO(response.data)
+                image = Image.open(image_data)
+                image = image.convert("RGB")
+                images.append(image)
+
             except Exception as e:
                 print(f"An excpection occured while loading clip vectors: {e}")
 
         clip_vectors = torch.stack(clip_vectors).squeeze().to(device=self.device)
-        return clip_vectors
+        return images, clip_vectors
 
     def get_tagged_images(self):
         image_categories = {}
@@ -123,10 +132,11 @@ class InversionPipeline:
                 image_hashes= [tag['image_hash'] for tag in tagged_images]
                 
                 # get clip vectors
-                clip_vectors= self.get_clip_vectors(tagged_images)
+                images, clip_vectors= self.get_images_and_clip_vectors(tagged_images)
 
                 image_categories[tag['tag_string']]={
                     "image_hashes": image_hashes,
+                    "images": images,
                     "clip_vectors": clip_vectors
                 }
         
@@ -282,7 +292,7 @@ class InversionPipeline:
         return inverted_clip
     
     
-    def optimize_datapoints(self, image_hashes, target_vectors):
+    def optimize_datapoints(self, target_vectors):
         # get number of target vectors
         num_images= len(target_vectors)
 
@@ -346,9 +356,8 @@ class InversionPipeline:
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
         sorted_indices_list = sorted_indices.tolist()
-        image_hashes_sorted = [image_hashes[i] for i in sorted_indices_list]
 
-        return sorted_clip_vectors, cosine_sims, image_hashes_sorted
+        return sorted_clip_vectors, sorted_indices_list
     
     def image_inversion(self):
         target_images= self.get_tagged_images()
@@ -356,30 +365,42 @@ class InversionPipeline:
         for key, data in target_images.items():
             print(f"optimizing images in the {key} category")
 
-            images_hashes= data['image_hashes']
+            images= data['images']
             target_vectors= data['clip_vectors']
 
-            sorted_clip_vectors, cosine_similarities, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
+            sorted_clip_vectors, sorted_indices = self.optimize_datapoints(target_vectors)
+            images=[images[i] for i in sorted_indices]
 
-            self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors)
+            self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors, images=images)
 
-    def generate_images(self, tag_name, clip_vectors):
+    def generate_images(self, tag_name, clip_vectors, images):
         print(f"generating images for the tag {tag_name}")
 
         init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
         output_folder= f"{self.dataset}/output/inversion_test/"
         # generate each image
-        index=1
+        index=0
         for input_clip in tqdm(clip_vectors):
-            # generate image
+            # Generate the inverted image
+            original_image = images[index]
             image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
-                                                                 image_embeds= input_clip.unsqueeze(0))
+                                                                image_embeds=input_clip.unsqueeze(0))
+
+            # Combine original and generated images side by side
+            total_width = original_image.width + image.width
+            max_height = max(original_image.height, image.height)
+            combined_image = Image.new('RGB', (total_width, max_height))
+            combined_image.paste(original_image, (0, 0))
+            combined_image.paste(image, (original_image.width, 0))
+
+            # Save or upload the combined image
+            index += 1
+            output_path = output_folder + f"{tag_name}/{str(index).zfill(3)}.jpg"
+            with BytesIO() as output:
+                combined_image.save(output, format="JPEG")
+                output.seek(0)
+                cmd.upload_data(self.minio_client, "datasets", output_path, output.read())
             
-            _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
-            
-            output_path= output_folder + f"{tag_name}/{str(index).zfill(3)}.jpg" 
-            cmd.upload_data(self.minio_client, "datasets", output_path, img_byte_arr)
-            index+=1
 
 def main():
     args= parse_args()
