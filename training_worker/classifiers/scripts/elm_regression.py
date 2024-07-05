@@ -1,3 +1,4 @@
+from re import I
 import sys
 import os
 from datetime import datetime
@@ -21,7 +22,7 @@ def train_classifier(minio_ip_addr=None,
                      minio_access_key=None,
                      minio_secret_key=None,
                      input_type="embedding",
-                     image_type="all_resolutions", # Options ["all_resolutions", "512*512_resolution"]
+                     image_type="all_resolutions", # Options ["all_resolutions", "512*512_resolutions"]
                      tag_name=None,
                      tag_id=None,
                      hidden_layer_neuron_count=3000,
@@ -186,3 +187,14 @@ def train_classifier(minio_ip_addr=None,
     # save model to mongodb if its input type is clip-h
     if(input_type==constants.KANDINSKY_CLIP):
         request.http_add_classifier_model(model_card)
+        
+        
+if __name__ == '__main__':
+    train_classifier('192.168.3.5:9000',
+                     'v048BpXpWrsVIHUfdAix',
+                     '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu',
+                     tag_name='concept-architecture-scifi',
+                    #  image_type="512*512_resolutions",
+                     tag_id=55,
+                     input_type=constants.KANDINSKY_CLIP,
+                     )

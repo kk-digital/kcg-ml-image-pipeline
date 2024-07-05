@@ -86,11 +86,18 @@ class TaggedDatasetLoader:
                 input_type_extension = "-text-embedding-signed-max-pooled.msgpack"
 
         # get .msgpack data
-        path = path.replace(".jpg", input_type_extension)
-        path = path.replace("datasets/", "")
-        bucket_name, path = separate_bucket_and_file_path(path)
-        features_data = get_object_with_bucket(self.minio_client, bucket_name, path)
-
+        file_path = path.replace(".jpg", input_type_extension)
+        bucket_name, file_path = separate_bucket_and_file_path(file_path)
+        
+        try:
+            features_data = get_object_with_bucket(self.minio_client, bucket_name, file_path)
+        except Exception as e:
+            if self.input_type in [constants.KANDINSKY_CLIP, constants.KANDINSKY_CLIP_WITH_LENGTH]:
+                file_path = path.replace(".jpg", "_clip-h.msgpack")
+                print(file_path)
+                bucket_name, file_path = separate_bucket_and_file_path(file_path)
+                features_data = get_object_with_bucket(self.minio_client, bucket_name, file_path)
+        
         features_data = msgpack.unpackb(features_data)
         features_vector = []
 
@@ -116,7 +123,7 @@ class TaggedDatasetLoader:
 
         # check if feature is nan
         if torch.isnan(features_vector).all():
-            raise Exception("Features from {} is nan or has nan values.".format(path))
+            raise Exception("Features from {} is nan or has nan values.".format(feature_filepath))
 
         return features_vector, index
 
@@ -137,7 +144,8 @@ class TaggedDatasetLoader:
 
             for future in tqdm(as_completed(futures), total=len(paths_list)):
                 feature, index = future.result()
-                data_features[index] = feature
+                if feature is not None:
+                    data_features[index] = feature
 
         if pre_shuffle:
             # shuffle
@@ -157,7 +165,6 @@ class TaggedDatasetLoader:
     def separate_training_and_validation_features(self, features):
         training_features = []
         validation_features = []
-
         len_features = len(features)
         # calculate num validations
         num_validations = round((len_features * (1.0 - self.train_percent)))
@@ -230,7 +237,6 @@ class TaggedDatasetLoader:
         self.validation_positive_size = len(self.positive_validation_features)
         self.training_negative_size = len(self.positive_training_features)  # should be same as positive dataset
         self.validation_negative_size = len(self.positive_validation_features)  # should be same as positive dataset
-
 
     def get_training_positive_features(self, target=1.0):
         # return positive training data

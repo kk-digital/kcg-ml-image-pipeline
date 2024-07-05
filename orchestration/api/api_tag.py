@@ -893,7 +893,7 @@ def get_tagged_images_v2(
     tag_id: int,
     start_date: str = None,
     end_date: str = None,
-    image_type: str = Query('all_resolutions', description="Resolution of the images to be returned. Options: 'all_resolutions', '512*512_resolution'"),
+    image_type: str = Query('all_resolutions', description="Resolution of the images to be returned. Options: 'all_resolutions', '512*512_resolutions'"),
     order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
 ):
     response_handler = ApiResponseHandlerV1(request)
@@ -912,12 +912,12 @@ def get_tagged_images_v2(
         query = {"tag_id": tag_id}
         if image_type == 'all_resolutions':
             pass
-        elif image_type == '512*512_resolution':
+        elif image_type == '512*512_resolutions':
             query["image_source"] = {"$in": ["generated_image", "extract_image"]}
         else:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="Invalid resolution. Options: 'all_resolutions', '512*512_resolution", 
+                error_string="Invalid resolution. Options: 'all_resolutions', '512*512_resolutions", 
                 http_status_code=400,
             )
             
@@ -931,7 +931,7 @@ def get_tagged_images_v2(
         # Execute the query
         image_tags_cursor = list(request.app.image_tags_collection\
                                             .find(query).sort("creation_time", sort_order))
-        if image_type == '512*512_resolution':
+        if image_type == '512*512_resolutions':
             # get only image resolution 512 * 512
             temp_image_tags_cursor = []
             for tag_data in image_tags_cursor:
