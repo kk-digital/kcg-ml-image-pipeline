@@ -77,7 +77,7 @@ class InversionPipeline:
                 
                 output_clip_path = file_path + "_clip-h.msgpack"
                 features_data = cmd.get_file_from_minio(self.minio_client, bucket_name, output_clip_path)
-                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
                 output_clip_vector= torch.tensor(features_vector)
                 clip_vectors.append(output_clip_vector)
             except Exception as e:
