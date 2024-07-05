@@ -281,6 +281,21 @@ class InversionPipeline:
 
         return inverted_clip
     
+    def check_duplicates(self, tensor):
+        # Flatten each vector in the tensor if they are multi-dimensional
+        if tensor.dim() > 2:
+            tensor = tensor.view(tensor.size(0), -1)
+        
+        # Use a set of tuples to check for duplicates since PyTorch doesn't directly support sets of tensors
+        seen = set()
+        for vec in tensor:
+            # Convert each tensor vector to a tuple
+            t_tuple = tuple(vec.tolist())
+            if t_tuple in seen:
+                return True  # Duplicate found
+            seen.add(t_tuple)
+        return False  # No duplicates found
+    
     def optimize_datapoints(self, image_hashes, target_vectors):
         # get number of target vectors
         num_images= len(target_vectors)
@@ -289,10 +304,8 @@ class InversionPipeline:
         clip_vectors = torch.normal(mean=self.clip_mean.repeat(num_images, 1),
                                         std=self.clip_std.repeat(num_images, 1))
 
-        unique_targets= torch.unique(target_vectors).numel()
-
-        if unique_targets != num_images:
-            raise Exception(f"Duplicate clip vectors found {num_images - unique_targets}")
+        if self.check_duplicates(target_vectors):
+            raise Exception(f"Duplicate target vectors found")
 
         # Calculate the total number of batches
         num_batches = num_images // self.batch_size + (0 if num_images % self.batch_size == 0 else 1)
