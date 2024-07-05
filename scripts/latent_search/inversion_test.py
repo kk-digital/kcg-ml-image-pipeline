@@ -73,7 +73,7 @@ class InversionPipeline:
             width= 512,
             height= 512,
             batch_size=1,
-            decoder_steps= 40,
+            decoder_steps= 30,
             strength= 0.75,
             decoder_guidance_scale= 8
         )
