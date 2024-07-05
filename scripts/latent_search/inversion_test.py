@@ -342,9 +342,9 @@ class InversionPipeline:
             cosine_similarities.extend([cosine_sim for cosine_sim in cosine_sims.unsqueeze(1)])
       
 
-        cosine_similarities = torch.stack(cosine_similarities)
+        cosine_similarities = torch.stack(cosine_similarities, dim=0)
+        print(cosine_similarities)
         cosine_sims, sorted_indices = torch.sort(cosine_similarities, descending=True)
-        print(sorted_indices)
         sorted_clip_vectors =  torch.stack(optimized_embeddings_list, dim=0)[sorted_indices]
         print(sorted_clip_vectors)
         sorted_indices_list = sorted_indices.tolist()[0]
