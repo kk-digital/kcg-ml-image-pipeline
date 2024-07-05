@@ -794,10 +794,10 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
   
 
 @router.post("/rank-training/add-irrelevant-image",
-             description="Adds an image UUID to the irrelevant images collection",
+             description="changed with /rank-training/add-irrelevant-image-v1 ",
              status_code=200,
              response_model=StandardSuccessResponseV1[IrrelevantResponse],
-             tags=["rank-training"],
+             tags=["deprecated3"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -934,8 +934,8 @@ def add_irrelevant_image_v1(
 
 
 @router.get("/rank-training/list-irrelevant-images", 
-            description="list irrelevant images",
-            tags=["rank-training"],
+            description="changed with /rank-training/list-irrelevant-images-v1",
+            tags=["deprecated3"],
             status_code=200,
             response_model=StandardSuccessResponseV1[ListIrrelevantResponse],
             responses=ApiResponseHandlerV1.listErrors([500]))
@@ -1007,10 +1007,10 @@ def list_irrelevant_images_v1(
 
 
 @router.delete("/rank-training/remove-irrelevant-image",
-             description="Removes an image UUID from the irrelevant images collection",
+             description="changed with /rank-training/remove-irrelevant-image-v1 ",
              status_code=200,
              response_model=StandardSuccessResponseV1[WasPresentResponse],
-             tags=["rank-training"],
+             tags=["deprecated3"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -1031,6 +1031,33 @@ def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mo
             response_data={"wasPresent": True}, 
             http_status_code=200
         )
+
+@router.delete("/rank-training/remove-irrelevant-image-v1",
+               description="Removes an image UUID from the irrelevant images collection",
+               status_code=200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               tags=["rank-training"],
+               responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def unset_irrelevant_image_v1(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...), image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
+    api_response_handler = ApiResponseHandlerV1(request)
+
+    # Check if the job exists in the irrelevant_images_collection
+    query = {"uuid": job_uuid, "rank_model_id": rank_model_id, "image_source": image_source}
+    job = request.app.irrelevant_images_collection.find_one(query)
+    if not job:
+        return api_response_handler.create_success_response_v1(
+                response_data={"wasPresent": False}, 
+                http_status_code=200
+            )
+
+    # Delete the job from the irrelevant_images_collection
+    result = request.app.irrelevant_images_collection.delete_one(query)
+    if result.deleted_count > 0:
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": True}, 
+            http_status_code=200
+        )
+
     
 
 
@@ -1346,10 +1373,10 @@ async def calculate_delta_scores(request: Request):
 
 
 @router.get("/rank-training/get-if-image-is-irrelevant",
-            description="Checks if an image is marked as irrelevant for a specific rank model",
+            description="changed with rank-training/get-if-image-is-irrelevant-v1 ",
             status_code=200,
             response_model=StandardSuccessResponseV1[BoolIrrelevantResponse],
-            tags=["rank-training"],
+            tags=["deprecated3"],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -1370,6 +1397,33 @@ def get_if_image_is_irrelevant(request: Request, job_uuid: str = Query(...), ran
             error_string=f'Failed to check if image is irrelevant: {str(e)}',
             http_status_code=500
         )
+
+@router.get("/rank-training/get-if-image-is-irrelevant-v1",
+            description="Checks if an image is marked as irrelevant for a specific rank model",
+            status_code=200,
+            response_model=StandardSuccessResponseV1[BoolIrrelevantResponse],
+            tags=["rank-training"],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def get_if_image_is_irrelevant_v1(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...), image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    try:
+        # Check if the image is marked as irrelevant for the given rank model and image source
+        is_irrelevant = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id, "image_source": image_source}) is not None
+
+        # Return the result
+        return api_response_handler.create_success_response_v1(
+            response_data={"irrelevant": is_irrelevant},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f'Failed to check if image is irrelevant: {str(e)}',
+            http_status_code=500
+        )
+
 
 @router.get("/rank-training/get-datapoints-count-per-day",
             description="Get number of selection datapoints per day within the date range",
