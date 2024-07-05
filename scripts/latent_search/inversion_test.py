@@ -319,12 +319,12 @@ class InversionPipeline:
                 print("model outputs:",outputs.shape)
                 print("target outputs:",target_batch.shape)
                 outputs_norm = F.normalize(outputs, p=2, dim=1)
-                target_norm = F.normalize(target_batch, p=2, dim=1)
+                targets_norm = F.normalize(target_batch, p=2, dim=1)
                 print("norm model outputs:",outputs_norm.shape)
-                print("norm target outputs:",target_norm.shape)
+                print("norm target outputs:",targets_norm.shape)
 
                 # Calculate cosine similarity and convert to loss
-                cosine_sims = torch.dot(outputs_norm, target_norm).squeeze()
+                cosine_sims = (outputs_norm * targets_norm).sum(dim=1)
                 print(f"cosine similarities shape during optimization: {cosine_sims.shape}")
                 # Convert cosine similarities to loss
                 cosine_loss = 1 - cosine_sims
