@@ -437,20 +437,24 @@ class InversionPipeline:
 
         # Create the histogram
         plt.figure(figsize=(10, 6))  # Set the figure size
-        plt.bar(tags, similarities, color=colors)  # Plot bars with a different color for each tag
+        bars = plt.bar(tags, similarities, color=colors)  # Plot bars with a different color for each tag
 
         # Adding titles and labels
         plt.title('Average Cosine Similarity by Tag')
         plt.xlabel('Tags')
         plt.ylabel('Average Cosine Similarity')
 
+        # Remove x-axis labels
+        plt.xticks([])  # This removes the labels while keeping the ticks if needed
+
         # Create a legend
+        # Move the legend outside the plot to avoid overlaying the bars
         patches = [plt.Rectangle((0,0),1,1, color=colors[i]) for i in range(len(tags))]
-        plt.legend(patches, tags, loc='best', title='Tags')
+        plt.legend(patches, tags, loc='upper right', bbox_to_anchor=(1.1, 1), title='Tags')
 
         # Save the plot to a BytesIO buffer
         buffer = BytesIO()
-        plt.savefig(buffer, format='png')
+        plt.savefig(buffer, format='png', bbox_inches='tight')  # bbox_inches='tight' ensures the legend is included
         buffer.seek(0)  # Rewind the buffer to the beginning so we can read its content
 
         # Upload the plot to MinIO
@@ -462,7 +466,7 @@ class InversionPipeline:
 
         # Close the buffer
         buffer.close()
-            
+                
 
 def main():
     args= parse_args()
