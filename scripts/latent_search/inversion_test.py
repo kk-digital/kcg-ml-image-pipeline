@@ -399,7 +399,7 @@ class InversionPipeline:
             with BytesIO() as output:
                 combined_image.save(output, format="JPEG")
                 output.seek(0)
-                cmd.upload_data(self.minio_client, "datasets", output_path, output.read())
+                cmd.upload_data(self.minio_client, "datasets", output_path, output)
             
 
 def main():
