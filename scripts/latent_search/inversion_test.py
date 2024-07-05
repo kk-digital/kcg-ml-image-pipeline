@@ -80,8 +80,8 @@ class InversionPipeline:
                 features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
                 output_clip_vector= torch.tensor(features_vector)
                 clip_vectors.append(output_clip_vector)
-            except:
-                print("An excpection occured while loading clip vectors")
+            except Exception as e:
+                print(f"An excpection occured while loading clip vectors: {e}")
 
         clip_vectors = torch.stack(clip_vectors).to(device=self.device)
         return clip_vectors
