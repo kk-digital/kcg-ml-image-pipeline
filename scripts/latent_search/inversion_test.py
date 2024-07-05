@@ -355,25 +355,24 @@ class InversionPipeline:
 
             sorted_clip_vectors, cosine_similarities, sorted_hashes= self.optimize_datapoints(images_hashes, target_vectors)
 
-            print(f"input clip vectors shape: {sorted_clip_vectors.shape}")
-
             self.generate_images(tag_name= key, clip_vectors= sorted_clip_vectors)
 
     def generate_images(self, tag_name, clip_vectors):
         print(f"generating images for the tag {tag_name}")
 
         init_image= Image.open("./test/test_inpainting/white_512x512.jpg") 
+        output_folder= f"{self.dataset}/output/inversion_test/"
         # generate each image
         index=1
         for input_clip in tqdm(clip_vectors):
-            print(f"input clip shape: {input_clip.shape}")
             # generate image
             image, _ = self.kandisnky_generator.generate_img2img(init_img=init_image,
                                                                  image_embeds= input_clip)
             
             _, img_byte_arr = self.kandisnky_generator.convert_image_to_png(image)
-
-            cmd.upload_data(self.minio_client, "datasets", f"{self.dataset}/output/{tag_name}/{str(index).zfill(3)}", img_byte_arr)
+            
+            output_path= output_folder + f"{tag_name}/{str(index).zfill(3)}.jpg" 
+            cmd.upload_data(self.minio_client, "datasets", output_path, img_byte_arr)
             index+=1
 
 def main():
