@@ -549,6 +549,18 @@ def http_get_tagged_images(tag_id):
     except Exception as e:
         print('request exception ', e)
 
+def http_get_tagged_extracts(tag_id):
+    url = SERVER_ADDRESS + "/extracts/get-images-by-tag-id/?tag_id={}".format(tag_id)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
+
 
 def http_get_random_image_list(dataset, size):
     url = SERVER_ADDRESS + "/image/get_random_image_list?dataset={}&size={}".format(dataset, size)
