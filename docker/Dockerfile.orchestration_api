@@ -1,5 +1,5 @@
 # Use an official NVIDIA CUDA image as a base
-FROM docker.io/nvidia/cuda:11.3.1-devel-ubuntu20.04
+FROM 192.168.3.3:5000/cuda-11.3.1-devel-ubuntu20.04:latest
 
 # Avoid prompts from apt during build
 ENV DEBIAN_FRONTEND=noninteractive
