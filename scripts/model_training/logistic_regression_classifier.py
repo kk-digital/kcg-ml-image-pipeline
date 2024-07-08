@@ -15,6 +15,7 @@ def parse_arguments():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--input-type', type=str, default="embedding")
+    parser.add_argument('--image-type', type=str, default="all") # Options ["all", "512"]
     parser.add_argument('--tag-name', type=str)
     parser.add_argument('--pooling-strategy', type=int, default=0)
     parser.add_argument('--train-percent', type=float, default=0.9)
@@ -28,6 +29,12 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
+    
+    image_types = {
+        "all": "all_resolutions",
+        "512": "512*512_resolutions"
+    }
+    
     if args.tag_name != "all":
         try:
             print("Training model for tag: {}".format(args.tag_name))
@@ -35,6 +42,7 @@ if __name__ == '__main__':
                              minio_access_key=args.minio_access_key,
                              minio_secret_key=args.minio_secret_key,
                              input_type=args.input_type,
+                             image_type=image_types[args.image_type],
                              tag_name=args.tag_name,
                              pooling_strategy=args.pooling_strategy,
                              train_percent=args.train_percent,
@@ -62,6 +70,7 @@ if __name__ == '__main__':
                                  minio_access_key=args.minio_access_key,
                                  minio_secret_key=args.minio_secret_key,
                                  input_type=args.input_type,
+                                 image_type=image_types[args.image_type],
                                  tag_name=tag_name,
                                  tag_id=tag_id,
                                  pooling_strategy=args.pooling_strategy,
