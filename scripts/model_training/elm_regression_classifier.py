@@ -12,9 +12,11 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Train elm regression classifier model")
 
+    parser.add_argument('--minio-ip-addr', type=str, help='Minio ip address')
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--input-type', type=str, default="embedding")
+    parser.add_argument('--image-type', type=str, default="all") # Options ["all", "512"]
     parser.add_argument('--tag-name', type=str)
     parser.add_argument('--hidden-layer-neuron-count', type=int, default=3000)
     parser.add_argument('--pooling-strategy', type=int, default=0)
@@ -25,14 +27,20 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-
+    
+    image_types = {
+        "all": "all_resolutions",
+        "512": "512*512_resolutions"
+    }
+    
     if args.tag_name != "all":
         try:
             print("Training model for tag: {}".format(args.tag_name))
-            train_classifier(minio_ip_addr=None,
+            train_classifier(minio_ip_addr=args.minio_ip_addr,
                              minio_access_key=args.minio_access_key,
                              minio_secret_key=args.minio_secret_key,
                              input_type=args.input_type,
+                             image_type=image_types[args.image_type],
                              tag_name=args.tag_name,
                              hidden_layer_neuron_count=args.hidden_layer_neuron_count,
                              pooling_strategy=args.pooling_strategy,
@@ -52,10 +60,11 @@ if __name__ == '__main__':
         for tag_id, tag_name in zip(tag_id_list,tag_string_list):
             try:
                 print("Training model for tag: {}".format(tag_name))
-                train_classifier(minio_ip_addr=None,
+                train_classifier(minio_ip_addr=args.minio_ip_addr,
                                  minio_access_key=args.minio_access_key,
                                  minio_secret_key=args.minio_secret_key,
                                  input_type=args.input_type,
+                                 image_type=image_types[args.image_type],
                                  tag_name=tag_name,
                                  tag_id=tag_id,
                                  hidden_layer_neuron_count=args.hidden_layer_neuron_count,

@@ -39,6 +39,7 @@ def train_classifier(minio_ip_addr=None,
                      minio_access_key=None,
                      minio_secret_key=None,
                      input_type="embedding",
+                     image_type="all_resolutions", # Options ["all_resolutions", "512*512_resolutions"]
                      tag_name=None,
                      tag_id=None,
                      pooling_strategy=constants.AVERAGE_POOLING,
@@ -72,7 +73,7 @@ def train_classifier(minio_ip_addr=None,
                                      input_type=input_type,
                                      pooling_strategy=pooling_strategy,
                                      train_percent=train_percent)
-    tag_loader.load_dataset()
+    tag_loader.load_dataset(image_type=image_type)
 
     # get dataset name
     dataset_name = tag_loader.dataset_name
@@ -86,11 +87,11 @@ def train_classifier(minio_ip_addr=None,
 
     # get final filename
     sequence = 0
-    filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+    filename = "{}-{:02}-{}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type, image_type)
 
     # if exist, increment sequence
     while True:
-        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+        filename = "{}-{:02}-{}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type, image_type)
         exists = cmd.is_object_exists(tag_loader.minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".safetensors"))
         if not exists:
