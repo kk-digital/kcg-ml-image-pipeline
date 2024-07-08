@@ -12,6 +12,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Train linear regression classifier model")
 
+    parser.add_argument('--minio-ip-addr', type=str, help='Minio ip address')
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--input-type', type=str, default="embedding")
@@ -38,7 +39,7 @@ if __name__ == '__main__':
     if args.tag_name != "all":
         try:
             print("Training model for tag: {}".format(args.tag_name))
-            train_classifier(minio_ip_addr=None,
+            train_classifier(minio_ip_addr=args.minio_ip_addr,
                              minio_access_key=args.minio_access_key,
                              minio_secret_key=args.minio_secret_key,
                              input_type=args.input_type,
@@ -66,7 +67,7 @@ if __name__ == '__main__':
         for tag_id, tag_name in zip(tag_id_list, tag_string_list):
             try:
                 print("Training model for tag: {}".format(tag_name))
-                train_classifier(minio_ip_addr=None,
+                train_classifier(minio_ip_addr=args.minio_ip_addr,
                                  minio_access_key=args.minio_access_key,
                                  minio_secret_key=args.minio_secret_key,
                                  input_type=args.input_type,
