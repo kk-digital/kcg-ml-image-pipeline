@@ -149,6 +149,7 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
         full_classifier_data = Classifier(
             classifier_id=new_classifier_id,
             classifier_name=request_classifier_data.classifier_name,
+            tag_id = request_classifier_data.tag_id,
             model_sequence_number=new_model_sequence_number,
             latest_model=request_classifier_data.latest_model,
             model_path=request_classifier_data.model_path,
