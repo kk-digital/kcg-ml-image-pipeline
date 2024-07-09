@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.post("/buckets/add-new-bucket",
           description="Add a new bucket in MongoDB",
-          tags=["buckets"],
+          tags=["buckets"], 
           response_model=StandardSuccessResponseV1[ResponseBucket],  
           responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def add_new_bucket(request: Request, bucket: Bucket):
@@ -38,6 +38,9 @@ async def add_new_bucket(request: Request, bucket: Bucket):
 
     # Insert the new bucket document into the collection
     request.app.buckets_collection.insert_one(new_bucket)
+    
+    # Remove '_id' from the response data
+    new_bucket.pop('_id', None)
 
     return response_handler.create_success_response_v1(
         response_data=new_bucket,
