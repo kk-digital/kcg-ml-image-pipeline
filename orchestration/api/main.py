@@ -217,6 +217,8 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+    app.all_image_collection = app.mongodb_db["all-images"]
+
     # bucket collection
 
     app.buckets_collection = app.mongodb_db["buckets"]

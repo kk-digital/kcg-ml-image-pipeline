@@ -857,6 +857,37 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 http_status_code=200
             )    
     
+@router.put("/datasets/update-dataset-ids",
+            description="Update datasets in MongoDB to add dataset_id sequentially",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1,
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def update_dataset_ids(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Fetch all documents
+        all_datasets = list(request.app.datasets_collection.find({}))
+
+        # Update each document with a sequential dataset_id
+        for idx, dataset in enumerate(all_datasets):
+            request.app.datasets_collection.update_one(
+                {"_id": dataset["_id"]},
+                {"$set": {"dataset_id": idx}}
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data={"message": "Datasets updated successfully"},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 @router.get("/datasets/list-datasets-v1",
             description="list datasets from mongodb",
             tags=["dataset"],
