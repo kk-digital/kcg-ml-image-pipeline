@@ -1,10 +1,9 @@
 
 from fastapi import APIRouter, Body, Request, HTTPException, Query
 from typing import Optional
-
 from utility.path import separate_bucket_and_file_path
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse
-from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DeletedCount, validate_date_format, TagListForImages, TagCountResponse, TagListForImagesV1
+from .mongo_schemas import ExternalImageData, ImageHashRequest, ListExternalImageData, ListImageHashRequest, ExternalImageDataV1, ListExternalImageDataV1, ListDatasetV1, ListExternalImageDataWithSimilarityScore, Dataset, ListExternalImageDataV2, ListDataset
 from orchestration.api.mongo_schema.tag_schemas import ExternalImageTag, ListExternalImageTag, ImageTag, ListImageTag
 from typing import List
 from datetime import datetime, timedelta
@@ -26,7 +25,7 @@ external_image = "external_image"
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ExternalImageDataV1],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500])) 
-async def add_external_image_data(request: Request, image_data: ExternalImageDataV1):
+async def add_external_image_data(request: Request, image_data: ExternalImageData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
@@ -45,12 +44,11 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         # Check if the dataset exists
         dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
         if not dataset_result:
-            # Create a new dataset if it does not exist
-            new_dataset = {
-                "dataset_name": image_data.dataset
-            }
-            request.app.external_datasets_collection.insert_one(new_dataset)
-            print(f"Created new dataset with name {image_data.dataset}")
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"{image_data.dataset} dataset does not exist",
+                http_status_code=422
+            )
 
         # Check if the image data already exists
         existed = request.app.external_images_collection.find_one({
@@ -98,11 +96,20 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[ListExternalImageData],  
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageDataV1]):
+async def add_external_image_data_list(request: Request, image_data_list: List[ExternalImageData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-    updaded_image_data_list = []
+    updated_image_data_list = []
     try:
         for image_data in image_data_list:
+            # Check if the dataset exists
+            dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+            if not dataset_result:
+                return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                    error_string=f"Dataset {image_data.dataset} does not exist",
+                    http_status_code=422
+                )
+            
             existed = request.app.external_images_collection.find_one({
                 "image_hash": image_data.image_hash
             })
@@ -110,7 +117,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
             if existed:
                 return api_response_handler.create_error_response_v1(
                     error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="Image data with this hash already exists.",
+                    error_string=f"Image data with hash {image_data.image_hash} already exists.",
                     http_status_code=422
                 )
             else:
@@ -131,13 +138,12 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
 
                 # add updated image_data into updated_image_data_list
-                updaded_image_data_list.append(image_data_dict)
+                updated_image_data_list.append(image_data_dict)
 
         # Remove the _id field from the response data
-        response_data = [image_data_dict for image_data_dict in updaded_image_data_list]
+        response_data = [image_data_dict for image_data_dict in updated_image_data_list]
         for data in response_data:
             data.pop('_id', None)
-
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": response_data},
@@ -217,7 +223,7 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
 @router.get("/external-images/get-all-external-image-list", 
             description="Get all external image data. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
             tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV2],  
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_all_external_image_data_list(request: Request, dataset: str=None, size: int = None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -452,7 +458,8 @@ def update_external_images(request: Request):
 
 @router.post("/external-images/add-tag-to-external-image",
              status_code=201,
-             tags=["external-images"],  
+             tags=["deprecated3"],  
+             description="changed with /tags/add-tag-to-image-v2",
              response_model=StandardSuccessResponseV1[ImageTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: int, user_who_created: str):
@@ -528,7 +535,8 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
 
 @router.delete("/external-images/remove-tag-from-external-image",
                status_code=200,
-               tags=["external-images"],
+               tags=["deprecated3"],
+               description="changed with /tags/remove-tag-from-image-v1/{tag_id}",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
@@ -569,9 +577,9 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
 
 
 @router.get("/external-images/get-images-by-tag-id", 
-            tags=["external-images"], 
+            tags=["deprecated3"], 
             status_code=200,
-            description="Get external images by tag_id",
+            description="changed with /tags/get-images-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[ListExternalImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_external_images_by_tag_id(
@@ -646,8 +654,8 @@ def get_external_images_by_tag_id(
 
 @router.get("/external-images/get-tag-list-for-image", 
             response_model=StandardSuccessResponseV1[TagListForImages], 
-            description="Get tag list for image",
-            tags=["external-images"],
+            description="changed with /tags/get-tag-list-for-image-v2",
+            tags=["deprecated3"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def get_tag_list_for_external_image(request: Request, file_hash: str):
@@ -699,8 +707,8 @@ def get_tag_list_for_external_image(request: Request, file_hash: str):
 
 @router.get("/external-images/get-images-count-by-tag-id",
             status_code=200,
-            tags=["external-images"],
-            description="Get count of external images with a specific tag",
+            tags=["deprecated3"],
+            description="changed with tags/get-images-count-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_images_count_by_tag_id(request: Request, tag_id: int):
@@ -726,9 +734,9 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 
 @router.get("/external-images/list-images-v1",
             status_code=200,
-            tags=["external-images"],
+            tags=["deprecated3"],
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],
-            description="List external images with optional filtering and pagination",
+            description="changed with /external-images/list-images-v2 ",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def list_external_images_v1(
     request: Request,
@@ -1040,7 +1048,7 @@ async def get_random_external_image_similarity(
 
 @router.post("/external-images/add-new-dataset",
             description="add new dataset in mongodb",
-            tags=["dataset"],
+            tags=["external-images"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -1061,9 +1069,27 @@ async def add_new_dataset(request: Request, dataset: Dataset):
             )  
 
 
+@router.get("/external-images/list-datasets",
+            description="list datasets from mongodb",
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    datasets = list(request.app.external_datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )               
+
+
 @router.delete("/external-images/remove-dataset",
-               description="Remove dataset and its configuration in MongoDB",
-               tags=["dataset"],
+               description="Remove dataset",
+               tags=["external-images"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
@@ -1099,3 +1125,58 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
         )
 
 
+@router.post("/external-images/get-tag-list-for-multiple-external-images", 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             description="/tags/get-tag-list-for-multiple-images-v1",
+             tags=["deprecated3"],
+             status_code=200,
+             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[str]):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        all_tags_list = []
+        
+        for file_hash in file_hashes:
+            # Fetch image tags based on image_hash
+            image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": external_image})
+            
+            # Process the results
+            tags_list = []
+            for tag_data in image_tags_cursor:
+                # Find the tag definition
+                tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+                if tag_definition:
+                    # Find the tag category and determine if it's deprecated
+                    category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                    deprecated_tag_category = category['deprecated'] if category else False
+                    
+                    # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                    tag_definition_dict = {
+                        "tag_id": tag_definition["tag_id"],
+                        "tag_string": tag_definition["tag_string"],
+                        "tag_type": tag_data.get("tag_type"),
+                        "tag_category_id": tag_definition.get("tag_category_id"),
+                        "tag_description": tag_definition["tag_description"],
+                        "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                        "deprecated": tag_definition.get("deprecated", False),
+                        "deprecated_tag_category": deprecated_tag_category,
+                        "user_who_created": tag_definition["user_who_created"],
+                        "creation_time": tag_definition.get("creation_time", None)
+                    }
+
+                    tags_list.append(tag_definition_dict)
+
+            all_tags_list.append({"file_hash": file_hash, "tags": tags_list})
+        
+        # Return the list of tag lists for each image
+        return response_handler.create_success_response_v1(
+            response_data={"images": all_tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )  

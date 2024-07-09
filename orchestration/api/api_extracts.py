@@ -1,8 +1,8 @@
 
 from fastapi import APIRouter, Request,  Query
-from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExternalImageDataV1, ListExternalImageDataWithSimilarityScore
+from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
 from pymongo import ReturnDocument
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
 from typing import Optional
@@ -13,6 +13,8 @@ from .api_clip import http_clip_server_get_cosine_similarity_list
 
 
 router = APIRouter()
+
+extracts = "extract_image"
 
 @router.get("/extracts/get-current-data-batch-sequential-id", 
             description="Get the sequential id for file batches stored for a dataset",
@@ -101,8 +103,8 @@ async def remove_current_data_batch_sequential_id(request: Request, dataset: str
                                                        )
 
 @router.post("/extracts/add-extracted-image", 
-            description="Add an extracted image data",
-            tags=["extracts"],  
+            description="changed with /extracts/add-extracted-image-v1 ",
+            tags=["deprecated3"],  
             response_model=StandardSuccessResponseV1[ListExtractImageData],  
             responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def add_extract(request: Request, image_data: ExtractImageData):
@@ -156,6 +158,60 @@ async def add_extract(request: Request, image_data: ExtractImageData):
             error_string=str(e),
             http_status_code=500
         )
+    
+
+@router.post("/extracts/add-extracted-image-v1", 
+            description="Add an extracted image data",
+            tags=["extracts"],  
+            response_model=StandardSuccessResponseV1[ExtractImageData],  
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def add_extract(request: Request, image_data: ExtractImageDataV1):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        if not dataset_result:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"{image_data.dataset} dataset does not exist",
+                http_status_code=422
+            )
+
+        existed = request.app.extracts_collection.find_one({
+            "image_hash": image_data.image_hash
+        })
+
+        if existed is None:
+            image_data_dict = image_data.to_dict()
+            image_data_dict['uuid'] = str(uuid.uuid4())
+            image_data_dict['upload_date'] = str(datetime.now())
+            next_seq_id = get_next_external_dataset_seq_id(request, bucket="extracts", dataset=image_data.dataset)
+            image_data_dict['file_path'] = get_minio_file_path(next_seq_id, "extracts", image_data.dataset, 'jpg')
+
+            
+            request.app.extracts_collection.insert_one(image_data_dict)
+            image_data_dict.pop('_id', None)
+            
+        else:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="An image with this hash already exists",
+                http_status_code=400
+            )
+        
+        update_external_dataset_seq_id(request=request, bucket="extracts", dataset=image_data.dataset, seq_id=next_seq_id) 
+
+        return api_response_handler.create_success_response_v1(
+            response_data= image_data_dict,
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )      
 
 @router.get("/extracts/get-all-extracts-list", 
             description="Get all extracted images. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
@@ -255,7 +311,8 @@ async def delete_extract_dataset_data(request: Request, dataset: str):
 
 @router.post("/extracts/add-tag-to-extract",
              status_code=201,
-             tags=["extracts"],  
+             tags=["deprecated3"],  
+             description="changed with /tags/add-tag-to-image-v2",
              response_model=StandardSuccessResponseV1[ImageTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: int, user_who_created: str):
@@ -285,7 +342,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
         if existing_image_tag:
             # Remove the '_id' field before returning the response
@@ -302,7 +359,7 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
             "file_path": file_path,  
             "image_hash": image_hash,
             "tag_type": tag_type,
-            "image_source": "extracts",
+            "image_source": extracts,
             "user_who_created": user_who_created,
             "tag_count": 1,  # Since this is a new tag for this image, set count to 1
             "creation_time": date_now
@@ -331,7 +388,8 @@ def add_tag_to_image(request: Request, tag_id: int, image_hash: str, tag_type: i
 
 @router.delete("/extracts/remove-tag-from-extract",
                status_code=200,
-               tags=["extracts"],
+               tags=["deprecated3"],
+               description="changed with /tags/remove-tag-from-image-v1/{tag_id}",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
@@ -341,7 +399,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
         if not existing_image_tag:
             return response_handler.create_success_delete_response_v1(
@@ -353,7 +411,7 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
         request.app.image_tags_collection.delete_one({
             "tag_id": tag_id, 
             "image_hash": image_hash, 
-            "image_source": "extracts"
+            "image_source": extracts
         })
 
         return response_handler.create_success_delete_response_v1(
@@ -371,9 +429,9 @@ def remove_tag_from_image(request: Request, tag_id: int, image_hash: str):
 
 
 @router.get("/extracts/get-images-by-tag-id", 
-            tags=["extracts"], 
+            tags=["deprecated3"], 
             status_code=200,
-            description="Get extract images by tag_id",
+            description="changed with /tags/get-images-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[ListExternalImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_extracts_by_tag_id(
@@ -404,7 +462,7 @@ def get_extracts_by_tag_id(
                 )
 
         # Build the query
-        query = {"tag_id": tag_id, "image_source": "extracts"}
+        query = {"tag_id": tag_id, "image_source": extracts}
         if start_date and end_date:
             query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
@@ -448,15 +506,15 @@ def get_extracts_by_tag_id(
 
 @router.get("/extracts/get-tag-list-for-image", 
             response_model=StandardSuccessResponseV1[TagListForImages], 
-            description="Get tag list for image",
-            tags=["extracts"],
+            description="changed with /tags/get-tag-list-for-image-v2",
+            tags=["deprecated3"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def get_tag_list_for_extract_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Fetch image tags based on image_hash
-        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": "extracts"})
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": extracts})
         
         # Process the results
         tags_list = []
@@ -501,15 +559,15 @@ def get_tag_list_for_extract_image(request: Request, file_hash: str):
 
 @router.get("/extracts/get-images-count-by-tag-id",
             status_code=200,
-            tags=["extracts"],
-            description="Get count of extract images with a specific tag",
+            tags=["deprecated3"],
+            description="changed with tags/get-images-count-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_images_count_by_tag_id(request: Request, tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
     try :
         # Build the query to include the image_source as "extracts"
-        query = {"tag_id": tag_id, "image_source": "extracts"}
+        query = {"tag_id": tag_id, "image_source": extracts}
         count = request.app.image_tags_collection.count_documents(query)
 
         # Return the count even if it is zero
@@ -528,7 +586,7 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
 
 @router.post("/extract-images/add-new-dataset",
             description="add new dataset in mongodb",
-            tags=["dataset"],
+            tags=["extracts"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -548,10 +606,26 @@ async def add_new_dataset(request: Request, dataset: Dataset):
                 http_status_code=200
             )  
 
+@router.get("/extract-images/list-datasets",
+            description="list datasets from mongodb",
+            tags=["extracts"],
+            response_model=StandardSuccessResponseV1[ListDataset],  
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def list_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    datasets = list(request.app.extract_datasets_collection.find({}))
+    for dataset in datasets:
+        dataset.pop('_id', None)
+
+    return response_handler.create_success_response_v1(
+                response_data={'datasets': datasets}, 
+                http_status_code=200
+            )  
 
 @router.delete("/extract-images/remove-dataset",
-               description="Remove dataset and its configuration in MongoDB",
-               tags=["dataset"],
+               description="Remove dataset",
+               tags=["extracts"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
@@ -590,10 +664,10 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
 @router.get("/extract-images/list-images",
             status_code=200,
             tags=["extracts"],
-            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
+            response_model=StandardSuccessResponseV1[ListExtractImageDataV1],
             description="List extracts images with optional filtering and pagination",
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def list_external_images_v1(
+async def list_extract_images_v1(
     request: Request,
     dataset: Optional[str] = Query(None, description="Dataset to filter the results by"),
     limit: int = Query(20, description="Limit on the number of results returned"),
@@ -709,7 +783,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 @router.get("/extract-images/get-random-images-with-clip-search",
             tags=["extracts"],
             description="Gets as many random extract images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
-            response_model=StandardSuccessResponseV1[ListExternalImageDataWithSimilarityScore],
+            response_model=StandardSuccessResponseV1[ListExtractImageDataWithScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_random_external_image_similarity(
     request: Request,
@@ -778,4 +852,60 @@ async def get_random_external_image_similarity(
             error_string=str(e),
             http_status_code=500
         )
+
+@router.post("/extract-images/get-tag-list-for-multiple-extract-images", 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             description="changed with /tags/get-tag-list-for-multiple-images-v1",
+             tags=["deprecated3"],
+             status_code=200,
+             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[str]):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        all_tags_list = []
+        
+        for file_hash in file_hashes:
+            # Fetch image tags based on image_hash
+            image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": extracts})
+            
+            # Process the results
+            tags_list = []
+            for tag_data in image_tags_cursor:
+                # Find the tag definition
+                tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+                if tag_definition:
+                    # Find the tag category and determine if it's deprecated
+                    category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                    deprecated_tag_category = category['deprecated'] if category else False
+                    
+                    # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                    tag_definition_dict = {
+                        "tag_id": tag_definition["tag_id"],
+                        "tag_string": tag_definition["tag_string"],
+                        "tag_type": tag_data.get("tag_type"),
+                        "tag_category_id": tag_definition.get("tag_category_id"),
+                        "tag_description": tag_definition["tag_description"],
+                        "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                        "deprecated": tag_definition.get("deprecated", False),
+                        "deprecated_tag_category": deprecated_tag_category,
+                        "user_who_created": tag_definition["user_who_created"],
+                        "creation_time": tag_definition.get("creation_time", None)
+                    }
+
+                    tags_list.append(tag_definition_dict)
+
+            all_tags_list.append({"file_hash": file_hash, "tags": tags_list})
+        
+        # Return the list of tag lists for each image
+        return response_handler.create_success_response_v1(
+            response_data={"images": all_tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )        
 

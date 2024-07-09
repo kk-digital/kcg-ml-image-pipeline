@@ -255,6 +255,17 @@ def startup_db_client():
     # external image collection
     app.external_images_collection = app.mongodb_db["external_images"]
 
+    external_images_dataset_index=[
+    ('dataset', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.external_images_collection ,external_images_dataset_index, 'external_images_dataset_index')
+
+    external_images_hashx=[
+    ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.external_images_collection ,external_images_hashx, 'external_images_hashx')
+    
+
     external_images_creation_time_index=[
     ('upload_date', pymongo.ASCENDING)
     ]
