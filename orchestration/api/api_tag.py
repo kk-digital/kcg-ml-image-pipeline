@@ -4,7 +4,8 @@ from typing import List, Dict
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagListForImagesV1, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import build_date_query
 import traceback
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -1150,7 +1151,6 @@ def get_tagged_images_v1(
 
         # Execute the query
         image_tags_cursor = request.app.image_tags_collection.find(query).sort("creation_time", sort_order)
-
         # Process the results
         image_info_list = []
         for tag_data in image_tags_cursor:
@@ -1164,20 +1164,183 @@ def get_tagged_images_v1(
                     creation_time=tag_data.get("creation_time", None)
                 )
                 image_info_list.append(image_tag.model_dump())  # Convert to dictionary
-
-        # Return the list of images in a standard success response
+         # Return the list of images in a standard success response
         return response_handler.create_success_response_v1(
             response_data={"images": image_info_list}, 
             http_status_code=200,
-        )
+        )  
 
     except Exception as e:
+        print(e)
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
+        )      
+
+
+        
+        
+@router.get("/tags/get-images-by-source",
+            tags=["tags"], 
+            status_code=200,
+            description="Get images by tag_id and source",
+            response_model=StandardSuccessResponseV1[ListImageTag], 
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tagged_images_v2(
+    request: Request, 
+    tag_id: int,
+    start_date: str = None,
+    end_date: str = None,
+    image_sources: List[str] = Query(None, description="List of image sources to filter by Options: 'generated_image', 'extract_image', 'external_image'"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    print(1)
+    response_handler = ApiResponseHandlerV1(request)
+    print(2)
+    try:
+        
+        # Validate start_date and end_date
+        validated_start_date = validate_date_format(start_date)
+        validated_end_date = validate_date_format(end_date)
+        if (validated_start_date is None and start_date) or (validated_end_date is None and end_date):
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Invalid start_data and end_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                http_status_code=400,
+            )
+        # Build the query
+        query = {"tag_id": tag_id}
+        if image_sources:
+            query["image_source"] = {"$in": image_sources}
+        date_range_query = build_date_query(date_from=validated_start_date, 
+                                            date_to=validated_end_date)
+        query.update(date_range_query)
+        
+        # Decide the sort order
+        sort_order_mapping = {"desc": -1, "asc": 1}
+        sort_order = sort_order_mapping.get(order, 1)
+        # Execute the query
+        image_tags_cursor = request.app.image_tags_collection\
+                                            .find(query).sort("creation_time", sort_order)
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_tag = ImageTag(
+                    tag_id=int(tag_data["tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
+        # Return the list of images in a standard success response
+        return response_handler.create_success_response_v1(
+                                                           response_data={"images": image_info_list}, 
+                                                           http_status_code=200,
+                                                           )
+
+    except Exception as e:
+        print(e)
         # Log the exception details here, if necessary
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
         )
 
     
+        
+@router.get("/tags/get-images-by-image-type",
+            tags=["tags"], 
+            status_code=200,
+            description="Get images by tag_id and resolution",
+            response_model=StandardSuccessResponseV1[ListImageTag], 
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tagged_images_v2(
+    request: Request, 
+    tag_id: int,
+    start_date: str = None,
+    end_date: str = None,
+    image_type: str = Query('all_resolutions', description="Resolution of the images to be returned. Options: 'all_resolutions', '512*512_resolutions'"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    response_handler = ApiResponseHandlerV1(request)
+     
+    try:
+        # Validate start_date and end_date
+        validated_start_date = validate_date_format(start_date)
+        validated_end_date = validate_date_format(end_date)
+        if (validated_start_date is None and start_date) or (validated_end_date is None and end_date):
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Invalid start_data and end_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                http_status_code=400,
+            )
+        # Build the query
+        query = {"tag_id": tag_id}
+        if image_type == 'all_resolutions':
+            pass
+        elif image_type == '512*512_resolutions':
+            query["image_source"] = {"$in": ["generated_image", "extract_image"]}
+        else:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Invalid resolution. Options: 'all_resolutions', '512*512_resolutions", 
+                http_status_code=400,
+            )
+            
+        date_range_query = build_date_query(date_from=validated_start_date, 
+                                            date_to=validated_end_date)
+        query.update(date_range_query)
+        
+        # Decide the sort order
+        sort_order_mapping = {"desc": -1, "asc": 1}
+        sort_order = sort_order_mapping.get(order, 1)
+        # Execute the query
+        image_tags_cursor = list(request.app.image_tags_collection\
+                                            .find(query).sort("creation_time", sort_order))
+        if image_type == '512*512_resolutions':
+            # get only image resolution 512 * 512
+            temp_image_tags_cursor = []
+            for tag_data in image_tags_cursor:
+                if tag_data['image_source'] == 'extract_image':
+                    temp_image_tags_cursor.append(tag_data)
+                elif tag_data['image_source'] == 'generated_image':
+                    image = request.app.completed_jobs_collection.find_one({'task_output_file_dict.output_file_hash': tag_data['image_hash']})
+                    print(image, tag_data['image_hash'])
+                    if not image:
+                        continue
+                    
+                    if image['task_input_dict']['image_width'] == 512 and image['task_input_dict']['image_height'] == 512:
+                        print("512*512", image, tag_data['image_hash'])
+                        temp_image_tags_cursor.append(tag_data)
+                        
+            image_tags_cursor = temp_image_tags_cursor
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_tag = ImageTag(
+                    tag_id=int(tag_data["tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
+        # Return the list of images in a standard success response
+        return response_handler.create_success_response_v1(
+                                                           response_data={"images": image_info_list}, 
+                                                           http_status_code=200,
+                                                           )
+
+    except Exception as e:
+        # Log the exception details here, if necessary
+        print(e)
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
+        )
 
 @router.get("/tags/get-all-tagged-images", 
             tags=["deprecated3"], 

@@ -258,12 +258,15 @@ class AddJob(BaseModel):
     uuid: str
     creation_time: str
 
-def validate_date_format(date_str: str):
+def validate_date_format(date_str: Optional[str]):
     try:
-        # Attempt to parse the date string using dateutil.parser
-        parsed_date = parser.parse(date_str)
-        # If parsing succeeds, return the original date string
-        return date_str
+        if date_str is not None:
+            # Attempt to parse the date string using dateutil.parser
+            parsed_date = parser.parse(date_str)
+            # If parsing succeeds, return the original date string
+            return date_str
+        else:
+            return None
     except ValueError:
         # If parsing fails, return None
         return None
@@ -601,3 +604,17 @@ def get_ingress_video_path(bucket:str, video_metadata: VideoMetaData) -> str:
     
     return f'{path}.{video_metadata.file_type}'
     
+    
+def build_date_query(date_from: Optional[Union[str, datetime]] = None, 
+                     date_to: Optional[Union[str, datetime]] = None,  
+                     key: str = "creation_time") -> dict:
+    
+    date_range_query = {}
+    if date_from:
+        date_range_query["$gte"] = \
+            date_from.strftime('%Y-%m-%d') if isinstance(date_from, datetime) else date_from
+    if date_to:
+        date_range_query["$lte"] = \
+            date_to.strftime('%Y-%m-%d') if isinstance(date_to, datetime) else date_to
+    
+    return {key: date_range_query} if date_range_query else {}
