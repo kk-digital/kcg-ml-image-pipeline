@@ -1,10 +1,10 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag 
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages, TagListForImagesV1
 from .api_utils import build_date_query
 import traceback
 from bson import ObjectId
