@@ -27,7 +27,7 @@ async def add_new_bucket(request: Request, bucket: Bucket):
 
     # Get the next bucket_id
     last_bucket = request.app.buckets_collection.find_one(sort=[("bucket_id", -1)])
-    next_bucket_id = (last_bucket["bucket_id"] if last_bucket else 0) + 1
+    next_bucket_id = last_bucket["bucket_id"] + 1 if last_bucket else 0
 
     # Create the new bucket document
     new_bucket = {
@@ -46,6 +46,8 @@ async def add_new_bucket(request: Request, bucket: Bucket):
         response_data=new_bucket,
         http_status_code=200
     )
+
+
 
 @router.get("/buckets/list-buckets", 
          status_code=200, 
@@ -69,11 +71,11 @@ async def list_buckets(request: Request):
                tags=["buckets"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
-async def remove_bucket(request: Request, bucket_name: str = Query(...)):
+async def remove_bucket(request: Request, bucket_id: str = Query(...)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Attempt to delete the bucket
-    bucket_result = request.app.buckets_collection.delete_one({"bucket_name": bucket_name})
+    bucket_result = request.app.buckets_collection.delete_one({"bucket_id": bucket_id})
 
     # Check if the bucket was present and deleted
     was_present = bucket_result.deleted_count > 0
@@ -87,6 +89,34 @@ async def remove_bucket(request: Request, bucket_name: str = Query(...)):
         )
     else:
         # If the bucket was not deleted, return False
+        return response_handler.create_success_delete_response_v1(
+            False, 
+            http_status_code=200
+        )
+
+@router.delete("/buckets/delete-all-buckets",
+               description="Delete all buckets in MongoDB",
+               tags=["buckets"], 
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def delete_all_buckets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Attempt to delete all documents in the buckets collection
+    result = request.app.buckets_collection.delete_many({})
+
+    # Check if any documents were deleted
+    was_present = result.deleted_count > 0
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If any documents were deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            True, 
+            http_status_code=200
+        )
+    else:
+        # If no documents were deleted, return False
         return response_handler.create_success_delete_response_v1(
             False, 
             http_status_code=200
