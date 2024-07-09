@@ -24,10 +24,29 @@ class IrrelevantResponse(BaseModel):
     uuid: str
     file_hash: str
     rank_model_id: int
+    image_source: str
 
+class IrrelevantResponseV1(BaseModel):
+    uuid: str
+    file_hash: str
+    rank_model_id: int
+    image_source: str
+
+class GenerationCounts(BaseModel):
+    character: int
+    environmental: int
+    external_images: int
+    icons: int
+    mech: int
+    propaganda_poster: int
+    ranks: int
+    test_generations: int
+    variants: int
+    waifu: int
 
 class ListGenerationsCountPerDayResponse(BaseModel):
-    results: dict
+    results: Dict[str, GenerationCounts]
+
 
 class JobStatsResponse(BaseModel):
     total: int
@@ -43,7 +62,7 @@ class BoolIrrelevantResponse(BaseModel):
     irrelevant: bool    
 
 class ListIrrelevantResponse(BaseModel):
-    images: List[IrrelevantResponse]    
+    images: List[IrrelevantResponseV1]    
 
 class DoneResponse(BaseModel):
     Done: bool
@@ -51,8 +70,13 @@ class DoneResponse(BaseModel):
 class DatasetResponse(BaseModel):
     datasets: List[str]
 
+class SeqSeqIdResponseData(BaseModel):
+    dataset_name: str
+    subfolder_count: int
+    file_count: int
+
 class SeqIdResponse(BaseModel):
-    sequential_ids : List[str]
+    sequential_ids : List[SeqSeqIdResponseData]
     
 class SeqIdDatasetResponse(BaseModel):
     dataset: str
@@ -136,6 +160,21 @@ class JsonContentResponse(BaseModel):
 
 class ModelResponse(BaseModel):
     models: List[SingleModelResponse]
+
+class TagDefinitionV1(BaseModel):
+    file_hash: str
+    tag_id: int
+    tag_string: str
+    tag_category_id: int
+    tag_description: str 
+    tag_vector_index: int
+    deprecated: bool 
+    user_who_created: str 
+    creation_time: str
+
+class TagListForImagesV1(BaseModel):
+    images: List[TagDefinitionV1]
+
 
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]

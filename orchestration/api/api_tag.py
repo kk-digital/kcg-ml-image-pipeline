@@ -4,7 +4,7 @@ from typing import List, Dict
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
 from .api_utils import build_date_query
 import traceback
 from bson import ObjectId
@@ -168,7 +168,8 @@ def remove_tag_deprecated(request: Request, tag_id: int):
 
 @router.post("/tags/add-tag-to-image-v1",
              status_code=201,
-             tags=["tags"], 
+             tags=["deprecated3"], 
+             description="changed with /tags/add-tag-to-image-v2",
              response_model=StandardSuccessResponseV1[ImageTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
@@ -236,12 +237,102 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
             http_status_code=500
         )
 
+@router.post("/tags/add-tag-to-image-v2",
+             status_code=201,
+             tags=["tags"], 
+             description="add tag to images",
+             response_model=StandardSuccessResponseV1[ImageTag], 
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def add_tag_to_image_v2(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str, image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        date_now = datetime.now().isoformat()
+    
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
+        if not existing_tag:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string="Tag does not exist!", 
+                http_status_code=400
+            )
+
+        # Determine the appropriate collection based on image_source
+        if image_source == "generated_image":
+            collection = request.app.completed_jobs_collection
+            query = {'task_output_file_dict.output_file_hash': file_hash}
+            projection = {"task_output_file_dict.output_file_path": 1}
+        elif image_source == "extract_image":
+            collection = request.app.extracts_collection
+            query = {'image_hash': file_hash}
+            projection = {"file_path": 1}
+        elif image_source == "external_image":
+            collection = request.app.external_images_collection
+            query = {'image_hash': file_hash}
+            projection = {"file_path": 1}
+        else:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Invalid image source provided.",
+                http_status_code=422
+            )
+
+        image = collection.find_one(query, projection)
+        if not image:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string="No image found with the given hash", 
+                http_status_code=400
+            )
+
+        file_path = image.get("task_output_file_dict", {}).get("output_file_path", "") if image_source == "generated_image" else image.get("file_path", "")
+
+        # Check if the tag is already associated with the image
+        existing_image_tag = request.app.image_tags_collection.find_one({
+            "tag_id": tag_id, 
+            "image_hash": file_hash, 
+            "image_source": image_source
+        })
+        if existing_image_tag:
+            existing_image_tag.pop('_id', None)  # Remove _id from the existing document
+            # Return a success response indicating that the tag has already been added to the image
+            return response_handler.create_success_response_v1(
+                response_data=existing_image_tag, 
+                http_status_code=200
+            )
+
+        # Add new tag to image
+        image_tag_data = {
+            "tag_id": tag_id,
+            "file_path": file_path,  
+            "image_hash": file_hash,
+            "tag_type": tag_type,
+            "image_source": image_source,
+            "user_who_created": user_who_created,
+            "tag_count": 1,  # Since this is a new tag for this image, set count to 1
+            "creation_time": date_now
+        }
+        result = request.app.image_tags_collection.insert_one(image_tag_data)
+        # After insertion, add the inserted _id back to the data and remove it
+        image_tag_data['_id'] = result.inserted_id
+        image_tag_data.pop('_id', None)
+
+        return response_handler.create_success_response_v1(
+            response_data=image_tag_data, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e), 
+            http_status_code=500
+        )
+
 
 
 @router.delete("/tags/remove-tag-from-image/{tag_id}", 
                status_code=200,
-               tags=["tags"], 
-               description="Remove image tag",
+               tags=["deprecated3"], 
+               description="changed with /tags/remove-tag-from-image-v1/{tag_id}",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def remove_image_tag(
@@ -254,6 +345,37 @@ def remove_image_tag(
 
     # The query now checks for the specific tag_id within the array of tags and image_source
     query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": generated_image}
+    result = request.app.image_tags_collection.delete_one(query)
+    
+    # If no document was found and deleted, use response_handler to raise an HTTPException
+    if result.deleted_count == 0:
+        return response_handler.create_success_delete_response_v1(
+                False,
+                http_status_code=200
+            )
+
+    # Return standard success response with wasPresent: true using response_handler
+    return response_handler.create_success_delete_response_v1(
+                True,
+                http_status_code=200
+            )
+
+@router.delete("/tags/remove-tag-from-image-v1/{tag_id}", 
+               status_code=200,
+               tags=["tags"], 
+               description="Remove image tag",
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def remove_image_tag_v1(
+    request: Request,
+    image_hash: str,  
+    tag_id: int,  # Now as a path parameter
+    image_source: str = Query("generated_image", regex="^(generated_image|extract_image|external_image)$")  # Add image_source as a query parameter
+):
+    response_handler = ApiResponseHandlerV1(request)
+    
+    # The query now checks for the specific tag_id within the array of tags and image_source
+    query = {"image_hash": image_hash, "tag_id": tag_id, "image_source": image_source}
     result = request.app.image_tags_collection.delete_one(query)
     
     # If no document was found and deleted, use response_handler to raise an HTTPException
@@ -607,8 +729,8 @@ def list_tag_definitions(request: Request):
 
 @router.get("/tags/get-tag-list-for-image-v1", 
             response_model=StandardSuccessResponseV1[TagListForImages], 
-            description="Get tag list for image",
-            tags=["tags"],
+            description="changed with /tags/get-tag-list-for-image-v2",
+            tags=["deprecated3"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def get_tag_list_for_image_v1(request: Request, file_hash: str):
@@ -647,6 +769,173 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
         # Return the list of tags including 'deprecated_tag_category'
         return response_handler.create_success_response_v1(
             response_data={"tags": tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.get("/tags/get-tag-list-for-image-v2", 
+            response_model=StandardSuccessResponseV1[TagListForImages], 
+            description="Get tag list for image",
+            tags=["tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def get_tag_list_for_image_v2(request: Request, file_hash: str, image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Fetch image tags based on image_hash and image_source
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": image_source})
+        
+        # Process the results
+        tags_list = []
+        for tag_data in image_tags_cursor:
+            # Find the tag definition
+            tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+            if tag_definition:
+                # Find the tag category and determine if it's deprecated
+                category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                deprecated_tag_category = category['deprecated'] if category else False
+                
+                # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                tag_definition_dict = {
+                    "tag_id": tag_definition["tag_id"],
+                    "tag_string": tag_definition["tag_string"],
+                    "tag_type": tag_data.get("tag_type"),
+                    "tag_category_id": tag_definition.get("tag_category_id"),
+                    "tag_description": tag_definition["tag_description"],
+                    "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                    "deprecated": tag_definition.get("deprecated", False),
+                    "deprecated_tag_category": deprecated_tag_category,
+                    "user_who_created": tag_definition["user_who_created"],
+                    "creation_time": tag_definition.get("creation_time", None)
+                }
+
+                tags_list.append(tag_definition_dict)
+        
+        # Return the list of tags including 'deprecated_tag_category'
+        return response_handler.create_success_response_v1(
+            response_data={"tags": tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.post("/tags/get-tag-list-for-multiple-images", 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             description="changed with /tags/get-tag-list-for-multiple-images-v1",
+             tags=["deprecated3"],
+             status_code=200,
+             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[str]):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        all_tags_list = []
+        
+        for file_hash in file_hashes:
+            # Fetch image tags based on image_hash
+            image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": generated_image})
+            
+            # Process the results
+            tags_list = []
+            for tag_data in image_tags_cursor:
+                # Find the tag definition
+                tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+                if tag_definition:
+                    # Find the tag category and determine if it's deprecated
+                    category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                    deprecated_tag_category = category['deprecated'] if category else False
+                    
+                    # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                    tag_definition_dict = {
+                        "tag_id": tag_definition["tag_id"],
+                        "tag_string": tag_definition["tag_string"],
+                        "tag_type": tag_data.get("tag_type"),
+                        "tag_category_id": tag_definition.get("tag_category_id"),
+                        "tag_description": tag_definition["tag_description"],
+                        "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                        "deprecated": tag_definition.get("deprecated", False),
+                        "deprecated_tag_category": deprecated_tag_category,
+                        "user_who_created": tag_definition["user_who_created"],
+                        "creation_time": tag_definition.get("creation_time", None)
+                    }
+
+                    tags_list.append(tag_definition_dict)
+
+            all_tags_list.append({"file_hash": file_hash, "tags": tags_list})
+        
+        # Return the list of tag lists for each image
+        return response_handler.create_success_response_v1(
+            response_data={"images": all_tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.post("/tags/get-tag-list-for-multiple-images-v1", 
+             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             description="Get tag lists for multiple images",
+             tags=["tags"],
+             status_code=200,
+             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+async def get_tag_list_for_multiple_images_v1(
+    request: Request, 
+    file_hashes: List[str],
+    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")  # Add image_source as a query parameter
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        all_tags_list = []
+        
+        for file_hash in file_hashes:
+            # Fetch image tags based on image_hash and image_source
+            image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash, "image_source": image_source})
+            
+            # Process the results
+            tags_list = []
+            for tag_data in image_tags_cursor:
+                # Find the tag definition
+                tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+                if tag_definition:
+                    # Find the tag category and determine if it's deprecated
+                    category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                    deprecated_tag_category = category['deprecated'] if category else False
+                    
+                    # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                    tag_definition_dict = {
+                        "tag_id": tag_definition["tag_id"],
+                        "tag_string": tag_definition["tag_string"],
+                        "tag_type": tag_data.get("tag_type"),
+                        "tag_category_id": tag_definition.get("tag_category_id"),
+                        "tag_description": tag_definition["tag_description"],
+                        "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                        "deprecated": tag_definition.get("deprecated", False),
+                        "deprecated_tag_category": deprecated_tag_category,
+                        "user_who_created": tag_definition["user_who_created"],
+                        "creation_time": tag_definition.get("creation_time", None)
+                    }
+
+                    tags_list.append(tag_definition_dict)
+
+            all_tags_list.append({"file_hash": file_hash, "tags": tags_list})
+        
+        # Return the list of tag lists for each image
+        return response_handler.create_success_response_v1(
+            response_data={"images": all_tags_list},
             http_status_code=200,
         )
     except Exception as e:
@@ -737,9 +1026,9 @@ def get_tag_vector_index(request: Request, tag_id: int):
 
 
 @router.get("/tags/get-images-by-tag-id", 
-            tags=["tags"], 
+            tags=["deprecated3"], 
             status_code=200,
-            description="Get images by tag_id",
+            description="changed with /tags/get-images-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[ListImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_tagged_images(
@@ -811,6 +1100,84 @@ def get_tagged_images(
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
         )
+
+@router.get("/tags/get-images-by-tag-id-v1", 
+            tags=["tags"], 
+            status_code=200,
+            description="Get images by tag_id",
+            response_model=StandardSuccessResponseV1[ListImageTag], 
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tagged_images_v1(
+    request: Request, 
+    tag_id: int,
+    image_source: str = Query("generated_image", regex="^(generated_image|extract_image|external_image)$"),  # Add image_source as a query parameter
+    start_date: str = None,
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                    http_status_code=400,
+                    
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400,
+                    
+                )
+
+        # Build the query
+        query = {"tag_id": tag_id, "image_source": image_source}
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": validated_end_date}
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Execute the query
+        image_tags_cursor = request.app.image_tags_collection.find(query).sort("creation_time", sort_order)
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_tag = ImageTag(
+                    tag_id=int(tag_data["tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
+         # Return the list of images in a standard success response
+        return response_handler.create_success_response_v1(
+            response_data={"images": image_info_list}, 
+            http_status_code=200,
+        )  
+
+    except Exception as e:
+        print(e)
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
+        )      
+
+
         
         
 @router.get("/tags/get-images-by-source",
@@ -880,6 +1247,7 @@ def get_tagged_images_v2(
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
         )
+
     
         
 @router.get("/tags/get-images-by-image-type",
@@ -975,7 +1343,7 @@ def get_tagged_images_v2(
         )
 
 @router.get("/tags/get-all-tagged-images", 
-            tags=["tags"], 
+            tags=["deprecated3"], 
             status_code=200,
             description="Get all tagged images",
             response_model=StandardSuccessResponseV1[ListImageTag], 
@@ -1091,8 +1459,8 @@ def list_tag_definitions(request: Request):
 
 @router.get("/tags/get-images-count-by-tag-id", 
             status_code=200,
-            tags=["tags"], 
-            description="Get count of images with a specific tag",
+            tags=["deprecated3"], 
+            description="changed with /tags/get-images-count-by-tag-id-v1",
             response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_image_count_by_tag(
@@ -1118,6 +1486,50 @@ def get_image_count_by_tag(
                                                        response_data={"tag_id": tag_id, "count": count}, 
                                                        http_status_code=200,
                                                        )
+
+@router.get("/tags/get-images-count-by-tag-id-v1", 
+            status_code=200,
+            tags=["tags"], 
+            description="Get count of images with a specific tag",
+            response_model=StandardSuccessResponseV1[TagCountResponse],
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def get_image_count_by_tag_v1(
+    request: Request,
+    tag_id: int
+):
+    response_handler = ApiResponseHandlerV1(request)
+
+    try:
+        # Define the image sources
+        image_sources = ["generated_image", "extract_image", "external_image"]
+        counts = {}
+
+        # Query for each image source
+        for source in image_sources:
+            query = {"tag_id": tag_id, "image_source": source}
+            count = request.app.image_tags_collection.count_documents(query)
+            counts[source] = count
+
+        # If no images found with the tag, return counts with 0 for each source
+        if all(count == 0 for count in counts.values()):
+            return response_handler.create_success_response_v1(
+                response_data={"tag_id": tag_id, "counts": counts}, 
+                http_status_code=200,
+            )
+
+        # Return standard success response with the counts
+        return response_handler.create_success_response_v1(
+            response_data={"tag_id": tag_id, "counts": counts}, 
+            http_status_code=200,
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e), 
+            http_status_code=500
+        )
+
 
 @router.put("/tag-categories/update-tag-category", 
               tags=["tag-categories"],
