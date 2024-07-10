@@ -98,7 +98,7 @@ def http_add_model(model_card):
     return None
 
 def http_add_classifier_model(model_card):
-    url = SERVER_ADDRESS + "/classifier/register-tag-classifier"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/register-tag-classifier"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
@@ -139,7 +139,7 @@ def http_get_model_id(model_hash):
     return None
 
 def http_get_classifier_model_list():
-    url = SERVER_ADDRESS + "/classifier/list-classifiers"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/list-classifiers"
     response = None
     try:
         response = requests.get(url)
