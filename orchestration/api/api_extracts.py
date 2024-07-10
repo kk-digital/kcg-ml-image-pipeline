@@ -1,5 +1,7 @@
 
 from fastapi import APIRouter, Request,  Query
+
+from utility.path import separate_bucket_and_file_path
 from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
 from pymongo import ReturnDocument
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1
@@ -818,7 +820,8 @@ async def get_random_external_image_similarity(
         image_path_list = []
         for image in images:
             image.pop('_id', None)  # Remove the auto-generated field
-            image_path_list.append(image['file_path'])
+            bucket_name, file_path= separate_bucket_and_file_path(image['file_path'])
+            image_path_list.append(file_path)
 
         similarity_score_list = http_clip_server_get_cosine_similarity_list("extracts" ,image_path_list, phrase)
         print(similarity_score_list)
