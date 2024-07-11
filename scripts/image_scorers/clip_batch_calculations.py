@@ -36,9 +36,7 @@ def save_data_to_minio(minio_client, bucket, data_path, data):
 def get_dataset_list(bucket: str):
     datasets=[]
     
-    if bucket == "external":
-        datasets= http_get_external_dataset_list()
-    elif bucket == "extracts":
+    if bucket == "external" or bucket == "extracts":
         datasets= http_get_extract_dataset_list()
     else:
         datasets= http_get_dataset_names()
