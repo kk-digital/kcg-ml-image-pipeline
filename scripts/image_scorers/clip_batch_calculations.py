@@ -6,13 +6,11 @@ import msgpack
 import torch
 from tqdm import tqdm
 
-from data_loader.utils import get_object
-from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
+from utility.minio import cmd
+from utility.path import separate_bucket_and_file_path
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.http.request import http_get_completed_job_by_dataset, http_get_dataset_names
 from utility.http.external_images_request import http_get_external_image_list, http_get_extract_image_list, http_get_external_dataset_list, http_get_extract_dataset_list
