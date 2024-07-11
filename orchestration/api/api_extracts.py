@@ -585,26 +585,38 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     
 
 @router.post("/extract-images/add-new-dataset",
-            description="add new dataset in mongodb",
+            description="Add new dataset in MongoDB",
             tags=["extracts"],
             response_model=StandardSuccessResponseV1[Dataset],  
-            responses=ApiResponseHandlerV1.listErrors([400,422]))
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     if request.app.extract_datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string='dataset already exist',
+            error_string='Dataset already exists',
             http_status_code=400
-        )    
-    
-    request.app.extract_datasets_collection.insert_one(dataset.to_dict())
+        )
+
+    # Find the current highest dataset_id
+    highest_dataset = request.app.extract_datasets_collection.find_one(
+        sort=[("dataset_id", -1)]
+    )
+    next_dataset_id = (highest_dataset["dataset_id"] + 1) if highest_dataset else 0
+
+    # Add the dataset_id to the dataset
+    dataset_dict = dataset.to_dict()
+    dataset_dict["dataset_id"] = next_dataset_id
+
+    # Insert the new dataset with dataset_id
+    request.app.extract_datasets_collection.insert_one(dataset_dict)
 
     return response_handler.create_success_response_v1(
-                response_data={"dataset_name":dataset.dataset_name}, 
-                http_status_code=200
-            )  
+        response_data={"dataset_name": dataset.dataset_name, "dataset_id": next_dataset_id}, 
+        http_status_code=200
+    )
+ 
 
 @router.get("/extract-images/list-datasets",
             description="list datasets from mongodb",
