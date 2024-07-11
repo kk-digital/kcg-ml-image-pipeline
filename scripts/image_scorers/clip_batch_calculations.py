@@ -61,10 +61,6 @@ class ClipBatchCaculation:
         self.device= device
         self.batch_size= batch_size
 
-        # clip model
-        self.clip = KandinskyCLIPImageEncoder(device= self.device)
-        self.clip.load_submodels()
-
     def load_file_paths(self):
         print("Loading paths for each clip vector")
 
