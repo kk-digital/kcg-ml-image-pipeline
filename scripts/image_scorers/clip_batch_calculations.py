@@ -140,6 +140,7 @@ def main():
     if args.dataset == "all":
 
         dataset_names= get_dataset_list(bucket= args.bucket)
+        print(dataset_names)
 
         for dataset in dataset_names:
             # initialize image extraction pipeline
