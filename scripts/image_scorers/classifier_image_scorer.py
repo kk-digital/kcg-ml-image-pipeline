@@ -10,9 +10,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, Dataset, DistributedSampler
 from tqdm import tqdm
 
-from utility.http.external_images_request import http_get_extract_dataset_list
-from utility.minio import cmd
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 from scripts.image_scorers.dataloader.image_dataset_loader import ImageDatasetLoader
@@ -20,6 +17,8 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.classifiers.models.linear_regression import LinearRegression
 from training_worker.classifiers.models.logistic_regression import LogisticRegression
 from utility.http import request
+from utility.http.external_images_request import http_get_extract_dataset_list
+from utility.minio import cmd
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
