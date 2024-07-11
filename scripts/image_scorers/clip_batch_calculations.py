@@ -110,6 +110,17 @@ class ClipBatchCaculation:
 
             except Exception as e:
                 print(f"An error occured {e}")
+        
+        if len(clip_batch) > 0:
+            print(f"Storing a batch")
+
+            output_folder = f"{self.dataset}/clip_vectors/{str(batch_num).zfill(4)}"
+            data_path = output_folder + "_clip_data.msgpack"
+            # Save the new data directly as the start of a new batch
+            save_data_to_minio(self.minio_client, self.bucket, data_path, clip_batch)
+            batch_num+=1
+            clip_batch = []
+
     
 
 def main():
