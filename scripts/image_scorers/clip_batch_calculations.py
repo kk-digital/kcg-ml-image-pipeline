@@ -147,7 +147,7 @@ def main():
             pipeline= ClipBatchCaculation(minio_client= minio_client,
                                         device=device,
                                         bucket= args.bucket,
-                                        dataset=dataset,
+                                        dataset=dataset['dataset_name'],
                                         batch_size= args.batch_size)
 
             pipeline.load_clip_vectors()
