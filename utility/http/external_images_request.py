@@ -123,3 +123,45 @@ def http_get_next_extract_batch_sequential_id(dataset: str, is_complete: bool = 
 
     except Exception as e:
         print('request exception ', e)
+
+# Get list of all dataset names for external images
+def http_get_external_dataset_list():
+    url = SERVER_ADDRESS + "/external-images/list-datasets"
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']['datasets']
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+# Get list of all dataset names for extracts
+def http_get_extract_dataset_list():
+    url = SERVER_ADDRESS + "/extract-images/list-datasets"
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']['datasets']
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
