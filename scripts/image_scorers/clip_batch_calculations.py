@@ -94,7 +94,7 @@ class ClipBatchCaculation:
                     output_clip_path = file_path + "_clip_kandinsky.msgpack"
                     
                 features_data = cmd.get_file_from_minio(self.minio_client, self.bucket, output_clip_path)
-                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
 
                 clip_batch.append({"uuid": uuid, "clip_vector": features_vector})
 
