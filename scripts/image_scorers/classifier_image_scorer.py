@@ -167,7 +167,7 @@ def main():
 
     if dataset_name != "all":
         scorer= ImageClassifierScorer(minio_client, bucket_name, dataset_name, batch_size)
-        print(f"Load the {bucket_name/dataset_name} dataset")
+        print(f"Load the {bucket_name}/{dataset_name} dataset")
         dataset_loader= ImageDatasetLoader(minio_client, bucket_name, dataset_name)
         image_dataset= dataset_loader.load_dataset()
 
@@ -181,7 +181,7 @@ def main():
         for dataset in dataset_names:
             try:
                 scorer= ImageClassifierScorer(minio_client, bucket_name, dataset_name, batch_size)
-                print(f"Load the {bucket_name/dataset} dataset")
+                print(f"Load the {bucket_name}/{dataset_name} dataset")
                 dataset_loader= ImageDatasetLoader(minio_client, bucket_name, dataset_name)
                 image_dataset= dataset_loader.load_dataset()
                 mp.spawn(scorer.calculate_and_upload_scores, args=(image_dataset,), nprocs=scorer.world_size, join=True)
