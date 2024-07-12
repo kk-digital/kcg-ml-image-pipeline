@@ -152,7 +152,7 @@ def main():
     classifier_models = {}
     for classifier_info in classifier_model_list:
         classifier_id = classifier_info["classifier_id"]
-        classifier_model = load_model(classifier_info, torch.device('cpu'))
+        classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
         if classifier_model is not None:
             classifier_models[classifier_id] = classifier_model
 
