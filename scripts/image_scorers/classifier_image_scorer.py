@@ -171,7 +171,7 @@ def main():
         dataset_loader= ImageDatasetLoader(minio_client, bucket_name, dataset_name)
         image_dataset= dataset_loader.load_dataset()
 
-        mp.spawn(scorer.calculate_and_upload_scores(), args=(image_dataset,), nprocs=scorer.world_size, join=True)
+        mp.spawn(scorer.calculate_and_upload_scores, args=(image_dataset,), nprocs=scorer.world_size, join=True)
 
     else:
         # if all, train models for all existing datasets
