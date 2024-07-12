@@ -101,18 +101,19 @@ def load_model(minio_client, classifier_model_info, device):
 
 def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
+    rank_device= torch.device(f'cuda:{rank}')
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     for classifier_id, classifier_model in classifier_models.items():
-        classifier_model = classifier_model.model.to(rank)
+        classifier_model = classifier_model.set_device(rank_device)
         classifier_model = DDP(classifier_model, device_ids=[rank])
 
         print(f"calculating scores for classifier id {classifier_id}")
         for clip_vectors, uuids in tqdm(dataloader):
-            clip_vectors = clip_vectors.to(rank)
+            clip_vectors = clip_vectors.to(rank_device)
             with torch.no_grad():
                 scores = classifier_model.module.classify(clip_vectors)
             
