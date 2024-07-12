@@ -503,6 +503,9 @@ class ListClassifierScore1(BaseModel):
 class ListClassifierScore2(BaseModel):
     scores: List[ClassifierScoreV1]
 
+class ListClassifierScore3(BaseModel):
+    data: List[ClassifierScoreV1]
+
 class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]
     classifier_id: int
