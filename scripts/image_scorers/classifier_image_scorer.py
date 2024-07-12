@@ -70,7 +70,7 @@ def load_model(minio_client, classifier_model_info, device):
     classifier_name = classifier_model_info["classifier_name"]
     model_path = classifier_model_info["model_path"]
 
-    print(f"Loading classifier model for the {tag_name} tag...")
+    print(f"Loading classifier model {classifier_name}...")
 
     if not classifier_name.endswith('clip-h'):
         print(f"Not support for classifier model: {classifier_name}")
