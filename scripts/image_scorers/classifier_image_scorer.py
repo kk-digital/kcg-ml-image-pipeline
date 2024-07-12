@@ -66,7 +66,6 @@ class ClipDataset(Dataset):
         return clip_vector, uuid
 
 def load_model(minio_client, classifier_model_info, device):
-    tag_name = classifier_model_info["tag_string"]
     classifier_name = classifier_model_info["classifier_name"]
     model_path = classifier_model_info["model_path"]
 
