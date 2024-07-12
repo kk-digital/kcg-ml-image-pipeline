@@ -100,7 +100,7 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def calculate_and_upload_scores(rank, minio_client, world_size, image_dataset, classifier_model_list):
+def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_model_list):
     initialize_dist_env(rank, world_size)
 
     dataset = ClipDataset(image_dataset)
@@ -109,7 +109,7 @@ def calculate_and_upload_scores(rank, minio_client, world_size, image_dataset, c
 
     for classifier_info in classifier_model_list:
         classifier_id = classifier_info["classifier_id"]
-        classifier_model = load_model(minio_client, classifier_info, rank)
+        classifier_model = load_model(classifier_info, rank)
 
         if classifier_model is None:
             continue
@@ -162,7 +162,7 @@ def main():
 
     if dataset_name != "all":
         world_size = torch.cuda.device_count()
-        mp.spawn(calculate_and_upload_scores, args=(minio_client, world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -170,7 +170,7 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(minio_client, world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
