@@ -147,7 +147,7 @@ def http_get_classifier_model_list():
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}")
             return []
-        return response.json()["response"]
+        return response.json()["response"]["classifiers"]
     except Exception as e:
         print('request exception ', e)
         

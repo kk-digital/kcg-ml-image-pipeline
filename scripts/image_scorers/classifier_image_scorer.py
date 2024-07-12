@@ -149,7 +149,6 @@ def main():
 
     print(f"Load all classifier models")
     classifier_model_list = request.http_get_classifier_model_list()
-    print(classifier_model_list)
     classifier_models = {}
     for classifier_info in classifier_model_list:
         classifier_id = classifier_info["classifier_id"]
