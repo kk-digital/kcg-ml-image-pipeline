@@ -107,7 +107,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     for classifier_id, classifier_model in classifier_models.items():
-        classifier_model = classifier_model.to(rank)
+        classifier_model = classifier_model.model.to(rank)
         classifier_model = DDP(classifier_model, device_ids=[rank])
 
         print(f"calculating scores for classifier id {classifier_id}")
