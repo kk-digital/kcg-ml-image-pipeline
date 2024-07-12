@@ -48,7 +48,6 @@ def initialize_dist_env(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
 
 def cleanup():
     dist.destroy_process_group()
@@ -116,7 +115,8 @@ class ImageClassifierScorer:
         
         return loaded_model
 
-    def load_dataset_and_models(self, image_dataset, rank):
+    def calculate_and_upload_scores(self, rank, image_dataset):
+
         initialize_dist_env(rank, self.world_size)
 
         dataset = ClipDataset(image_dataset)
@@ -155,25 +155,6 @@ class ImageClassifierScorer:
                     # for _ in tqdm(as_completed(futures), total=len(self.batch_size)):
                     #     continue
     
-    
-    def calculate_and_upload_scores(self):
-        # load the image dataset
-        print("Loading the dataset")
-        dataloader= ImageDatasetLoader(self.minio_client, self.bucket, self.dataset)
-        image_dataset= dataloader.load_dataset()
-
-        mp.set_start_method('spawn', force=True)
-        manager = mp.Manager()
-
-        processes = []
-        for rank in range(self.world_size):
-            p = mp.Process(target=self.load_dataset_and_models, args=(image_dataset, rank))
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
 def main():
     args = parse_args()
     bucket_name = args.bucket
@@ -186,7 +167,12 @@ def main():
 
     if dataset_name != "all":
         scorer= ImageClassifierScorer(minio_client, bucket_name, dataset_name, batch_size)
-        scorer.calculate_and_upload_scores()
+        print(f"Load the {bucket_name/dataset_name} dataset")
+        dataset_loader= ImageDatasetLoader(minio_client, bucket_name, dataset_name)
+        image_dataset= dataset_loader.load_dataset()
+
+        mp.spawn(scorer.calculate_and_upload_scores(), args=(image_dataset,), nprocs=scorer.world_size, join=True)
+
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -195,7 +181,11 @@ def main():
         for dataset in dataset_names:
             try:
                 scorer= ImageClassifierScorer(minio_client, bucket_name, dataset_name, batch_size)
-                scorer.calculate_and_upload_scores()
+                print(f"Load the {bucket_name/dataset} dataset")
+                dataset_loader= ImageDatasetLoader(minio_client, bucket_name, dataset_name)
+                image_dataset= dataset_loader.load_dataset()
+                mp.spawn(scorer.calculate_and_upload_scores, args=(image_dataset,), nprocs=scorer.world_size, join=True)
+
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 
