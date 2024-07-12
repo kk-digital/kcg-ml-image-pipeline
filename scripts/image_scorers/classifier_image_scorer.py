@@ -100,25 +100,19 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_model_list):
+def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
-    for classifier_info in classifier_model_list:
-        classifier_id = classifier_info["classifier_id"]
-        classifier_model = load_model(classifier_info, rank)
-
-        if classifier_model is None:
-            continue
-
-        # Move classifier to the current device
+    for classifier_id, classifier_model in classifier_models.items():
         classifier_model = classifier_model.to(rank)
         classifier_model = DDP(classifier_model, device_ids=[rank])
 
-        for clip_vectors, uuids in dataloader:
+        print(f"calculating scores for classifier id {classifier_id}")
+        for clip_vectors, uuids in tqdm(dataloader):
             clip_vectors = clip_vectors.to(rank)
             with torch.no_grad():
                 scores = classifier_model.module.classify(clip_vectors)
@@ -145,7 +139,6 @@ def main():
 
     bucket_name = args.bucket
     dataset_name = args.dataset
-    global batch_size
     batch_size = args.batch_size
 
     minio_client = cmd.get_minio_client(
@@ -154,15 +147,22 @@ def main():
         minio_ip_addr=args.minio_addr
     )
 
+    print(f"Load all classifier models")
+    classifier_model_list = request.http_get_classifier_model_list()
+    classifier_models = {}
+    for classifier_info in classifier_model_list:
+        classifier_id = classifier_info["classifier_id"]
+        classifier_model = load_model(classifier_info, torch.device('cpu'))
+        if classifier_model is not None:
+            classifier_models[classifier_id] = classifier_model
+
     print(f"Load the {bucket_name}/{dataset_name} dataset")
     dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
     image_dataset = dataset_loader.load_dataset()
 
-    classifier_model_list = request.http_get_classifier_model_list()
-
     if dataset_name != "all":
         world_size = torch.cuda.device_count()
-        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -170,7 +170,7 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_model_list), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_models, batch_size), nprocs=world_size, join=True)
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
