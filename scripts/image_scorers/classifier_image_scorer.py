@@ -109,13 +109,13 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
 
     for classifier_id, classifier_model in classifier_models.items():
         classifier_model = classifier_model.set_device(rank_device)
-        classifier_model = DDP(classifier_model, device_ids=[rank])
+        # classifier_model = DDP(classifier_model, device_ids=[rank])
 
         print(f"calculating scores for classifier id {classifier_id}")
         for clip_vectors, uuids in tqdm(dataloader):
             clip_vectors = clip_vectors.to(rank_device)
             with torch.no_grad():
-                scores = classifier_model.module.classify(clip_vectors)
+                scores = classifier_model.classify(clip_vectors)
             
             with ThreadPoolExecutor(max_workers=50) as executor:
                 futures = []
