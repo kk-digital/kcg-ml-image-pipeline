@@ -269,6 +269,7 @@ class RankingScore(BaseModel):
 
 class ResponseRankingScore(BaseModel):
     rank_model_id: int
+    uuid: str
     image_hash: str
     score: float    
     sigma_score: float
