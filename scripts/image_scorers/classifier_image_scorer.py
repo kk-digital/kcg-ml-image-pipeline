@@ -116,18 +116,15 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     for classifier_id, classifier_model in classifier_models.items():
-        # print_in_rank(classifier_model)
-        classifier_model = classifier_model.set_device(rank_device)
+        classifier_model.set_device(rank_device)
         # classifier_model = DDP(classifier_model, device_ids=[rank])
 
         print_in_rank(f"calculating scores for classifier id {classifier_id}")
 
         try:
-
             for clip_vectors, uuids in tqdm(dataloader):
                 clip_vectors = clip_vectors.to(rank_device)
                 with torch.no_grad():
-                    print_in_rank(classifier_model)
                     scores = classifier_model.classify(clip_vectors)
                 
                 with ThreadPoolExecutor(max_workers=50) as executor:
