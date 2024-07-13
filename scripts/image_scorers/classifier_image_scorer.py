@@ -108,6 +108,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     for classifier_id, classifier_model in classifier_models.items():
+        print(classifier_model)
         classifier_model = classifier_model.set_device(rank_device)
         # classifier_model = DDP(classifier_model, device_ids=[rank])
 
@@ -155,6 +156,8 @@ def main():
         classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
         if classifier_model is not None:
             classifier_models[classifier_id] = classifier_model
+    
+    print(classifier_models)
 
     print(f"Load the {bucket_name}/{dataset_name} dataset")
     dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
