@@ -107,7 +107,7 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device= torch.device(f'cuda:{rank}')
 
@@ -137,10 +137,10 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
                         }
 
                         print_in_rank(score_data)
-                        # futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
+                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
 
-                    # for _ in tqdm(as_completed(futures), total=len(self.batch_size)):
-                    #     continue
+                    for _ in tqdm(as_completed(futures), total=len(batch_size)):
+                        continue
         except Exception as e:
             print_in_rank(f"exception occured when uploading scores {e}")
 
@@ -152,6 +152,14 @@ def main():
     bucket_name = args.bucket
     dataset_name = args.dataset
     batch_size = args.batch_size
+
+    # set image source
+    if args.bucket=="external":
+        image_source= "external_image"
+    elif args.bucket=="extracts":
+        image_source= "extract_image"
+    else:
+        image_source= "generated_image"
 
     minio_client = cmd.get_minio_client(
         minio_access_key=args.minio_access_key,
@@ -174,7 +182,7 @@ def main():
 
     if dataset_name != "all":
         world_size = torch.cuda.device_count()
-        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_models, batch_size), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -182,7 +190,7 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, classifier_models, batch_size), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
