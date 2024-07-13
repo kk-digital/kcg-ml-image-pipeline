@@ -43,6 +43,7 @@ from orchestration.api.api_image_hashes import router as image_hashes_router
 from orchestration.api.api_external_images import router as external_images_router
 from orchestration.api.api_extracts import router as extracts_router
 from orchestration.api.api_ingress_videos import router as ingress_videos_router
+from orchestration.api.api_bucket import router as bucket_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -90,6 +91,7 @@ app.include_router(image_hashes_router)
 app.include_router(external_images_router)
 app.include_router(extracts_router)
 app.include_router(ingress_videos_router)
+app.include_router(bucket_router)
 
 
 
@@ -215,6 +217,11 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+    app.all_image_collection = app.mongodb_db["all-images"]
+
+    # bucket collection
+
+    app.buckets_collection = app.mongodb_db["buckets"]
 
     app.datasets_collection = app.mongodb_db["datasets"]
 

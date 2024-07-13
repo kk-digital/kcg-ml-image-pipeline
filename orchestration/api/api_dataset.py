@@ -836,27 +836,70 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
         )        
     
 @router.post("/datasets/add-new-dataset",
-            description="add new dataset in mongodb",
+            description="Add new dataset in MongoDB",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1[Dataset],  
-            responses=ApiResponseHandlerV1.listErrors([400,422]))
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     if request.app.datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string='dataset already exist',
+            error_string='Dataset already exists',
             http_status_code=400
-        )    
-    
-    request.app.datasets_collection.insert_one(dataset.to_dict())
+        )
+
+    # Find the current highest dataset_id
+    highest_dataset = request.app.datasets_collection.find_one(
+        sort=[("dataset_id", -1)]
+    )
+    next_dataset_id = (highest_dataset["dataset_id"] + 1) if highest_dataset else 0
+
+    # Add the dataset_id to the dataset
+    dataset_dict = dataset.to_dict()
+    dataset_dict["dataset_id"] = next_dataset_id
+
+    # Insert the new dataset with dataset_id
+    request.app.datasets_collection.insert_one(dataset_dict)
 
     return response_handler.create_success_response_v1(
-                response_data={"dataset_name":dataset.dataset_name}, 
-                http_status_code=200
-            )    
+        response_data={"dataset_name": dataset.dataset_name, "dataset_id": next_dataset_id}, 
+        http_status_code=200
+    )
+   
     
+@router.put("/datasets/update-dataset-ids",
+            description="Update datasets in MongoDB to add dataset_id sequentially",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1,
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def update_dataset_ids(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Fetch all documents
+        all_datasets = list(request.app.extract_datasets_collection.find({}))
+
+        # Update each document with a sequential dataset_id
+        for idx, dataset in enumerate(all_datasets):
+            request.app.extract_datasets_collection.update_one(
+                {"_id": dataset["_id"]},
+                {"$set": {"dataset_id": idx}}
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data={"message": "Datasets updated successfully"},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 @router.get("/datasets/list-datasets-v1",
             description="list datasets from mongodb",
             tags=["dataset"],

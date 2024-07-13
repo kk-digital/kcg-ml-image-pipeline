@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, Query
 from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountResponse
-from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1, ListClassifierScore2
+from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1, ListClassifierScore2, ListClassifierScore3
 from fastapi.encoders import jsonable_encoder
 import uuid
 from typing import Optional
@@ -294,7 +294,7 @@ def get_image_classifier_score_by_hash(
     request: Request, 
     image_hash: str, 
     classifier_id: int, 
-    image_source: Optional[str] = Query("generated_image", regex="^(generated_image|extract_image|external_image)$")
+    image_source: Optional[str] = Query(..., regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
 
@@ -685,8 +685,8 @@ async def count_classifier_scores(request: Request):
 @router.post("/pseudotag-classifier-scores/set-image-classifier-score-list", 
              status_code=200,
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
-             description="Set classifier image score",
-             tags=["pseudotag-classifier-scores"], 
+             description="changed with /pseudotag-classifier-scores/set-image-classifier-score-list-v1 ",
+             tags=["deprecated3"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
 async def set_image_classifier_score_list(request: Request, classifier_score_list: List[ClassifierScoreRequest]):
@@ -770,14 +770,16 @@ async def list_image_scores_v3(
     offset: int = Query(0, description="Offset for pagination"),
     order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
     random_sampling: bool = Query(True, description="Enable random sampling"),
-    image_source: str = Query("generated_image", regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
+    image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     start_time = time.time()  # Start time tracking
 
     print("Building query...")
     # Build the query based on provided filters
-    query = {"image_source": image_source}
+    query = {}
+    if image_source is not None:
+        query["image_source"] = image_source
     if classifier_id is not None:
         query["classifier_id"] = classifier_id
     if task_type is not None:
@@ -815,16 +817,84 @@ async def list_image_scores_v3(
     for score in scores_data:
         score.pop('_id', None)
 
-    # Prepare the data for the response
-    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+    print("Returning response. Total time:", time.time() - start_time)
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data=scores_data,  # Directly return the fetched data
+        http_status_code=200
+    )
+
+@router.get("/pseudotag-classifier-scores/list-images-by-scores-v4", 
+            description="List image scores based on classifier",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores_v4(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    task_type: Optional[str] = Query(None, description="Filter by task_type"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling"),
+    image_sources: Optional[List[str]] = Query(None, regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    start_time = time.time()  # Start time tracking
+
+    print("Building query...")
+    # Build the query based on provided filters
+    query = {}
+    if image_sources is not None:
+        query["image_source"] = {"$in": image_sources}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if task_type is not None:
+        query["task_type"] = task_type
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    print("Query built. Time taken:", time.time() - start_time)
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Apply some filtering before sampling
+        query_filter = {"$match": query}  
+        sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
+        
+        # Build the optimized pipeline
+        pipeline = [query_filter, sampling_stage]
+
+        cursor = request.app.image_classifier_scores_collection.aggregate(pipeline)
+
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
+    print("Data fetched. Time taken:", time.time() - start_time)
+
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
 
     print("Returning response. Total time:", time.time() - start_time)
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data=scores_data,  # Directly return the fetched data
         http_status_code=200
-    )
+    )    
+
 
 @router.get("/pseudotag-classifier-scores/list-classifier-scores-for-image",
             description="Get all scores for a specific image hash",
@@ -834,7 +904,7 @@ async def list_image_scores_v3(
 async def get_scores_by_image_hash(
     request: Request,
     image_hash: str = Query(..., description="The hash of the image to retrieve scores for"),
-    image_source: str = Query("generated_image", regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
+    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
@@ -894,7 +964,7 @@ async def set_image_classifier_score_v1(
         if not job_data:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="The provided UUID does not have an associated image hash.",
+                error_string="the image was not found",
                 http_status_code=404
             )
 
@@ -979,7 +1049,7 @@ async def set_image_classifier_score_v1(
 
 @router.post("/pseudotag-classifier-scores/set-image-classifier-score-list-v1", 
              status_code=200,
-             response_model=StandardSuccessResponseV1[List[ClassifierScoreV1]],
+             response_model=StandardSuccessResponseV1[ListClassifierScore3],
              description="Set classifier image score",
              tags=["pseudotag-classifier-scores"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
@@ -1016,7 +1086,7 @@ async def set_image_classifier_score_list(
             if not job_data:
                 return api_response_handler.create_error_response_v1(
                     error_code=ErrorCode.INVALID_PARAMS,
-                    error_string=f"The provided UUID {classifier_score.job_uuid} does not have an associated image hash.",
+                    error_string="the image was not found ",
                     http_status_code=404
                 )
 

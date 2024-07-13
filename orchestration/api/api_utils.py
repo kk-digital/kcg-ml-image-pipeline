@@ -179,6 +179,21 @@ class TagListForImagesV1(BaseModel):
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]
 
+class TagDefinitionV2(BaseModel):
+    tag_id: int
+    tag_string: str
+    tag_type: int
+    tag_category_id: int
+    tag_description: str 
+    tag_vector_index: int
+    deprecated: bool 
+    deprecated_tag_category: bool
+    user_who_created: str 
+    creation_time: str
+
+class TagListForImagesV2(BaseModel):
+    tags: List[TagDefinitionV2]
+
 class ModelTypeResponse(BaseModel):
     model_types: List[str]
     
@@ -216,7 +231,7 @@ class TagsListResponse(BaseModel):
 
 class TagCountResponse(BaseModel):
     tag_id: int
-    count: int
+    count: dict
 
 class ModelIdResponse(BaseModel):
     model_id: int

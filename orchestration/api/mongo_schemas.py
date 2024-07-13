@@ -269,6 +269,7 @@ class RankingScore(BaseModel):
 
 class ResponseRankingScore(BaseModel):
     rank_model_id: int
+    uuid: str
     image_hash: str
     score: float    
     sigma_score: float
@@ -501,6 +502,9 @@ class ListClassifierScore1(BaseModel):
 
 class ListClassifierScore2(BaseModel):
     scores: List[ClassifierScoreV1]
+
+class ListClassifierScore3(BaseModel):
+    data: List[ClassifierScoreV1]
 
 class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]

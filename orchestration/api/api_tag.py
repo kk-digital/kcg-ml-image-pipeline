@@ -1,10 +1,10 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag 
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, ListExternalImageTag , ImageTagResponse
 from .mongo_schemas import Classifier
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages, TagListForImagesV1
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages, TagListForImagesV1, TagListForImagesV2
 from .api_utils import build_date_query
 import traceback
 from bson import ObjectId
@@ -241,7 +241,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
              status_code=201,
              tags=["tags"], 
              description="add tag to images",
-             response_model=StandardSuccessResponseV1[ImageTag], 
+             response_model=StandardSuccessResponseV1[ImageTagResponse], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_tag_to_image_v2(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str, image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
     response_handler = ApiResponseHandlerV1(request)
@@ -780,7 +780,7 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
         )
 
 @router.get("/tags/get-tag-list-for-image-v2", 
-            response_model=StandardSuccessResponseV1[TagListForImages], 
+            response_model=StandardSuccessResponseV1[TagListForImagesV2], 
             description="Get tag list for image",
             tags=["tags"],
             status_code=200,
@@ -887,7 +887,7 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
         )
 
 @router.post("/tags/get-tag-list-for-multiple-images-v1", 
-             response_model=StandardSuccessResponseV1[TagListForImagesV1], 
+             response_model=StandardSuccessResponseV1[TagListForImagesV2], 
              description="Get tag lists for multiple images",
              tags=["tags"],
              status_code=200,
@@ -1345,7 +1345,7 @@ def get_tagged_images_v2(
 @router.get("/tags/get-all-tagged-images", 
             tags=["deprecated3"], 
             status_code=200,
-            description="Get all tagged images",
+            description="there is no replacement for the endpoint",
             response_model=StandardSuccessResponseV1[ListImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def get_all_tagged_images(request: Request):
@@ -1510,16 +1510,9 @@ def get_image_count_by_tag_v1(
             count = request.app.image_tags_collection.count_documents(query)
             counts[source] = count
 
-        # If no images found with the tag, return counts with 0 for each source
-        if all(count == 0 for count in counts.values()):
-            return response_handler.create_success_response_v1(
-                response_data={"tag_id": tag_id, "counts": counts}, 
-                http_status_code=200,
-            )
-
         # Return standard success response with the counts
         return response_handler.create_success_response_v1(
-            response_data={"tag_id": tag_id, "counts": counts}, 
+            response_data={"tag_id": tag_id, "count": counts}, 
             http_status_code=200,
         )
 
@@ -1529,6 +1522,7 @@ def get_image_count_by_tag_v1(
             error_string=str(e), 
             http_status_code=500
         )
+
 
 
 @router.put("/tag-categories/update-tag-category", 
@@ -1710,33 +1704,3 @@ def update_tag_category_deprecated_status(request: Request, tag_category_id: int
         response_data= updated_tag_category, 
         http_status_code=200,
     )
-
-
-# new apis for classifier 
-  
-    
-@router.get("/classifier/list-classifiers", 
-            response_model=StandardSuccessResponseV1[List[Classifier]],
-            description="list Classifiers",
-            tags=["classifier"],
-            status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def list_classifiers(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        classifier_cursor = request.app.classifier_models_collection.find({})
-        classifier_list = list(classifier_cursor)
-
-        result = []
-        for classifier in classifier_list:
-            # Convert MongoDB's ObjectId to string if needed, otherwise prepare as is
-            classifier['_id'] = str(classifier['_id'])
-            result.append(classifier)
-
-        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
-
-    except Exception as e:
-        # Implement appropriate error handling
-        print(f"Error: {str(e)}")
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
-
