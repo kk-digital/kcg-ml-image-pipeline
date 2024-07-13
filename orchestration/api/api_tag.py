@@ -1704,33 +1704,3 @@ def update_tag_category_deprecated_status(request: Request, tag_category_id: int
         response_data= updated_tag_category, 
         http_status_code=200,
     )
-
-
-# new apis for classifier 
-  
-    
-@router.get("/classifier/list-classifiers", 
-            response_model=StandardSuccessResponseV1[List[Classifier]],
-            description="list Classifiers",
-            tags=["classifier"],
-            status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def list_classifiers(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        classifier_cursor = request.app.classifier_models_collection.find({})
-        classifier_list = list(classifier_cursor)
-
-        result = []
-        for classifier in classifier_list:
-            # Convert MongoDB's ObjectId to string if needed, otherwise prepare as is
-            classifier['_id'] = str(classifier['_id'])
-            result.append(classifier)
-
-        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
-
-    except Exception as e:
-        # Implement appropriate error handling
-        print(f"Error: {str(e)}")
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
-

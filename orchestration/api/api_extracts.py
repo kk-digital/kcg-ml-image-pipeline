@@ -114,12 +114,11 @@ async def add_extract(request: Request, image_data: ExtractImageData):
         
         dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
         if not dataset_result:
-            # Create a new dataset if it does not exist
-            new_dataset = {
-                "dataset_name": image_data.dataset
-            }
-            request.app.extract_datasets_collection.insert_one(new_dataset)
-            print(f"Created new dataset with name {image_data.dataset}")
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"{image_data.dataset} dataset does not exist",
+                http_status_code=422
+            )
 
         image_data.uuid = str(uuid.uuid4())
 

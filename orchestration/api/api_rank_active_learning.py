@@ -858,7 +858,7 @@ def add_irrelevant_image_v1(
     request: Request,
     job_uuid: str = Query(...),
     rank_model_id: int = Query(...),
-    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")
+    image_source: str = Query("generated_image", regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
 
