@@ -794,34 +794,20 @@ async def read_ranking_datapoints(request: Request, rank_model_id: int, filename
   
 
 @router.post("/rank-training/add-irrelevant-image",
-             description="changed with /rank-training/add-irrelevant-image-v1",
+             description="changed with /rank-training/add-irrelevant-image-v1 ",
              status_code=200,
              response_model=StandardSuccessResponseV1[IrrelevantResponse],
              tags=["deprecated3"],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...), image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")):
+def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_model_id: int = Query(...)):
     api_response_handler = ApiResponseHandlerV1(request)
 
-    # Determine the appropriate collection based on image_source
-    if image_source == "generated_image":
-        collection = request.app.completed_jobs_collection
-    elif image_source == "extract_image":
-        collection = request.app.extracts_collection
-    elif image_source == "external_image":
-        collection = request.app.external_images_collection
-    else:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Invalid image source provided.",
-            http_status_code=422
-        )
-
-    # Fetch the image details from the determined collection
-    job = collection.find_one({"uuid": job_uuid})
+    # Fetch the image details from the completed_jobs_collection
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND,
-            error_string=f"Job with UUID {job_uuid} not found in the {image_source} collection",
+            error_string=f"Job with UUID {job_uuid} not found in the completed jobs collection",
             http_status_code=404
         )
 
@@ -834,7 +820,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
         )
 
     # Check if the image is already marked as irrelevant
-    existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id, "image_source": image_source})
+    existing_entry = request.app.irrelevant_images_collection.find_one({"uuid": job_uuid, "rank_model_id": rank_model_id})
     if existing_entry:
         existing_entry.pop('_id')
         return api_response_handler.create_success_response_v1(
@@ -847,7 +833,7 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
         "uuid": job["uuid"],
         "file_hash": job["task_output_file_dict"]["output_file_hash"],
         "rank_model_id": rank_model_id,
-        "image_source": image_source
+        "image_source": generated_image
     }
 
     # Insert the UUID data into the irrelevant_images_collection
@@ -862,7 +848,6 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
         response_data=inserted_image_data,
         http_status_code=200
     )
-
 
 @router.post("/rank-training/add-irrelevant-image-v1",
              description="Adds an image UUID to the irrelevant images collection",
