@@ -1,5 +1,6 @@
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 import os
 import sys
 import torch
@@ -109,7 +110,7 @@ def load_model(minio_client, classifier_model_info, device):
 
 def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
-    rank_device= torch.device(f'cuda:{rank}')
+    rank_device = torch.device(f'cuda:{rank}')
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
@@ -117,13 +118,16 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
     for classifier_id, classifier_model in classifier_models.items():
         classifier_model.set_device(rank_device)
-        # classifier_model = DDP(classifier_model, device_ids=[rank])
 
         print_in_rank(f"calculating scores for classifier id {classifier_id}")
 
         try:
-            for clip_vectors, uuids in tqdm(dataloader):
+            start_time = time.time()
+            total_uploaded = 0
+
+            for batch_idx, (clip_vectors, uuids) in enumerate(tqdm(dataloader)):
                 clip_vectors = clip_vectors.to(rank_device)
+                
                 with torch.no_grad():
                     scores = classifier_model.classify(clip_vectors)
                 
@@ -136,13 +140,24 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                             "score": score.item(),
                         }
 
-                        print_in_rank(score_data)
                         futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
 
-                    for _ in tqdm(as_completed(futures), total=len(batch_size)):
-                        continue
+                    for _ in as_completed(futures):
+                        total_uploaded += 1
+
+                # Aggregate metrics across all ranks
+                total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+                dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+                total_uploaded_all_ranks = total_uploaded_tensor.item()
+
+                # Print upload speed periodically from rank 0
+                if rank == 0: 
+                    elapsed_time = time.time() - start_time
+                    speed = total_uploaded_all_ranks / elapsed_time
+                    print(f"Batch {batch_idx + 1}: Uploaded {total_uploaded_all_ranks} images at {speed:.2f} images/sec")
+
         except Exception as e:
-            print_in_rank(f"exception occured when uploading scores {e}")
+            print_in_rank(f"exception occurred when uploading scores {e}")
 
     cleanup()
 
