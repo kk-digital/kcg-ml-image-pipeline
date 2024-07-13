@@ -71,7 +71,7 @@ def load_model(minio_client, classifier_model_info, device):
 
     print(f"Loading classifier model {classifier_name}...")
 
-    if not classifier_name.endswith('clip-h'):
+    if 'clip-h' not in classifier_name:
         print(f"Not support for classifier model: {classifier_name}")
         return None
 
