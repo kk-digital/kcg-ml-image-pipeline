@@ -134,10 +134,11 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                             "job_uuid": uuid,
                             "classifier_id": classifier_id,
                             "score": score.item(),
+                            "image_source": image_source
                         }
 
                         print_in_rank(score_data)
-                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
+                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
                     for _ in tqdm(as_completed(futures), total=len(batch_size)):
                         continue
