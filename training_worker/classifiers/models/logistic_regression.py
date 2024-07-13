@@ -69,7 +69,8 @@ class LogisticRegression:
         self.loss_func = get_loss_func(loss_func_name)
 
     def set_device(self, device):
-        # transfer model to a device 
+        # transfer model to a device
+        self._device = device 
         self.model= self.model.to(device)
 
     def _hash_model(self):

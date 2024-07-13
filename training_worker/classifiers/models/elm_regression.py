@@ -46,6 +46,7 @@ class ELMRegression():
 
     def set_device(self, device):
         # transfer model components to a device
+        self._device = device
         self._weight = self._weight.to(device)
         self._beta = self._weight.to(device)
         self._bias = self._weight.to(device)
