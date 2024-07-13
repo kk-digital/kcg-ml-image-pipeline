@@ -817,14 +817,11 @@ async def list_image_scores_v3(
     for score in scores_data:
         score.pop('_id', None)
 
-    # Prepare the data for the response
-    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
-
     print("Returning response. Total time:", time.time() - start_time)
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data=scores_data,  # Directly return the fetched data
         http_status_code=200
     )
 
