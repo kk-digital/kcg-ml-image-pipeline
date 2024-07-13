@@ -31,6 +31,14 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def get_rank():
+    rank= dist.get_rank()
+    return rank
+
+def print_in_rank(msg: str):
+    rank= get_rank()
+    print(f"gpu {rank}: {msg}")
+
 def get_dataset_list(bucket: str):
     datasets=[]
     
@@ -108,30 +116,36 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, classifier_mode
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     for classifier_id, classifier_model in classifier_models.items():
-        print(classifier_model)
+        print_in_rank(classifier_model)
+        print_in_rank(classifier_id)
         classifier_model = classifier_model.set_device(rank_device)
         # classifier_model = DDP(classifier_model, device_ids=[rank])
 
-        print(f"calculating scores for classifier id {classifier_id}")
-        for clip_vectors, uuids in tqdm(dataloader):
-            clip_vectors = clip_vectors.to(rank_device)
-            with torch.no_grad():
-                scores = classifier_model.classify(clip_vectors)
-            
-            with ThreadPoolExecutor(max_workers=50) as executor:
-                futures = []
-                for score, uuid in zip(scores, uuids):
-                    score_data = {
-                        "job_uuid": uuid,
-                        "classifier_id": classifier_id,
-                        "score": score.item(),
-                    }
+        print_in_rank(f"calculating scores for classifier id {classifier_id}")
 
-                    print(score_data)
-                    # futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
+        try:
 
-                # for _ in tqdm(as_completed(futures), total=len(self.batch_size)):
-                #     continue
+            for clip_vectors, uuids in tqdm(dataloader):
+                clip_vectors = clip_vectors.to(rank_device)
+                with torch.no_grad():
+                    scores = classifier_model.classify(clip_vectors)
+                
+                with ThreadPoolExecutor(max_workers=50) as executor:
+                    futures = []
+                    for score, uuid in zip(scores, uuids):
+                        score_data = {
+                            "job_uuid": uuid,
+                            "classifier_id": classifier_id,
+                            "score": score.item(),
+                        }
+
+                        print_in_rank(score_data)
+                        # futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
+
+                    # for _ in tqdm(as_completed(futures), total=len(self.batch_size)):
+                    #     continue
+        except Exception as e:
+            print_in_rank(f"exception occured when uploading scores {e}")
 
     cleanup()
 
@@ -156,8 +170,6 @@ def main():
         classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
         if classifier_model is not None:
             classifier_models[classifier_id] = classifier_model
-    
-    print(classifier_models)
 
     print(f"Load the {bucket_name}/{dataset_name} dataset")
     dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
