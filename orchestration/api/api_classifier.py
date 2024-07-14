@@ -125,7 +125,7 @@ async def list_classifiers(request: Request):
 
 @router.post("/pseudotag-classifiers/register-tag-classifier", 
              tags=["pseudotag classifier"],
-             description="Adds a new classifier model",
+             description="Adds a new classifier model or updates an existing one with the same name and tag ID",
              response_model=StandardSuccessResponseV1[Classifier],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def create_classifier(request: Request, request_classifier_data: RequestClassifier):
@@ -140,35 +140,64 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
                 http_status_code=400
             )
 
-        # Calculate internal fields
-        new_classifier_id = get_next_classifier_id_sequence(request)
-        new_model_sequence_number = 0  
-        creation_time = datetime.now().isoformat()
+        # Check for an existing classifier with the same name and tag ID
+        existing_classifier = request.app.classifier_models_collection.find_one({
+            "classifier_name": request_classifier_data.classifier_name,
+            "tag_id": request_classifier_data.tag_id
+        })
 
-        # Merge user-provided data with calculated values
-        full_classifier_data = Classifier(
-            classifier_id=new_classifier_id,
-            classifier_name=request_classifier_data.classifier_name,
-            tag_id = request_classifier_data.tag_id,
-            model_sequence_number=new_model_sequence_number,
-            latest_model=request_classifier_data.latest_model,
-            model_path=request_classifier_data.model_path,
-            creation_time=creation_time
-        )
+        if existing_classifier:
+            # Update existing classifier
+            update_fields = {
+                "latest_model": request_classifier_data.latest_model,
+                "model_path": request_classifier_data.model_path
+            }
+            request.app.classifier_models_collection.update_one(
+                {"classifier_id": existing_classifier["classifier_id"]},
+                {"$set": update_fields}
+            )
 
-        # Insert new classifier into the collection
-        request.app.classifier_models_collection.insert_one(full_classifier_data.dict())
-        return response_handler.create_success_response_v1(
-            response_data=full_classifier_data.dict(),
-            http_status_code=201
-        )
+            # Fetch updated classifier data
+            updated_classifier = request.app.classifier_models_collection.find_one({
+                "classifier_id": existing_classifier["classifier_id"]
+            })
+
+            return response_handler.create_success_response_v1(
+                response_data=updated_classifier,
+                http_status_code=200
+            )
+        else:
+            # Calculate internal fields for new classifier
+            new_classifier_id = get_next_classifier_id_sequence(request)
+            new_model_sequence_number = 0  
+            creation_time = datetime.now().isoformat()
+
+            # Merge user-provided data with calculated values
+            full_classifier_data = Classifier(
+                classifier_id=new_classifier_id,
+                classifier_name=request_classifier_data.classifier_name,
+                tag_id=request_classifier_data.tag_id,
+                model_sequence_number=new_model_sequence_number,
+                latest_model=request_classifier_data.latest_model,
+                model_path=request_classifier_data.model_path,
+                creation_time=creation_time
+            )
+
+            # Insert new classifier into the collection
+            request.app.classifier_models_collection.insert_one(full_classifier_data.dict())
+
+            return response_handler.create_success_response_v1(
+                response_data=full_classifier_data.dict(),
+                http_status_code=201
+            )
 
     except Exception as e:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
-            error_string=f"Failed to add classifier: {str(e)}",
+            error_string=f"Failed to add or update classifier: {str(e)}",
             http_status_code=500
         )
+
 
 
 @router.put("/pseudotag-classifiers/update-tag-classifier", 
