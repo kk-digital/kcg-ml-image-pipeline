@@ -162,6 +162,8 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
                 "classifier_id": existing_classifier["classifier_id"]
             })
 
+            updated_classifier.pop('_id', None)
+
             return response_handler.create_success_response_v1(
                 response_data=updated_classifier,
                 http_status_code=200
