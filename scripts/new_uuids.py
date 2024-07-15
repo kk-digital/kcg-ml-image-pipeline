@@ -27,6 +27,7 @@ def datetime_to_unix_int32(dt_str):
     return unix_time & 0xFFFFFFFF
 
 # Connect to MongoDB
+print("Connecting to MongoDB...")
 client = MongoClient(MONGO_URI)
 db = client[DATABASE_NAME]
 completed_jobs_collection = db[COMPLETED_JOBS_COLLECTION]
@@ -34,30 +35,38 @@ datasets_collection = db[DATASETS_COLLECTION]
 all_images_collection = db[ALL_IMAGES_COLLECTION]
 
 # Fetch datasets to create a mapping of dataset_name to dataset_id
+print("Fetching dataset mappings...")
 dataset_mapping = {}
 for dataset in datasets_collection.find():
     dataset_mapping[dataset["dataset_name"]] = dataset["dataset_id"]
+print(f"Dataset mappings fetched: {dataset_mapping}")
 
 # Process each document in completed_jobs_collection
+print("Processing completed jobs...")
 for job in completed_jobs_collection.find():
     task_creation_time = job.get("task_creation_time")
     if not task_creation_time:
+        print("Skipping job due to missing task_creation_time")
         continue  # Skip if task_creation_time is not available
 
     # Generate UUID
     uuid = generate_uuid(task_creation_time)
+    print(f"Generated UUID: {uuid}")
 
     # Get dataset_id from dataset_mapping
     dataset_name = job.get("task_input_dict", {}).get("dataset")
     dataset_id = dataset_mapping.get(dataset_name, None)
     if dataset_id is None:
+        print(f"Skipping job due to missing dataset_id for dataset_name: {dataset_name}")
         continue  # Skip if dataset_id is not found
 
     # Convert task_creation_time to int32 Unix time
     date_int32 = datetime_to_unix_int32(task_creation_time)
+    print(f"Converted task_creation_time to int32 Unix time: {date_int32}")
     
     # Format the new document with UTC creation_time
     utc_creation_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    print(f"Generated UTC creation_time: {utc_creation_time}")
 
     # Format the new document
     new_document = {
@@ -73,6 +82,7 @@ for job in completed_jobs_collection.find():
 
     # Insert the new document into all_images_collection
     all_images_collection.insert_one(new_document)
+    print(f"Inserted new document: {new_document}")
 
 print("Data imported successfully.")
 client.close()
