@@ -1799,6 +1799,34 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
             http_status_code=404
         )
 
+
+@router.get("/queue/image-generation/get-completed-jobs-data-by-hashes", 
+            response_model=StandardSuccessResponseV1[Task],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves the data of completed jobs by a list of image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_jobs_by_image_hashes(request: Request, image_hashes: List[str] = Query(...), fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    jobs = []
+    for image_hash in image_hashes:
+        job = request.app.completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}, projection)
+        if job:
+            jobs.append(job)
+
+    if jobs:
+        return response_handler.create_success_response_v1(response_data=jobs, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="No jobs found for the provided image hashes",
+            http_status_code=404
+        )
+
+
 @router.get("/queue/image-generation/get-completed-jobs-data-by-uuid/{uuid}", 
             response_model=StandardSuccessResponseV1[Task],
             status_code=200,

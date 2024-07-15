@@ -971,6 +971,34 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
             http_status_code=404
         )
 
+@router.get("/external-images/get-image-details-by-hashes", 
+            response_model=StandardSuccessResponseV1[ExternalImageData],
+            status_code=200,
+            tags=["external-images"],
+            description="Retrieves the details of external images by image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_image_details_by_hashes(request: Request, image_hashes: List[str] = Query(...), fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Create a projection for the MongoDB query
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    images_data = []
+    for image_hash in image_hashes:
+        image_data = request.app.external_images_collection.find_one({"image_hash": image_hash}, projection)
+        if image_data:
+            images_data.append(image_data)
+
+    if images_data:
+        return response_handler.create_success_response_v1(response_data=images_data, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="No images found for the provided image hashes",
+            http_status_code=404
+        )        
+
 
 @router.get("/external-images/get-random-images-with-clip-search",
             tags=["external-images"],
