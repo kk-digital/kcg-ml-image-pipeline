@@ -55,16 +55,20 @@ for job in completed_jobs_collection.find():
 
     # Convert task_creation_time to int32 Unix time
     date_int32 = datetime_to_unix_int32(task_creation_time)
+    
+    # Format the new document with UTC creation_time
+    utc_creation_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # Format the new document
     new_document = {
         "uuid": uuid,
-        "index": 0,  # Not used but included as per requirement
+        "index": -1,  # Not used but included as per requirement
         "bucket_id": BUCKET_ID,
         "dataset_id": dataset_id,
         "image_hash": job.get("task_output_file_dict", {}).get("output_file_hash"),
         "image_path": job.get("task_output_file_dict", {}).get("output_file_path"),
-        "date": date_int32
+        "date": date_int32,
+        "creation_time": utc_creation_time
     }
 
     # Insert the new document into all_images_collection
