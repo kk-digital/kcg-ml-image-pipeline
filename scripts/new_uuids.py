@@ -67,6 +67,16 @@ for job in completed_jobs_collection.find():
         print("Skipping job due to missing task_creation_time")
         continue  # Skip if task_creation_time is not available
 
+    image_path = job.get("task_output_file_dict", {}).get("output_file_path")
+    if not image_path:
+        print("Skipping job due to missing image_path")
+        continue  # Skip if image_path is not available
+
+    # Check if the document already exists in all_images_collection based on image_path
+    if all_images_collection.find_one({"image_path": image_path}):
+        print(f"Skipping job with image_path {image_path} as it has already been processed")
+        continue
+
     try:
         # Generate UUID
         uuid = generate_uuid(task_creation_time)
@@ -94,7 +104,7 @@ for job in completed_jobs_collection.find():
             "bucket_id": BUCKET_ID,
             "dataset_id": dataset_id,
             "image_hash": job.get("task_output_file_dict", {}).get("output_file_hash"),
-            "image_path": job.get("task_output_file_dict", {}).get("output_file_path"),
+            "image_path": image_path,
             "date": date_int32,
             "creation_time": utc_creation_time
         }
