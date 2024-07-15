@@ -131,7 +131,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                 with torch.no_grad():
                     scores = classifier_model.classify(clip_vectors)
                 
-                with ThreadPoolExecutor(max_workers=50) as executor:
+                with ThreadPoolExecutor(max_workers=10) as executor:
                     futures = []
                     for score, uuid in zip(scores, uuids):
                         score_data = {
