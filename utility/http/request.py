@@ -581,7 +581,7 @@ def http_get_tagged_images_by_resolution(tag_id, source = None):
         print('request exception ', e)
 
 def http_get_tagged_extracts(tag_id):
-    url = SERVER_ADDRESS + "/extracts/get-images-by-tag-id/?tag_id={}".format(tag_id)
+    url = SERVER_ADDRESS + "/tags/get-images-by-tag-id-v1/?tag_id={}".format(tag_id)
     try:
         response = requests.get(url)
 
