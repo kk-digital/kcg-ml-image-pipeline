@@ -172,7 +172,7 @@ def http_delete_extract(image_hash: str):
     response = None
 
     try:
-        response = requests.get(url)
+        response = requests.delete(url)
 
         if response.status_code == 200:
             data_json = response.json()
