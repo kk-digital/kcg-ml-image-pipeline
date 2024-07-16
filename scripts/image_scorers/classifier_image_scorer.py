@@ -153,21 +153,21 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
                         futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
 
-                for future in as_completed(futures):
-                    try:
-                        future.result()  # Ensure any exceptions are raised
-                        total_uploaded += 1 
-                    except Exception as e:
-                        print_in_rank(f"Exception in future: {e}")
+                # for future in as_completed(futures):
+                #     try:
+                #         future.result()  # Ensure any exceptions are raised
+                #         total_uploaded += 1 
+                #     except Exception as e:
+                #         print_in_rank(f"Exception in future: {e}")
                 
-                total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
-                dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-                total_uploaded_all_ranks = total_uploaded_tensor.item()
+                # total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+                # dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+                # total_uploaded_all_ranks = total_uploaded_tensor.item()
 
-                if rank == 0:
-                    elapsed_time = time.time() - start_time
-                    speed = total_uploaded_all_ranks / elapsed_time
-                    print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+                # if rank == 0:
+                #     elapsed_time = time.time() - start_time
+                #     speed = total_uploaded_all_ranks / elapsed_time
+                #     print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
         except Exception as e:
             print_in_rank(f"exception occurred when uploading scores {e}")
