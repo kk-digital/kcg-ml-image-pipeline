@@ -116,19 +116,6 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def print_progress(start_time, total_uploaded, rank_device, rank):
-    while True:
-        time.sleep(10)  # Print every 10 seconds
-        with total_uploaded.get_lock():
-            total_uploaded_tensor = torch.tensor(total_uploaded.value, device=rank_device)
-        dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-        total_uploaded_all_ranks = total_uploaded_tensor.item()
-
-        if rank == 0:
-            elapsed_time = time.time() - start_time
-            speed = total_uploaded_all_ranks / elapsed_time
-            print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
-
 def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
@@ -138,13 +125,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
-    total_uploaded = Value('i', 0)  # Use a multiprocessing.Value to share the counter
+    total_uploaded = 0 
     futures = []
-
-    # Start a background thread for printing progress
-    progress_thread = threading.Thread(target=print_progress, args=(start_time, total_uploaded, rank_device, rank))
-    progress_thread.daemon = True
-    progress_thread.start()
 
     with ThreadPoolExecutor(max_workers=50) as executor:
         for classifier_id, classifier_model in classifier_models.items():
@@ -179,19 +161,24 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     if len(score_batch_data) > 0:
                         futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
 
+                    for future in as_completed(futures):
+                        try:
+                            future.result()  # Ensure any exceptions are raised
+                            total_uploaded += 50 
+                        except Exception as e:
+                            print_in_rank(f"Exception in future: {e}")
+                    
+                    total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+                    dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+                    total_uploaded_all_ranks = total_uploaded_tensor.item()
+
+                    if rank == 0:
+                        elapsed_time = time.time() - start_time
+                        speed = total_uploaded_all_ranks / elapsed_time
+                        print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
-
-    for future in as_completed(futures):
-        try:
-            future.result()  # Ensure any exceptions are raised
-            with total_uploaded.get_lock():
-                total_uploaded.value += 50  # Update the shared value
-        except Exception as e:
-            print_in_rank(f"Exception in future: {e}")
-
-    # Signal the progress thread to finish
-    progress_thread.join()
 
     cleanup()
 
