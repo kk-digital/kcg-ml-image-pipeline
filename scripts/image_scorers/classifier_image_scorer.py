@@ -116,17 +116,17 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def print_progress(start_time, total_uploaded_tensor, rank_device, rank):
+def print_progress(start_time, total_uploaded, rank_device, rank):
     while True:
-        time.sleep(10)  # Print every 5 seconds
-        with torch.no_grad():
-            dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-            total_uploaded_all_ranks = total_uploaded_tensor.item()
+        time.sleep(10)  # Print every 10 seconds
+        total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+        dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+        total_uploaded_all_ranks = total_uploaded_tensor.item()
 
-            if rank == 0:
-                elapsed_time = time.time() - start_time
-                speed = total_uploaded_all_ranks / elapsed_time
-                print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+        if rank == 0:
+            elapsed_time = time.time() - start_time
+            speed = total_uploaded_all_ranks / elapsed_time
+            print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
 def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, model_type, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
@@ -138,11 +138,10 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
 
     start_time = time.time()
     total_uploaded = 0
-    total_uploaded_tensor = torch.tensor(0, device=rank_device)
     futures = []
 
     # Start a background thread for printing progress
-    progress_thread = threading.Thread(target=print_progress, args=(start_time, total_uploaded_tensor, rank_device, rank))
+    progress_thread = threading.Thread(target=print_progress, args=(start_time, total_uploaded, rank_device, rank))
     progress_thread.daemon = True
     progress_thread.start()
 
@@ -161,8 +160,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
                     
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
-                    
-                    score_batch_data=[]    
+                      
                     for score, uuid in zip(scores, uuids):
                         score_data = {
                             "job_uuid": uuid,
@@ -170,14 +168,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
                             "score": score.item(),
                         }
 
-                        score_batch_data.append(score_data)
-
-                        if len(score_batch_data)==50:
-                            futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
-                            score_batch_data=[]
-                    
-                    if len(score_batch_data)>0:
-                        futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
+                        futures.append(executor.submit(request.http_add_classifier_score, scores_data=score_data, image_source=image_source))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
@@ -185,8 +176,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
     for future in as_completed(futures):
         try:
             future.result()  # Ensure any exceptions are raised
-            total_uploaded += 50 
-            total_uploaded_tensor += 50 
+            total_uploaded += 1
         except Exception as e:
             print_in_rank(f"Exception in future: {e}")
 
