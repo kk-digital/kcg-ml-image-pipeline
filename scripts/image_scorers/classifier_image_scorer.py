@@ -125,8 +125,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
-    total_uploaded = 0 
-    futures = []
+    total_uploaded = 0
 
     with ThreadPoolExecutor(max_workers=50) as executor:
         for classifier_id, classifier_model in classifier_models.items():
@@ -144,6 +143,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
                     
+                    futures = []
                     score_batch_data = []    
                     for score, uuid in zip(scores, uuids):
                         score_data = {
