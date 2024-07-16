@@ -129,7 +129,7 @@ def print_progress(start_time, total_uploaded, rank_device, rank):
             speed = total_uploaded_all_ranks / elapsed_time
             print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, model_type, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
