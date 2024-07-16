@@ -165,3 +165,24 @@ def http_get_extract_dataset_list():
             response.close()
 
     return None
+
+# delete an extract by hash
+def http_delete_extract(image_hash: str):
+    url = SERVER_ADDRESS + "/extracts/delete-extract?image_hash={}".format(image_hash)
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None

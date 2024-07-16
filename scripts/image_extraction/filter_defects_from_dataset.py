@@ -1,4 +1,5 @@
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import io
 import os
 import sys
@@ -13,7 +14,7 @@ from utility.http import request
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.classifiers.models.elm_regression import ELMRegression
-from utility.http.external_images_request import http_get_extract_image_list
+from utility.http.external_images_request import http_delete_extract, http_get_extract_image_list
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -25,6 +26,27 @@ def parse_args():
     parser.add_argument('--defect-threshold', type=float, default=0.7, help='Minimum defect threshold')
 
     return parser.parse_args()
+
+def delete_extract(minio_client, hash, file_path):
+    # delete in mongodb
+    is_deleted= http_delete_extract(hash)
+
+    if is_deleted:
+        try:
+            # delete files associated to the image
+            bucket_name, image_path = separate_bucket_and_file_path(file_path)
+            filename = os.path.splitext(image_path)[0]
+            clip_path= filename + "_clip-h.msgpack"
+            latent_path= filename + "_vae_latent.msgpack"
+            # delete the image
+            cmd.remove_an_object(minio_client, bucket_name, image_path)
+            # delete vae and clip latents
+            cmd.remove_an_object(minio_client, bucket_name, clip_path)
+            cmd.remove_an_object(minio_client, bucket_name, latent_path)
+        except Exception as e:
+            print(f"This error {e} occured while deleting image file for {file_path}")
+    else:
+        print(f"An error occured while deleting the mongodb instance for the image {file_path}")
 
 def load_clip_vector(minio_client, file_path, device):
     bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
@@ -86,33 +108,39 @@ def get_untagged_images(dataset: str, tag_name: str):
     untagged_images= [image for image in image_data if image['file_path'] not in tagged_file_paths]
 
     file_paths= [image['file_path'] for image in untagged_images]
-    uuids= [image['uuid'] for image in untagged_images]
+    image_hashes= [image['image_hash'] for image in untagged_images]
 
-    return file_paths, uuids
+    return file_paths, image_hashes
 
 def filter_defects(minio_client, dataset, defect_tag, defect_threshold, device):
     # load classifier model
     classifier_model = get_classifier_model(minio_client, defect_tag, device)
 
     # get all images except those tagged with the defect tag
-    file_paths, uuids = get_untagged_images(dataset, defect_tag)
+    file_paths, image_hashes = get_untagged_images(dataset, defect_tag)
 
     # filter images
     images_to_delete=0
-    files_to_delete=[]
-    for file_path, uuid in tqdm(zip(file_paths, uuids)):
-        clip_vector= load_clip_vector(minio_client, file_path, device)
+    delete_tasks = []
 
-        # calculate the score
-        score = classifier_model.classify(clip_vector)
-        # check if the defect is detected in the image
-        if score > defect_threshold:
-            # delete the image
-            images_to_delete += 1
-            files_to_delete.append(file_path)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for file_path, hash in tqdm(zip(file_paths, image_hashes), total=len(file_paths)):
+            clip_vector = load_clip_vector(minio_client, file_path, device)
 
-    print("files to delete: ", files_to_delete)
-    print("number of images to delete: ",images_to_delete)
+            # Calculate the score
+            score = classifier_model.classify(clip_vector)
+
+            # Check if the defect is detected in the image
+            if score > defect_threshold:
+                # Schedule the deletion of the image
+                delete_tasks.append(executor.submit(delete_extract, minio_client, hash, file_path))
+                images_to_delete += 1
+
+    # Ensure all delete tasks are completed
+    for task in delete_tasks:
+        task.result()  # This will re-raise any exceptions caught during deletion
+
+    print("images to delete: ", images_to_delete)
 
 def main():
     args= parse_args()
