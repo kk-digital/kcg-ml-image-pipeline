@@ -111,8 +111,8 @@ def filter_defects(minio_client, dataset, defect_tag, defect_threshold, device):
             images_to_delete += 1
             files_to_delete.append(file_path)
 
-    print("number of images to delete: ",images_to_delete)
     print("files to delete: ", files_to_delete)
+    print("number of images to delete: ",images_to_delete)
 
 def main():
     args= parse_args()
