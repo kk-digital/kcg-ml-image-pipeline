@@ -153,14 +153,12 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
 
                         score_batch_data.append(score_data)
 
-                    futures.append(executor.submit(request.http_add_classifier_score_list, score_data=score_batch_data, image_source=image_source))
+                    futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
             
     for f in as_completed(futures):
-        print(f.result())
-
         total_uploaded += batch_size
 
         # Aggregate metrics across all ranks
@@ -212,11 +210,11 @@ def main():
         if classifier_model is not None:
             classifier_models[classifier_id] = classifier_model
 
-    print(f"Load the {bucket_name}/{dataset_name} dataset")
-    dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
-    image_dataset = dataset_loader.load_dataset()
-
     if dataset_name != "all":
+        print(f"Load the {bucket_name}/{dataset_name} dataset")
+        dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
+        image_dataset = dataset_loader.load_dataset()
+
         world_size = torch.cuda.device_count()
         mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, model_type, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
