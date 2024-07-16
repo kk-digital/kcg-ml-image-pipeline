@@ -7,7 +7,7 @@ import sys
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from torch.nn.parallel import DistributedDataParallel as DDP
+from multiprocessing import Value
 from torch.utils.data import DataLoader, Dataset, DistributedSampler
 from tqdm import tqdm
 
@@ -119,7 +119,8 @@ def load_model(minio_client, classifier_model_info, device):
 def print_progress(start_time, total_uploaded, rank_device, rank):
     while True:
         time.sleep(10)  # Print every 10 seconds
-        total_uploaded_tensor = torch.tensor(total_uploaded[0], device=rank_device)
+        with total_uploaded.get_lock():
+            total_uploaded_tensor = torch.tensor(total_uploaded.value, device=rank_device)
         dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
         total_uploaded_all_ranks = total_uploaded_tensor.item()
 
@@ -128,7 +129,7 @@ def print_progress(start_time, total_uploaded, rank_device, rank):
             speed = total_uploaded_all_ranks / elapsed_time
             print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, model_type, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
@@ -137,7 +138,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
-    total_uploaded = [0]  # Use a list to share the total_uploaded value
+    total_uploaded = Value('i', 0)  # Use a multiprocessing.Value to share the counter
     futures = []
 
     # Start a background thread for printing progress
@@ -180,11 +181,12 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
-            
+
     for future in as_completed(futures):
         try:
             future.result()  # Ensure any exceptions are raised
-            total_uploaded[0] += 50  # Update the shared value
+            with total_uploaded.get_lock():
+                total_uploaded.value += 50  # Update the shared value
         except Exception as e:
             print_in_rank(f"Exception in future: {e}")
 
