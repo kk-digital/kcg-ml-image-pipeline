@@ -155,22 +155,22 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
 
                     futures.append(executor.submit(request.http_add_classifier_score_list, score_data=score_batch_data, image_source=image_source))
 
-                    for _ in as_completed(futures):
-                        total_uploaded += batch_size
-
-                    # Aggregate metrics across all ranks
-                    total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
-                    dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-                    total_uploaded_all_ranks = total_uploaded_tensor.item()
-
-                    # Print upload speed periodically from rank 0
-                    if rank == 0: 
-                        elapsed_time = time.time() - start_time
-                        speed = total_uploaded_all_ranks / elapsed_time
-                        print(f"Batch {batch_idx + 1}: Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
-
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
+            
+    for _ in as_completed(futures):
+        total_uploaded += batch_size
+
+        # Aggregate metrics across all ranks
+        total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+        dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+        total_uploaded_all_ranks = total_uploaded_tensor.item()
+
+        # Print upload speed periodically from rank 0
+        if rank == 0: 
+            elapsed_time = time.time() - start_time
+            speed = total_uploaded_all_ranks / elapsed_time
+            print(f"Batch {batch_idx + 1}: Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
     cleanup()
 
