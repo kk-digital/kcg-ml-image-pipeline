@@ -139,8 +139,6 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     uuids= image_data["uuids"]
 
                     clip_vectors = clip_vectors.to(rank_device)
-
-                    print("clip vectors shape: ", clip_vectors.shape)
                     
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
