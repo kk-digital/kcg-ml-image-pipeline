@@ -130,7 +130,7 @@ def filter_defects(minio_client, dataset, defect_tag, defect_threshold, device):
             # Check if the defect is detected in the image
             if score > defect_threshold:
                 # Schedule the deletion of the image
-                delete_tasks.append(executor.submit(delete_extract, minio_client, hash, file_path))
+                # delete_tasks.append(executor.submit(delete_extract, minio_client, hash, file_path))
                 images_to_delete += 1
 
     # Ensure all delete tasks are completed
