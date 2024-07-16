@@ -48,8 +48,8 @@ class ELMRegression():
         # transfer model components to a device
         self._device = device
         self._weight = self._weight.to(device)
-        self._beta = self._weight.to(device)
-        self._bias = self._weight.to(device)
+        self._beta = self._beta.to(device)
+        self._bias = self._bias.to(device)
 
     def set_config(self, tag_string, input_size, hidden_layer_neuron_count, output_size=1, activation_func_name="sigmoid"):
         self.tag_string = tag_string
@@ -112,12 +112,6 @@ class ELMRegression():
 
     def classify(self, dataset_feature_vector):
         # print("Classifying...")
-
-        # Check shapes for debugging purposes
-        print("dataset_feature_vector shape:", dataset_feature_vector.shape)
-        print("self._weight shape:", self._weight.shape)
-        print("self._bias shape:", self._bias.shape)
-        print("self._beta shape:", self._beta.shape)
 
         dataset_feature_vector = dataset_feature_vector.to(self._device)
         h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
