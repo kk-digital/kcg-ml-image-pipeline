@@ -153,13 +153,18 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
 
                         score_batch_data.append(score_data)
 
-                    futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
+                        if len(score_batch_data)==50:
+                            futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
+                            score_batch_data=[]
+                    
+                    if len(score_batch_data)>0:
+                        futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
             
     for f in as_completed(futures):
-        total_uploaded += batch_size
+        total_uploaded += 50
 
         # Aggregate metrics across all ranks
         total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
