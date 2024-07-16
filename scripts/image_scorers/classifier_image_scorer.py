@@ -158,7 +158,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
             
-    for _ in as_completed(futures):
+    for f in as_completed(futures):
+        print(f.result())
+
         total_uploaded += batch_size
 
         # Aggregate metrics across all ranks
