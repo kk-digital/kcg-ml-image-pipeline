@@ -168,7 +168,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
                             "score": score.item(),
                         }
 
-                        futures.append(executor.submit(request.http_add_classifier_score, scores_data=score_data, image_source=image_source))
+                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
