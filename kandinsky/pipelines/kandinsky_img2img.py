@@ -192,7 +192,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self,
         image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]],
         image: Union[torch.FloatTensor, PIL.Image.Image, List[torch.FloatTensor], List[PIL.Image.Image]],
-        initial_latents: Union[torch.FloatTensor, List[torch.FloatTensor]],
+        initial_latents: Union[torch.FloatTensor, List[torch.FloatTensor]]=None,
         negative_image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]]=None,
         height: int = 512,
         width: int = 512,
