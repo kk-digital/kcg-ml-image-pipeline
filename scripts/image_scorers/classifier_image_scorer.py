@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--bucket', required=True, help='name of bucket')
     parser.add_argument('--dataset', required=True, help='name of dataset')
+    parser.add_argument('--model-type', required=True, help='type of model elm, linear or logistic', default="all")
     parser.add_argument('--batch-size', required=False, default=256, type=int, help='batch size of the classifier models')
 
     args = parser.parse_args()
@@ -70,9 +71,15 @@ class ClipDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        clip_vector = torch.tensor(self.data[idx]["clip_vector"])
-        uuid = self.data[idx]["uuid"]
-        return clip_vector, uuid
+        return {
+            'clip_vector': torch.tensor(self.data[idx]["clip_vector"]),
+            'uuid': self.data[idx]["uuid"]
+        }
+    
+def collate_fn(batch):
+    clip_vectors = torch.stack([item['clip_vector'] for item in batch])
+    uuids = [item['uuid'] for item in batch]
+    return {'uuids': uuids, 'clip_vectors': clip_vectors}
 
 def load_model(minio_client, classifier_model_info, device):
     classifier_name = classifier_model_info["classifier_name"]
@@ -114,25 +121,29 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
-    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
+    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
 
-    for classifier_id, classifier_model in classifier_models.items():
-        classifier_model.set_device(rank_device)
+    start_time = time.time()
+    total_uploaded = 0
+    futures = []
 
-        print_in_rank(f"calculating scores for classifier id {classifier_id}")
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        for classifier_id, classifier_model in classifier_models.items():
+            classifier_model.set_device(rank_device)
 
-        try:
-            start_time = time.time()
-            total_uploaded = 0
+            print_in_rank(f"calculating scores for classifier id {classifier_id}")
 
-            for batch_idx, (clip_vectors, uuids) in enumerate(tqdm(dataloader)):
-                clip_vectors = clip_vectors.to(rank_device)
-                
-                with torch.no_grad():
-                    scores = classifier_model.classify(clip_vectors)
-                
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = []
+            try:
+                for batch_idx, image_data in enumerate(tqdm(dataloader)):
+                    clip_vectors= image_data["clip_vectors"]
+                    uuids= image_data["uuids"]
+
+                    clip_vectors = clip_vectors.to(rank_device)
+                    
+                    with torch.no_grad():
+                        scores = classifier_model.classify(clip_vectors)
+                    
+                    score_batch_data=[]    
                     for score, uuid in zip(scores, uuids):
                         score_data = {
                             "job_uuid": uuid,
@@ -140,24 +151,26 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                             "score": score.item(),
                         }
 
-                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
+                        score_batch_data.append(score_data)
+
+                    futures.append(executor.submit(request.http_add_classifier_score_list, score_data=score_batch_data, image_source=image_source))
 
                     for _ in as_completed(futures):
-                        total_uploaded += 1
+                        total_uploaded += batch_size
 
-                # Aggregate metrics across all ranks
-                total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
-                dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-                total_uploaded_all_ranks = total_uploaded_tensor.item()
+                    # Aggregate metrics across all ranks
+                    total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+                    dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+                    total_uploaded_all_ranks = total_uploaded_tensor.item()
 
-                # Print upload speed periodically from rank 0
-                if rank == 0: 
-                    elapsed_time = time.time() - start_time
-                    speed = total_uploaded_all_ranks / elapsed_time
-                    print(f"Batch {batch_idx + 1}: Uploaded {total_uploaded_all_ranks} images at {speed:.2f} images/sec")
+                    # Print upload speed periodically from rank 0
+                    if rank == 0: 
+                        elapsed_time = time.time() - start_time
+                        speed = total_uploaded_all_ranks / elapsed_time
+                        print(f"Batch {batch_idx + 1}: Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
-        except Exception as e:
-            print_in_rank(f"exception occurred when uploading scores {e}")
+            except Exception as e:
+                print_in_rank(f"exception occurred when uploading scores {e}")
 
     cleanup()
 
@@ -166,6 +179,7 @@ def main():
 
     bucket_name = args.bucket
     dataset_name = args.dataset
+    model_type = args.model_type
     batch_size = args.batch_size
 
     # set image source
@@ -187,7 +201,12 @@ def main():
     classifier_models = {}
     for classifier_info in classifier_model_list:
         classifier_id = classifier_info["classifier_id"]
-        classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
+        classifier_name = classifier_info["classifier_name"]
+        classifier_model= None
+
+        if model_type in classifier_name or model_type=="all":
+            classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
+
         if classifier_model is not None:
             classifier_models[classifier_id] = classifier_model
 
