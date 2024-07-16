@@ -119,7 +119,7 @@ def load_model(minio_client, classifier_model_info, device):
 def print_progress(start_time, total_uploaded, rank_device, rank):
     while True:
         time.sleep(10)  # Print every 10 seconds
-        total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+        total_uploaded_tensor = torch.tensor(total_uploaded[0], device=rank_device)
         dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
         total_uploaded_all_ranks = total_uploaded_tensor.item()
 
@@ -128,7 +128,7 @@ def print_progress(start_time, total_uploaded, rank_device, rank):
             speed = total_uploaded_all_ranks / elapsed_time
             print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, model_type, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
@@ -137,7 +137,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
-    total_uploaded = 0
+    total_uploaded = [0]  # Use a list to share the total_uploaded value
     futures = []
 
     # Start a background thread for printing progress
@@ -153,14 +153,15 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
 
             try:
                 for batch_idx, image_data in enumerate(tqdm(dataloader)):
-                    clip_vectors= image_data["clip_vectors"]
-                    uuids= image_data["uuids"]
+                    clip_vectors = image_data["clip_vectors"]
+                    uuids = image_data["uuids"]
 
                     clip_vectors = clip_vectors.to(rank_device)
                     
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
-                      
+                    
+                    score_batch_data = []    
                     for score, uuid in zip(scores, uuids):
                         score_data = {
                             "job_uuid": uuid,
@@ -168,7 +169,14 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
                             "score": score.item(),
                         }
 
-                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
+                        score_batch_data.append(score_data)
+
+                        if len(score_batch_data) == 50:
+                            futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
+                            score_batch_data = []
+                    
+                    if len(score_batch_data) > 0:
+                        futures.append(executor.submit(request.http_add_classifier_score_list, scores_data=score_batch_data, image_source=image_source))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
@@ -176,11 +184,11 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, m
     for future in as_completed(futures):
         try:
             future.result()  # Ensure any exceptions are raised
-            total_uploaded += 1
+            total_uploaded[0] += 50  # Update the shared value
         except Exception as e:
             print_in_rank(f"Exception in future: {e}")
 
-    # Wait for the progress thread to finish
+    # Signal the progress thread to finish
     progress_thread.join()
 
     cleanup()
@@ -227,7 +235,7 @@ def main():
         image_dataset = dataset_loader.load_dataset()
 
         world_size = torch.cuda.device_count()
-        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, model_type, classifier_models, batch_size), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -235,7 +243,7 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, model_type, classifier_models, batch_size), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
