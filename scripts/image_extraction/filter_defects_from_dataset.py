@@ -101,7 +101,7 @@ def filter_defects(minio_client, dataset, defect_tag, defect_threshold, device):
     images_to_delete=0
     files_to_delete=[]
     for file_path, uuid in tqdm(zip(file_paths, uuids)):
-        clip_vector= load_clip_vector(minio_client, file_path)
+        clip_vector= load_clip_vector(minio_client, file_path, device)
 
         # calculate the score
         score = classifier_model.classify(clip_vector)
