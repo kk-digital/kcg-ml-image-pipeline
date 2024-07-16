@@ -971,6 +971,34 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
             http_status_code=404
         )
 
+@router.get("/external-images/get-image-details-by-hashes", 
+            response_model=StandardSuccessResponseV1[ExternalImageData],
+            status_code=200,
+            tags=["external-images"],
+            description="Retrieves the details of external images by image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_image_details_by_hashes(request: Request, image_hashes: List[str] = Query(...), fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Create a projection for the MongoDB query
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    images_data = []
+    for image_hash in image_hashes:
+        image_data = request.app.external_images_collection.find_one({"image_hash": image_hash}, projection)
+        if image_data:
+            images_data.append(image_data)
+
+    if images_data:
+        return response_handler.create_success_response_v1(response_data=images_data, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="No images found for the provided image hashes",
+            http_status_code=404
+        )        
+
 
 @router.get("/external-images/get-random-images-with-clip-search",
             tags=["external-images"],
@@ -1047,26 +1075,38 @@ async def get_random_external_image_similarity(
         )
 
 @router.post("/external-images/add-new-dataset",
-            description="add new dataset in mongodb",
+            description="Add new dataset in MongoDB",
             tags=["external-images"],
             response_model=StandardSuccessResponseV1[Dataset],  
-            responses=ApiResponseHandlerV1.listErrors([400,422]))
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     if request.app.external_datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string='dataset already exist',
+            error_string='Dataset already exists',
             http_status_code=400
-        )    
-    
-    request.app.external_datasets_collection.insert_one(dataset.to_dict())
+        )
+
+    # Find the current highest dataset_id
+    highest_dataset = request.app.external_datasets_collection.find_one(
+        sort=[("dataset_id", -1)]
+    )
+    next_dataset_id = (highest_dataset["dataset_id"] + 1) if highest_dataset else 0
+
+    # Add the dataset_id to the dataset
+    dataset_dict = dataset.to_dict()
+    dataset_dict["dataset_id"] = next_dataset_id
+
+    # Insert the new dataset with dataset_id
+    request.app.external_datasets_collection.insert_one(dataset_dict)
 
     return response_handler.create_success_response_v1(
-                response_data={"dataset_name":dataset.dataset_name}, 
-                http_status_code=200
-            )  
+        response_data={"dataset_name": dataset.dataset_name, "dataset_id": next_dataset_id}, 
+        http_status_code=200
+    )
+
 
 
 @router.get("/external-images/list-datasets",

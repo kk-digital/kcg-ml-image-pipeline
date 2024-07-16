@@ -832,7 +832,8 @@ def add_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mode
     image_data = {
         "uuid": job["uuid"],
         "file_hash": job["task_output_file_dict"]["output_file_hash"],
-        "rank_model_id": rank_model_id
+        "rank_model_id": rank_model_id,
+        "image_source": generated_image
     }
 
     # Insert the UUID data into the irrelevant_images_collection

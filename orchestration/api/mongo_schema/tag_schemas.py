@@ -96,6 +96,19 @@ class ImageTag(BaseModel):
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
+
+class ImageTagResponse(BaseModel):
+    tag_id: int
+    file_path: str
+    image_hash: str
+    tag_type: int
+    image_source: str
+    user_who_created: str
+    tag_count: int
+    creation_time: str
+
+class ListImageTagResponse(BaseModel):
+    images: List[ImageTagResponse]   
     
 class ListImageTag(BaseModel):
     images: List[ImageTag]    

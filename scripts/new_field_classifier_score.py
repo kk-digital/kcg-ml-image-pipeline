@@ -3,7 +3,7 @@ from pymongo import MongoClient
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
 DATABASE_NAME = "orchestration-job-db"
-COLLECTION_NAME = "image_tags"
+COLLECTION_NAME = "image_classifier_scores"
 
 # New field to add
 NEW_FIELD = "image_source"
