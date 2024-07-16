@@ -29,24 +29,21 @@ def parse_args():
 
 def delete_extract(minio_client, hash, file_path):
     # delete in mongodb
-    is_deleted= http_delete_extract(hash)
+    http_delete_extract(hash)
 
-    if is_deleted:
-        try:
-            # delete files associated to the image
-            bucket_name, image_path = separate_bucket_and_file_path(file_path)
-            filename = os.path.splitext(image_path)[0]
-            clip_path= filename + "_clip-h.msgpack"
-            latent_path= filename + "_vae_latent.msgpack"
-            # delete the image
-            cmd.remove_an_object(minio_client, bucket_name, image_path)
-            # delete vae and clip latents
-            cmd.remove_an_object(minio_client, bucket_name, clip_path)
-            cmd.remove_an_object(minio_client, bucket_name, latent_path)
-        except Exception as e:
-            print(f"This error {e} occured while deleting image file for {file_path}")
-    else:
-        print(f"An error occured while deleting the mongodb instance for the image {file_path}")
+    try:
+        # delete files associated to the image
+        bucket_name, image_path = separate_bucket_and_file_path(file_path)
+        filename = os.path.splitext(image_path)[0]
+        clip_path= filename + "_clip-h.msgpack"
+        latent_path= filename + "_vae_latent.msgpack"
+        # delete the image
+        cmd.remove_an_object(minio_client, bucket_name, image_path)
+        # delete vae and clip latents
+        cmd.remove_an_object(minio_client, bucket_name, clip_path)
+        cmd.remove_an_object(minio_client, bucket_name, latent_path)
+    except Exception as e:
+        print(f"This error {e} occured while deleting image file for {file_path}")
 
 def load_clip_vector(minio_client, file_path, device):
     bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
