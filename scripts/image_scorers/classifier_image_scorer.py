@@ -115,7 +115,7 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, model_type, classifier_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
@@ -139,6 +139,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     uuids= image_data["uuids"]
 
                     clip_vectors = clip_vectors.to(rank_device)
+
+                    if model_type == "elm":
+                        clip_vectors = clip_vectors.T
                     
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
@@ -216,7 +219,7 @@ def main():
 
     if dataset_name != "all":
         world_size = torch.cuda.device_count()
-        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, model_type, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -224,7 +227,7 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, model_type, classifier_models, batch_size), nprocs=world_size, join=True)
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
