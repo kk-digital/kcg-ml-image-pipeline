@@ -72,7 +72,7 @@ class ClipDataset(Dataset):
 
     def __getitem__(self, idx):
         return {
-            'clip_vector': torch.tensor(self.data[idx]["clip_vector"]),
+            'clip_vector': torch.tensor(self.data[idx]["clip_vector"]).squeeze(),
             'uuid': self.data[idx]["uuid"]
         }
     
