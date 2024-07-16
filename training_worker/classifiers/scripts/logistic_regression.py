@@ -94,7 +94,7 @@ def train_classifier(minio_ip_addr=None,
 
     # if exist, increment sequence
     while True:
-        filename = "{}-{:02}-{}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
         if image_type == "all_resolutions":
             filename += "-all_resolutions"
         exists = cmd.is_object_exists(tag_loader.minio_client, bucket_name,
