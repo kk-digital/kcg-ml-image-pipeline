@@ -39,7 +39,7 @@ def load_clip_vector(minio_client, file_path, device):
 
 def get_classifier_model(minio_client, tag_name, device):
     input_path = f"environmental/models/classifiers/{tag_name}/"
-    file_suffix = "elm-regression-clip-h.safetensors"
+    file_suffix = "elm-regression-clip-h.pth"
 
     # Use the MinIO client's list_objects method directly with recursive=True
     model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
