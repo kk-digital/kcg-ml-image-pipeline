@@ -78,6 +78,9 @@ class ABRankImagePairResponse(BaseModel):
 class ListTask(BaseModel):
     jobs: List[Task]
 
+class ListTaskV1(BaseModel):
+    images:List[Task]
+
 class KandinskyTask(BaseModel):
     job: Task # task data
     positive_embedding: list
@@ -510,6 +513,19 @@ class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]
     classifier_id: int
     score: float
+
+
+class ClassifierScoreRequestV1(BaseModel):
+    job_uuid: str
+    classifier_id: int
+    score: float
+    tag_id: int
+    image_hash: str
+    image_source: str
+
+class BatchClassifierScoreRequest(BaseModel):
+    scores: List[ClassifierScoreRequestV1]
+
 
 class RankingSigmaScore(BaseModel):
     model_id: int

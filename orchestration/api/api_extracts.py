@@ -791,7 +791,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
         )    
 
 @router.get("/extract-images/get-image-details-by-hashes", 
-            response_model=StandardSuccessResponseV1[ExtractImageData],
+            response_model=StandardSuccessResponseV1[ListExtractImageDataV1],
             status_code=200,
             tags=["extracts"],
             description="Retrieves the details of extract images by image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
@@ -803,21 +803,11 @@ async def get_image_details_by_hashes(request: Request, image_hashes: List[str] 
     projection = {field: 1 for field in fields} if fields else {}
     projection['_id'] = 0  # Exclude the _id field
 
-    images_data = []
-    for image_hash in image_hashes:
-        image_data = request.app.extracts_collection.find_one({"image_hash": image_hash}, projection)
-        if image_data:
-            images_data.append(image_data)
+    # Use the $in operator to find all matching documents in one query
+    image_data_list = list(request.app.extracts_collection.find({"image_hash": {"$in": image_hashes}}, projection))
 
-    if images_data:
-        return response_handler.create_success_response_v1(response_data=images_data, http_status_code=200)
-    else:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="No images found for the provided image hashes",
-            http_status_code=404
-        )        
-    
+    # Return the data found in the success response
+    return response_handler.create_success_response_v1(response_data={"images":image_data_list}, http_status_code=200)    
 
 @router.get("/extract-images/get-random-images-with-clip-search",
             tags=["extracts"],
