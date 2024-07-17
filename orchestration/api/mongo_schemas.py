@@ -514,6 +514,10 @@ class ClassifierScoreRequest(BaseModel):
     classifier_id: int
     score: float
 
+class BatchClassifierScoreRequest(BaseModel):
+    scores: List[ClassifierScoreRequest]
+
+
 class RankingSigmaScore(BaseModel):
     model_id: int
     image_hash: str
