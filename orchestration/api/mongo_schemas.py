@@ -514,8 +514,17 @@ class ClassifierScoreRequest(BaseModel):
     classifier_id: int
     score: float
 
+
+class ClassifierScoreRequestV1(BaseModel):
+    job_uuid: str
+    classifier_id: int
+    score: float
+    tag_id: int
+    image_hash: str
+    image_source: str
+
 class BatchClassifierScoreRequest(BaseModel):
-    scores: List[ClassifierScoreRequest]
+    scores: List[ClassifierScoreRequestV1]
 
 
 class RankingSigmaScore(BaseModel):

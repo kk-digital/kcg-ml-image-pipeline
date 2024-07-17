@@ -1046,94 +1046,44 @@ async def set_image_classifier_score_v1(
 
 @router.post("/pseudotag-classifier-scores/set-image-classifier-score-v2", 
              status_code=200,
-             response_model=StandardSuccessResponseV1[List[ClassifierScoreV1]],
+             response_model=StandardSuccessResponseV1[ClassifierScoreV1],
              description="Set classifier image scores in batch",
              tags=["pseudotag-classifier-scores"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def set_image_classifier_score_v2(
     request: Request, 
-    batch_scores: BatchClassifierScoreRequest, 
-    image_source: str = Query(..., regex="^(generated_image|extract_image|external_image)$")
+    batch_scores: BatchClassifierScoreRequest
 ):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Determine the appropriate collection based on image_source
-        if image_source == "generated_image":
-            collection = request.app.completed_jobs_collection
-        elif image_source == "extract_image":
-            collection = request.app.extracts_collection
-        elif image_source == "external_image":
-            collection = request.app.external_images_collection
-        else:
-            return api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="Invalid image source provided.",
-                http_status_code=422
-            )
-
         bulk_operations = []
         response_data = []
 
         for classifier_score in batch_scores.scores:
-            # Check if the score already exists
             query = {
                 "classifier_id": classifier_score.classifier_id,
                 "uuid": classifier_score.job_uuid,
-                "image_source": image_source
+                "image_source": classifier_score.image_source
             }
 
-            existing_score = request.app.image_classifier_scores_collection.find_one(query)
+            new_score_data = {
+                "uuid": classifier_score.job_uuid,
+                "classifier_id": classifier_score.classifier_id,
+                "tag_id": classifier_score.tag_id,
+                "score": classifier_score.score,
+                "image_hash": classifier_score.image_hash,
+                "creation_time": datetime.utcnow().isoformat(),
+                "image_source": classifier_score.image_source
+            }
 
-            if existing_score:
-                # Update existing score
-                update_operation = UpdateOne(
-                    query,
-                    {"$set": {
-                        "score": classifier_score.score, 
-                        "creation_time": datetime.utcnow().isoformat(),
-                    }}
-                )
-                bulk_operations.append(update_operation)
-            else:
-                # Fetch job data from the determined collection
-                job_data = collection.find_one({"uuid": classifier_score.job_uuid})
-                if not job_data:
-                    continue
-
-                if image_source == "generated_image":
-                    if 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
-                        continue
-                    image_hash = job_data['task_output_file_dict']['output_file_hash']
-                    task_type = job_data.get('task_type', None)
-                else:
-                    image_hash = job_data['image_hash']
-                    task_type = None
-
-                # Fetch tag_id from classifier_models_collection
-                classifier_data = request.app.classifier_models_collection.find_one(
-                    {"classifier_id": classifier_score.classifier_id}, 
-                    {"tag_id": 1}
-                )
-                if not classifier_data:
-                    continue
-                tag_id = classifier_data['tag_id']
-
-                # Initialize new_score_data
-                new_score_data = {
-                    "uuid": classifier_score.job_uuid,
-                    "task_type": task_type,
-                    "classifier_id": classifier_score.classifier_id,
-                    "tag_id": tag_id,
-                    "score": classifier_score.score,
-                    "image_hash": image_hash,
-                    "creation_time": datetime.utcnow().isoformat(),
-                    "image_source": image_source
-                }
-
-                # Insert new score
-                bulk_operations.append(new_score_data)
-                response_data.append(new_score_data)
+            update_operation = UpdateOne(
+                query,
+                {"$set": new_score_data},
+                upsert=True
+            )
+            bulk_operations.append(update_operation)
+            response_data.append(new_score_data)
 
         if bulk_operations:
             request.app.image_classifier_scores_collection.bulk_write(bulk_operations)
