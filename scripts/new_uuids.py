@@ -60,10 +60,18 @@ for dataset in datasets_collection.find():
     dataset_mapping[dataset["dataset_name"]] = dataset["dataset_id"]
 print(f"Dataset mappings fetched: {dataset_mapping}")
 
+# Function to process a batch of jobs
+def process_batch(batch):
+    if batch:
+        all_images_collection.insert_many(batch)
+        print(f"Inserted {len(batch)} documents")
+        batch.clear()
+
 # Process each document in completed_jobs_collection in batches
 print("Processing completed jobs...")
 try:
-    cursor = completed_jobs_collection.find(no_cursor_timeout=True)
+    total_processed = 0
+    cursor = completed_jobs_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
     batch = []
     for job in cursor:
         task_creation_time = job.get("task_creation_time")
@@ -97,7 +105,6 @@ try:
             date_int32 = datetime_to_unix_int32(task_creation_time)
             print(f"Converted task_creation_time to int32 Unix time: {date_int32}")
 
-
             # Format the new document
             new_document = {
                 "uuid": uuid,
@@ -110,18 +117,19 @@ try:
             }
 
             batch.append(new_document)
+            total_processed += 1
 
             if len(batch) >= BATCH_SIZE:
-                all_images_collection.insert_many(batch)
-                print(f"Inserted {len(batch)} documents")
-                batch.clear()
+                process_batch(batch)
 
         except Exception as e:
             print(f"Error processing job: {e}")
 
     if batch:
-        all_images_collection.insert_many(batch)
-        print(f"Inserted {len(batch)} documents")
+        process_batch(batch)
+    
+    print(f"Total processed jobs: {total_processed}")
+
 except Exception as e:
     print(f"Error processing jobs: {e}")
 finally:
