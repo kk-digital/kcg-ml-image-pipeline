@@ -78,6 +78,9 @@ class ABRankImagePairResponse(BaseModel):
 class ListTask(BaseModel):
     jobs: List[Task]
 
+class ListTaskV1(BaseModel):
+    images:List[Task]
+
 class KandinskyTask(BaseModel):
     job: Task # task data
     positive_embedding: list

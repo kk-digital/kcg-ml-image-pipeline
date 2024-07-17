@@ -932,8 +932,7 @@ async def get_scores_by_image_hash(
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
              description="Set classifier image score",
              tags=["pseudotag-classifier-scores"], 
-             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
-             )
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def set_image_classifier_score_v1(
     request: Request, 
     classifier_score: ClassifierScoreRequest, 
@@ -945,13 +944,10 @@ async def set_image_classifier_score_v1(
         # Determine the appropriate collection based on image_source
         if image_source == "generated_image":
             collection = request.app.completed_jobs_collection
-            projection = {"task_output_file_dict.output_file_hash": 1, "task_type": 1}
         elif image_source == "extract_image":
             collection = request.app.extracts_collection
-            projection = {"image_hash": 1}
         elif image_source == "external_image":
             collection = request.app.external_images_collection
-            projection = {"image_hash": 1}
         else:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -959,12 +955,12 @@ async def set_image_classifier_score_v1(
                 http_status_code=422
             )
 
-        # Fetch image_hash from the determined collection
-        job_data = collection.find_one({"uuid": classifier_score.job_uuid}, projection)
+        # Fetch job data from the determined collection
+        job_data = collection.find_one({"uuid": classifier_score.job_uuid})
         if not job_data:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="the image was not found",
+                error_string="The image was not found.",
                 http_status_code=404
             )
 
