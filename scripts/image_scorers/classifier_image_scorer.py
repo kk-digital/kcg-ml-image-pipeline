@@ -150,7 +150,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     with torch.no_grad():
                         scores = classifier_model.classify(clip_vectors)
                     
-                    scores_batch = []
+                    scores_batch= {}
+                    scores_batch["scores"]= []
                     for score, uuid, image_hash in zip(scores, uuids, image_hashes):
                         score_data = {
                             "job_uuid": uuid,
@@ -160,7 +161,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                             "score": score.item(),
                             "image_source": image_source
                         }
-                        scores_batch.append(score_data)
+                        scores_batch["scores"].append(score_data)
                     
                     futures.append(executor.submit(request.http_add_classifier_score_batch, scores_batch=scores_batch))
 
