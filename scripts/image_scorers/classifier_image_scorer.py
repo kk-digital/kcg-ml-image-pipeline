@@ -57,7 +57,7 @@ def get_dataset_list(bucket: str):
 # Initialize the distributed environment
 def initialize_dist_env(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    os.environ['MASTER_PORT'] = '12356'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 # Cleanup the distributed environment
