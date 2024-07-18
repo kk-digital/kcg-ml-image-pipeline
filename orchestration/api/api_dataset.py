@@ -836,17 +836,26 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
         )        
     
 @router.post("/datasets/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["dataset"],
-            response_model=StandardSuccessResponseV1[Dataset],  
-            responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def add_new_dataset(request: Request, dataset: Dataset):
+             description="Add new dataset in MongoDB",
+             tags=["dataset"],
+             response_model=StandardSuccessResponseV1[Dataset],  
+             responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def add_new_dataset(request: Request, dataset_name: str, bucket_id: int):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    if request.app.datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+    # Check if the dataset already exists with the given dataset_name and bucket_id
+    if request.app.datasets_collection.find_one({"dataset_name": dataset_name, "bucket_id": bucket_id}):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string='Dataset already exists',
+            error_string='Dataset already exists with the given dataset_name and bucket_id',
+            http_status_code=400
+        )
+
+    # Check if the bucket_id exists in the buckets_collection
+    if not request.app.buckets_collection.find_one({"bucket_id": bucket_id}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='The provided bucket_id does not exist',
             http_status_code=400
         )
 
@@ -856,15 +865,18 @@ async def add_new_dataset(request: Request, dataset: Dataset):
     )
     next_dataset_id = (highest_dataset["dataset_id"] + 1) if highest_dataset else 0
 
-    # Add the dataset_id to the dataset
-    dataset_dict = dataset.to_dict()
-    dataset_dict["dataset_id"] = next_dataset_id
+    # Create the new dataset dictionary
+    dataset_dict = {
+        "dataset_name": dataset_name,
+        "dataset_id": next_dataset_id,
+        "bucket_id": bucket_id,
+    }
 
-    # Insert the new dataset with dataset_id
+    # Insert the new dataset
     request.app.datasets_collection.insert_one(dataset_dict)
 
     return response_handler.create_success_response_v1(
-        response_data={"dataset_name": dataset.dataset_name, "dataset_id": next_dataset_id}, 
+        response_data={"dataset_name": dataset_name, "dataset_id": next_dataset_id, "bucket_id": bucket_id}, 
         http_status_code=200
     )
    
