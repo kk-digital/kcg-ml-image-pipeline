@@ -140,6 +140,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
             try:
                 for batch_idx, image_data in enumerate(tqdm(dataloader)):
+                    print(image_data)
+
                     clip_vectors = image_data["clip_vectors"]
                     uuids = image_data["uuids"]
                     image_hashes = image_data["image_hashes"]
