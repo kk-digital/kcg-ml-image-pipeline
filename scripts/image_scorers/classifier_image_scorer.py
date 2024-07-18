@@ -164,6 +164,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                         scores_batch["scores"].append(score_data)
                     
                     futures.append(executor.submit(request.http_add_classifier_score_batch, scores_batch=scores_batch))
+                
+                # remove model from gpu
+                classifier_model.set_device(torch.device('cpu'))
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
