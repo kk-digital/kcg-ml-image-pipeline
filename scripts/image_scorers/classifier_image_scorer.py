@@ -74,13 +74,15 @@ class ClipDataset(Dataset):
     def __getitem__(self, idx):
         return {
             'clip_vector': torch.tensor(self.data[idx]["clip_vector"]).squeeze(),
-            'uuid': self.data[idx]["uuid"]
+            'uuid': self.data[idx]["uuid"],
+            'image_hash': self.data[idx]["image_hash"]
         }
     
 def collate_fn(batch):
     clip_vectors = torch.stack([item['clip_vector'] for item in batch])
     uuids = [item['uuid'] for item in batch]
-    return {'uuids': uuids, 'clip_vectors': clip_vectors}
+    image_hashes = [item['image_hash'] for item in batch]
+    return {'uuids': uuids, 'image_hashes':image_hashes , 'clip_vectors': clip_vectors}
 
 def load_model(minio_client, classifier_model_info, device):
     classifier_name = classifier_model_info["classifier_name"]
