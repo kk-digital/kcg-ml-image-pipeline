@@ -189,10 +189,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
             dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
             total_uploaded_all_ranks = total_uploaded_tensor.item()
 
-            if rank == world_size-1:
-                elapsed_time = time.time() - start_time
-                speed = total_uploaded_all_ranks / elapsed_time
-                print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+            elapsed_time = time.time() - start_time
+            speed = total_uploaded_all_ranks / elapsed_time
+            print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
     
     dist.barrier()
     
