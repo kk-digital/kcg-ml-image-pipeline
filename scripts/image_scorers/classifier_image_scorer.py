@@ -128,28 +128,28 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
 
     start_time = time.time()
     total_uploaded = 0
+    futures = []
+    
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        for classifier_id, classifier_data in classifier_models.items():
+            tag_id = classifier_data["tag_id"]
+            classifier_model = classifier_data["model"]
+            classifier_model.set_device(rank_device)
 
-    for classifier_id, classifier_data in classifier_models.items():
-        tag_id = classifier_data["tag_id"]
-        classifier_model = classifier_data["model"]
-        classifier_model.set_device(rank_device)
+            print_in_rank(f"calculating scores for classifier id {classifier_id}")
 
-        print_in_rank(f"calculating scores for classifier id {classifier_id}")
+            try:
+                for batch_idx, image_data in enumerate(tqdm(dataloader)):
+                    clip_vectors = image_data["clip_vectors"]
+                    uuids = image_data["uuids"]
+                    image_hashes = image_data["image_hashes"]
 
-        try:
-            for batch_idx, image_data in enumerate(tqdm(dataloader)):
-                clip_vectors = image_data["clip_vectors"]
-                uuids = image_data["uuids"]
-                image_hashes = image_data["image_hashes"]
-
-                clip_vectors = clip_vectors.to(rank_device)
-                
-                with torch.no_grad():
-                    scores = classifier_model.classify(clip_vectors)
-                
-                futures = []
-                scores_batch=[]
-                with ThreadPoolExecutor(max_workers=50) as executor: 
+                    clip_vectors = clip_vectors.to(rank_device)
+                    
+                    with torch.no_grad():
+                        scores = classifier_model.classify(clip_vectors)
+                    
+                    scores_batch = []
                     for score, uuid, image_hash in zip(scores, uuids, image_hashes):
                         score_data = {
                             "job_uuid": uuid,
@@ -163,25 +163,32 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     
                     futures.append(executor.submit(request.http_add_classifier_score_batch, scores_batch=scores_batch))
 
-                for future in as_completed(futures):
-                    try:
-                        future.result()  # Ensure any exceptions are raised
-                        total_uploaded += 1 
-                    except Exception as e:
-                        print_in_rank(f"Exception in future: {e}")
-                
-                total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
-                dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
-                total_uploaded_all_ranks = total_uploaded_tensor.item()
+            except Exception as e:
+                print_in_rank(f"exception occurred when uploading scores {e}")
 
-                if rank == 0:
-                    elapsed_time = time.time() - start_time
-                    speed = total_uploaded_all_ranks / elapsed_time
-                    print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+    # Periodically check and report progress
+    last_report_time = time.time()
+    while futures:
+        for future in as_completed(futures):
+            try:
+                future.result()  # Ensure any exceptions are raised
+                total_uploaded += batch_size 
+            except Exception as e:
+                print_in_rank(f"Exception in future: {e}")
+            futures.remove(future)
 
-        except Exception as e:
-            print_in_rank(f"exception occurred when uploading scores {e}")
+        current_time = time.time()
+        if current_time - last_report_time >= 10:
+            last_report_time = current_time
+            total_uploaded_tensor = torch.tensor(total_uploaded, device=rank_device)
+            dist.all_reduce(total_uploaded_tensor, op=dist.ReduceOp.SUM)
+            total_uploaded_all_ranks = total_uploaded_tensor.item()
 
+            if rank == 0:
+                elapsed_time = time.time() - start_time
+                speed = total_uploaded_all_ranks / elapsed_time
+                print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
+    
     cleanup()
 
 def main():
