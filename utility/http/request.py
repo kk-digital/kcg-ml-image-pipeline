@@ -198,14 +198,13 @@ def http_add_classifier_score(score_data, image_source= "generated_image"):
     return None
 
 
-def http_add_classifier_score_list(scores_data, image_source= "generated_image"):
-    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-list-v1"
+def http_add_classifier_score_batch(scores_batch):
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v2"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    params = {"image_source": image_source}  # Query parameters
     response = None
     
     try:
-        response = requests.post(url, json=scores_data, headers=headers, params=params)
+        response = requests.post(url, json=scores_batch, headers=headers)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")

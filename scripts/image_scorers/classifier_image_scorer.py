@@ -127,7 +127,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
     start_time = time.time()
     total_uploaded = 0
 
-    for classifier_id, classifier_model in classifier_models.items():
+    for classifier_id, classifier_data in classifier_models.items():
+        tag_id = classifier_data["tag_id"]
+        classifier_model = classifier_data["model"]
         classifier_model.set_device(rank_device)
 
         print_in_rank(f"calculating scores for classifier id {classifier_id}")
@@ -136,6 +138,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
             for batch_idx, image_data in enumerate(tqdm(dataloader)):
                 clip_vectors = image_data["clip_vectors"]
                 uuids = image_data["uuids"]
+                image_hashes = image_data["image_hashes"]
 
                 clip_vectors = clip_vectors.to(rank_device)
                 
@@ -143,15 +146,20 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     scores = classifier_model.classify(clip_vectors)
                 
                 futures = []
+                scores_batch=[]
                 with ThreadPoolExecutor(max_workers=50) as executor: 
-                    for score, uuid in zip(scores, uuids):
+                    for score, uuid, image_hash in zip(scores, uuids, image_hashes):
                         score_data = {
                             "job_uuid": uuid,
+                            "image_hash": image_hash,
                             "classifier_id": classifier_id,
+                            "tag_id": tag_id,
                             "score": score.item(),
+                            "image_source": image_source
                         }
-
-                        futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data, image_source=image_source))
+                        scores_batch.append(score_data)
+                    
+                    futures.append(executor.submit(request.http_add_classifier_score_batch, scores_batch=scores_batch))
 
                 for future in as_completed(futures):
                     try:
@@ -202,13 +210,14 @@ def main():
     for classifier_info in classifier_model_list:
         classifier_id = classifier_info["classifier_id"]
         classifier_name = classifier_info["classifier_name"]
+        tag_id = classifier_info["tag_id"]
         classifier_model= None
 
         if model_type in classifier_name or model_type=="all":
             classifier_model = load_model(minio_client, classifier_info, torch.device('cpu'))
 
         if classifier_model is not None:
-            classifier_models[classifier_id] = classifier_model
+            classifier_models[classifier_id] = { "model": classifier_model, "tag_id": tag_id}
 
     if dataset_name != "all":
         print(f"Load the {bucket_name}/{dataset_name} dataset")

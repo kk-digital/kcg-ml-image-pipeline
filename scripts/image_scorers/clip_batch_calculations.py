@@ -70,18 +70,19 @@ class ClipBatchCaculation:
             image_data = http_get_extract_image_list(dataset= self.dataset)
 
         file_paths= [image['file_path'] for image in image_data]
+        image_hashes= [image['image_hash'] for image in image_data]
         uuids= [image['uuid'] for image in image_data]
 
-        return file_paths, uuids
+        return file_paths, image_hashes, uuids
     
     def load_clip_vectors(self):
         # loading file paths and uuids of all jobs in the dataset
-        file_paths, uuids= self.load_file_paths()
+        file_paths, image_hashes, uuids= self.load_file_paths()
 
         print(f"Loading clip vectors for the {self.bucket}/{self.dataset} dataset")
         clip_batch= []
         batch_num= 1
-        for file_path, uuid in tqdm(zip(file_paths, uuids)):
+        for file_path, uuid, image_hash in tqdm(zip(file_paths, uuids, image_hashes)):
             try:
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
@@ -94,7 +95,7 @@ class ClipBatchCaculation:
                 features_data = cmd.get_file_from_minio(self.minio_client, self.bucket, output_clip_path)
                 features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
 
-                clip_batch.append({"uuid": uuid, "clip_vector": features_vector})
+                clip_batch.append({"uuid": uuid, "image_hash": image_hash, "clip_vector": features_vector})
 
                 if len(clip_batch) == self.batch_size:
                     print(f"Storing a batch")
