@@ -870,22 +870,31 @@ async def add_new_dataset(request: Request, dataset: Dataset):
    
     
 @router.put("/datasets/update-dataset-ids",
-            description="Update datasets in MongoDB to add dataset_id sequentially",
+            description="Update datasets in MongoDB to add bucket_id and dataset_name",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1,
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_dataset_ids(request: Request):
+async def update_dataset_ids(request: Request, dataset_name: str, bucket_id: int):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Fetch all documents
-        all_datasets = list(request.app.extract_datasets_collection.find({}))
+        # Fetch documents matching the provided dataset_name
+        matching_datasets = list(request.app.datasets_collection.find({"dataset_name": dataset_name}))
 
-        # Update each document with a sequential dataset_id
-        for idx, dataset in enumerate(all_datasets):
-            request.app.extract_datasets_collection.update_one(
+        if not matching_datasets:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No datasets found matching the provided dataset_name",
+                http_status_code=404
+            )
+
+        # Update each document with the provided bucket_id
+        for dataset in matching_datasets:
+            request.app.datasets_collection.update_one(
                 {"_id": dataset["_id"]},
-                {"$set": {"dataset_id": idx}}
+                {"$set": {
+                    "bucket_id": bucket_id
+                }}
             )
 
         return response_handler.create_success_response_v1(
