@@ -1,8 +1,8 @@
 
-from fastapi import APIRouter, Request,  Query
+from fastapi import APIRouter, Request,  Query, HTTPException, status
 from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
 from pymongo import ReturnDocument
-from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1
+from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1,PrettyJSONResponse
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
 from typing import Optional
@@ -938,3 +938,62 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
             http_status_code=500,
         )        
 
+
+@router.get("/extract-images/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
+def get_random_image_date_range(
+    request: Request,
+    rank_id: int = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_score: float = 0.6,
+    size: int = None,
+):
+    query = {}
+
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # If rank_id is provided, adjust the query to consider classifier scores
+    if rank_id is not None:
+        # get rank data
+        rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        if rank is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Rank model with this id doesn't exist")
+
+        # get the relevance classifier model id
+        classifier_id = rank["classifier_id"]
+        if classifier_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="This Rank has no relevance classifier model assigned to it")
+
+        classifier_query = {'classifier_id': classifier_id}
+        if min_score is not None:
+            classifier_query['score'] = {'$gte': min_score}
+            # Fetch image hashes from classifier_scores collection that match the criteria
+            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+            if classifier_scores is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="The relevance classifier model has no scores.")
+            image_hashes = [score['image_hash'] for score in classifier_scores]
+            query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
+    documents = list(documents)
+
+    for document in documents:
+        document.pop('_id', None)  # Remove the auto-generated field
+
+    return documents
+       
