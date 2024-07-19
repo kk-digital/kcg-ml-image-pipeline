@@ -836,17 +836,26 @@ async def get_self_training_sequential_id(request: Request, dataset: str = Query
         )        
     
 @router.post("/datasets/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["dataset"],
-            response_model=StandardSuccessResponseV1[Dataset],  
-            responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def add_new_dataset(request: Request, dataset: Dataset):
+             description="Add new dataset in MongoDB",
+             tags=["dataset"],
+             response_model=StandardSuccessResponseV1[Dataset],  
+             responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def add_new_dataset(request: Request, dataset_name: str, bucket_id: int):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    if request.app.datasets_collection.find_one({"dataset_name": dataset.dataset_name}):
+    # Check if the dataset already exists with the given dataset_name and bucket_id
+    if request.app.datasets_collection.find_one({"dataset_name": dataset_name, "bucket_id": bucket_id}):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string='Dataset already exists',
+            error_string='Dataset already exists with the given dataset_name and bucket_id',
+            http_status_code=400
+        )
+
+    # Check if the bucket_id exists in the buckets_collection
+    if not request.app.buckets_collection.find_one({"bucket_id": bucket_id}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string='The provided bucket_id does not exist',
             http_status_code=400
         )
 
@@ -856,36 +865,48 @@ async def add_new_dataset(request: Request, dataset: Dataset):
     )
     next_dataset_id = (highest_dataset["dataset_id"] + 1) if highest_dataset else 0
 
-    # Add the dataset_id to the dataset
-    dataset_dict = dataset.to_dict()
-    dataset_dict["dataset_id"] = next_dataset_id
+    # Create the new dataset dictionary
+    dataset_dict = {
+        "dataset_name": dataset_name,
+        "dataset_id": next_dataset_id,
+        "bucket_id": bucket_id,
+    }
 
-    # Insert the new dataset with dataset_id
+    # Insert the new dataset
     request.app.datasets_collection.insert_one(dataset_dict)
 
     return response_handler.create_success_response_v1(
-        response_data={"dataset_name": dataset.dataset_name, "dataset_id": next_dataset_id}, 
+        response_data={"dataset_name": dataset_name, "dataset_id": next_dataset_id, "bucket_id": bucket_id}, 
         http_status_code=200
     )
    
     
 @router.put("/datasets/update-dataset-ids",
-            description="Update datasets in MongoDB to add dataset_id sequentially",
+            description="Update datasets in MongoDB to add bucket_id and dataset_name",
             tags=["dataset"],
             response_model=StandardSuccessResponseV1,
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_dataset_ids(request: Request):
+async def update_dataset_ids(request: Request, dataset_name: str, bucket_id: int):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Fetch all documents
-        all_datasets = list(request.app.extract_datasets_collection.find({}))
+        # Fetch documents matching the provided dataset_name
+        matching_datasets = list(request.app.datasets_collection.find({"dataset_name": dataset_name}))
 
-        # Update each document with a sequential dataset_id
-        for idx, dataset in enumerate(all_datasets):
-            request.app.extract_datasets_collection.update_one(
+        if not matching_datasets:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No datasets found matching the provided dataset_name",
+                http_status_code=404
+            )
+
+        # Update each document with the provided bucket_id
+        for dataset in matching_datasets:
+            request.app.datasets_collection.update_one(
                 {"_id": dataset["_id"]},
-                {"$set": {"dataset_id": idx}}
+                {"$set": {
+                    "bucket_id": bucket_id
+                }}
             )
 
         return response_handler.create_success_response_v1(

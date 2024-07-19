@@ -74,6 +74,17 @@ try:
     cursor = completed_jobs_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
     batch = []
     for job in cursor:
+        # Check if dataset_name is present
+        dataset_name = job.get("task_input_dict", {}).get("dataset")
+        if not dataset_name:
+            print("Skipping job due to missing dataset_name")
+            continue  # Skip if dataset_name is not available
+
+        dataset_id = dataset_mapping.get(dataset_name, None)
+        if dataset_id is None:
+            print(f"Skipping job due to missing dataset_id for dataset_name: {dataset_name}")
+            continue  # Skip if dataset_id is not found
+
         task_creation_time = job.get("task_creation_time")
         if not task_creation_time:
             print("Skipping job due to missing task_creation_time")
@@ -93,13 +104,6 @@ try:
             # Generate UUID
             uuid = generate_uuid(task_creation_time)
             print(f"Generated UUID: {uuid}")
-
-            # Get dataset_id from dataset_mapping
-            dataset_name = job.get("task_input_dict", {}).get("dataset")
-            dataset_id = dataset_mapping.get(dataset_name, None)
-            if dataset_id is None:
-                print(f"Skipping job due to missing dataset_id for dataset_name: {dataset_name}")
-                continue  # Skip if dataset_id is not found
 
             # Convert task_creation_time to int32 Unix time
             date_int32 = datetime_to_unix_int32(task_creation_time)
