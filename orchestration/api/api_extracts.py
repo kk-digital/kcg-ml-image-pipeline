@@ -937,8 +937,6 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
             error_string=str(e),
             http_status_code=500,
         )        
-
-
 @router.get("/extract-images/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -959,14 +957,14 @@ def get_random_image_date_range(
 
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
-        # get rank data
+        # Get rank data
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
         if rank is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Rank model with this id doesn't exist")
 
-        # get the relevance classifier model id
+        # Get the relevance classifier model id
         classifier_id = rank["classifier_id"]
         if classifier_id is None:
             raise HTTPException(
@@ -976,24 +974,41 @@ def get_random_image_date_range(
         classifier_query = {'classifier_id': classifier_id}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
-            # Fetch image hashes from classifier_scores collection that match the criteria
-            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-            if classifier_scores is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="The relevance classifier model has no scores.")
-            image_hashes = [score['image_hash'] for score in classifier_scores]
-            query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
+            
+        # Fetch image hashes from classifier_scores collection that match the criteria
+        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
+        if classifier_scores is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The relevance classifier model has no scores.")
+        image_hashes = [score['image_hash'] for score in classifier_scores]
 
-    aggregation_pipeline = [{"$match": query}]
-    if size:
-        aggregation_pipeline.append({"$sample": {"size": size}})
+        # Break down the image hashes into smaller batches
+        BATCH_SIZE = 1000  # Adjust batch size as needed
+        all_documents = []
 
-    documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
-    documents = list(documents)
+        for i in range(0, len(image_hashes), BATCH_SIZE):
+            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+            batch_query = query.copy()
+            batch_query['task_output_file_dict.output_file_hash'] = {'$in': batch_image_hashes}
+
+            aggregation_pipeline = [{"$match": batch_query}]
+            if size:
+                aggregation_pipeline.append({"$sample": {"size": size}})
+            
+            batch_documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
+            all_documents.extend(list(batch_documents))
+
+        documents = all_documents
+    else:
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
+        documents = list(documents)
 
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
 
     return documents
-       
