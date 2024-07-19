@@ -112,7 +112,7 @@ async def add_extract(request: Request, image_data: ExtractImageData):
 
     try:
         
-        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 1 })
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -168,7 +168,8 @@ async def add_extract(request: Request, image_data: ExtractImageDataV1):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 1})
+
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -584,8 +585,8 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     
 
 @router.post("/extract-images/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["extracts"],
+            description="changed with /datasets/add-new-dataset",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -618,8 +619,8 @@ async def add_new_dataset(request: Request, dataset: Dataset):
  
 
 @router.get("/extract-images/list-datasets",
-            description="list datasets from mongodb",
-            tags=["extracts"],
+            description="changed with /datasets/list-datasets-v1",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -635,8 +636,8 @@ async def list_datasets(request: Request):
             )  
 
 @router.delete("/extract-images/remove-dataset",
-               description="Remove dataset",
-               tags=["extracts"],
+               description="changed with datasets/remove-dataset-v1",
+               tags=["deprecated_datasets"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):

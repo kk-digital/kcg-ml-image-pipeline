@@ -8,8 +8,7 @@ from datetime import datetime
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse
-from .mongo_schemas import FlaggedDataUpdate, RankingModel, Dataset, ListDataset
-from orchestration.api.mongo_schema.selection_schemas import ListRelevanceSelection, ListRankingSelection
+from .mongo_schemas import FlaggedDataUpdate, RankingModel, Dataset, ListResponseDataset
 from pymongo import ReturnDocument
 router = APIRouter()
 
@@ -641,9 +640,9 @@ async def clear_dataset_sequential_id_jobs(request: Request):
 
 
 @router.get("/datasets/list-datasets",
-            description="List datasets from storage",
+            description="changed with /datasets/list-datasets-v1 ",
             response_model=StandardSuccessResponseV1[DatasetResponse], 
-            tags=["dataset"],
+            tags=["deprecated3"],
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_datasets(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -924,7 +923,7 @@ async def update_dataset_ids(request: Request, dataset_name: str, bucket_id: int
 @router.get("/datasets/list-datasets-v1",
             description="list datasets from mongodb",
             tags=["dataset"],
-            response_model=StandardSuccessResponseV1[ListDataset],  
+            response_model=StandardSuccessResponseV1[ListResponseDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -968,3 +967,40 @@ async def remove_dataset(request: Request, dataset: str = Query(...)):
             False, 
             http_status_code=200
         )
+
+@router.delete("/datasets/remove-dataset-v1",
+               description="Remove dataset in MongoDB",
+               tags=["dataset"],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               responses=ApiResponseHandlerV1.listErrors([422]))
+async def remove_dataset_v1(request: Request, dataset_id: int = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Check if the dataset ID exists in the all_images_collection
+    image_exists = request.app.all_images_collection.find_one({"dataset_id": dataset_id})
+    if image_exists:
+        return response_handler.create_error_response_v1(
+            error_code=422,
+            error_string="Dataset is assigned to images in the all_images_collection.",
+            http_status_code=422
+        )
+
+    # Attempt to delete the dataset
+    dataset_result = request.app.datasets_collection.delete_one({"dataset_id": dataset_id})
+
+    # Check if either the dataset or its configuration was present and deleted
+    was_present = dataset_result.deleted_count > 0 
+
+    # Using the check to determine which response to send
+    if was_present:
+        # If either was deleted, return True
+        return response_handler.create_success_delete_response_v1(
+            {"was_present": True}, 
+            http_status_code=200
+        )
+    else:
+        # If neither was deleted, return False
+        return response_handler.create_success_delete_response_v1(
+            {"was_present": False}, 
+            http_status_code=200
+        )        
