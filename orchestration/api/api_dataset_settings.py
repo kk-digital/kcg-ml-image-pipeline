@@ -190,6 +190,15 @@ async def set_dataset_config(request: Request, config: DatasetConfig):
                 error_string=f"Dataset '{config.dataset_name}' does not exist in MinIO.",
                 http_status_code=422,
             )
+
+        # Verify if the dataset exists in datasets_collection with the given bucket_id
+        dataset_in_db = request.app.datasets_collection.find_one({"dataset_name": config.dataset_name, "bucket_id": 0})
+        if not dataset_in_db:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Dataset '{config.dataset_name}' with bucket ID 0 does not exist in the database.",
+                http_status_code=422,
+            )
         
         query = {"dataset_name": config.dataset_name}
         update_values = config.dict(exclude_unset=True)
@@ -232,7 +241,6 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
     try:
         # Check if the dataset exists in MinIO
         objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
-        print(objects)
         dataset_path = f'{dataset}'
         
         if dataset_path not in objects:
@@ -242,11 +250,12 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
                 http_status_code=422,
             )
 
-        dataset_exists = request.app.datasets_collection.find_one({"dataset_name": dataset})
+        # Check if the dataset exists in datasets_collection with the given bucket_id
+        dataset_exists = request.app.datasets_collection.find_one({"dataset_name": dataset, "bucket_id": 0})
         if not dataset_exists:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string=f"Dataset '{dataset}' does not exist in the database.",
+                error_string=f"Dataset '{dataset}' with bucket ID 0 does not exist in the database.",
                 http_status_code=404,
             )
         
@@ -292,6 +301,7 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
         )
 
 
+
     
 
 @router.get("/datasets/settings/get-all-dataset-config",
@@ -305,8 +315,8 @@ async def get_all_dataset_config(request: Request):
     try:
         dataset_configs = []
 
-        # Fetch all datasets from the datasets_collection
-        all_datasets = list(request.app.datasets_collection.find({}, {"dataset_name": 1}))
+        # Fetch all datasets from the datasets_collection with bucket_id filter
+        all_datasets = list(request.app.datasets_collection.find({"bucket_id": 0}, {"dataset_name": 1}))
 
         # Default configuration with None values for unset properties
         default_config = {

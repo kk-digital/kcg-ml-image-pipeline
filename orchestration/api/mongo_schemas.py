@@ -733,7 +733,15 @@ class Dataset(BaseModel):
             "dataset_name": self.dataset_name
         }    
 class ListDataset(BaseModel):
-    datasets: List[Dataset]   
+    datasets: List[Dataset]  
+
+class ResponseDataset(BaseModel):
+    dataset_name: str
+    dataset_id: int 
+    bucket_id: int
+
+class ListResponseDataset(BaseModel):
+    datasets: List[ResponseDataset]    
 
 class ListDatasetV1(BaseModel):
     datasets: List[str]

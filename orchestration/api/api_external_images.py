@@ -42,7 +42,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         '''
 
         # Check if the dataset exists
-        dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 2})
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -102,7 +102,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
     try:
         for image_data in image_data_list:
             # Check if the dataset exists
-            dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+            dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset,"bucket_id": 2 })
             if not dataset_result:
                 return api_response_handler.create_error_response_v1(
                     error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -1066,8 +1066,8 @@ async def get_random_external_image_similarity(
         )
 
 @router.post("/external-images/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["external-images"],
+            description="changed with /datasets/add-new-dataset",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -1101,8 +1101,8 @@ async def add_new_dataset(request: Request, dataset: Dataset):
 
 
 @router.get("/external-images/list-datasets",
-            description="list datasets from mongodb",
-            tags=["external-images"],
+            description="changed with /datasets/list-datasets-v1",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -1119,8 +1119,8 @@ async def list_datasets(request: Request):
 
 
 @router.delete("/external-images/remove-dataset",
-               description="Remove dataset",
-               tags=["external-images"],
+               description="changed with datasets/remove-dataset-v1",
+               tags=["deprecated_datasets"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
