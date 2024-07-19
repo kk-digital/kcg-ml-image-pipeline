@@ -45,6 +45,11 @@ class LinearRegression:
 
         self._device = torch.device(device)
 
+    def set_device(self, device):
+        # transfer model to a device
+        self._device = device  
+        self.model= self.model.to(device)
+
     def set_config(self,
                    tag_string,
                    input_size,

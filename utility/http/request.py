@@ -11,7 +11,7 @@ db = client['orchestration-job-db']
 # Access the specific collection
 comleted_jobs_collection = db["completed-jobs"]
 
-# SERVER_ADDRESS = 'http://123.176.98.90:8764'
+# SERVER_ADDRESS = 'http://103.20.60.90:8764'
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
@@ -98,7 +98,7 @@ def http_add_model(model_card):
     return None
 
 def http_add_classifier_model(model_card):
-    url = SERVER_ADDRESS + "/classifier/register-tag-classifier"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/register-tag-classifier"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
@@ -139,7 +139,7 @@ def http_get_model_id(model_hash):
     return None
 
 def http_get_classifier_model_list():
-    url = SERVER_ADDRESS + "/classifier/list-classifiers"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/list-classifiers"
     response = None
     try:
         response = requests.get(url)
@@ -147,7 +147,7 @@ def http_get_classifier_model_list():
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}")
             return []
-        return response.json()["response"]
+        return response.json()["response"]["classifiers"]
     except Exception as e:
         print('request exception ', e)
         
@@ -177,17 +177,19 @@ def http_add_score(score_data):
 
     return None
 
-def http_add_classifier_score(score_data):
-    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score"
+def http_add_classifier_score(score_data, image_source= "generated_image"):
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v1"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    params = {"image_source": image_source}  # Query parameters
     response = None
+    
     try:
-        response = requests.post(url, json=score_data, headers=headers)
+        response = requests.post(url, json=score_data, headers=headers, params=params)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
     except Exception as e:
-        print('request exception ', e)
+        print('request exception', e)
 
     finally:
         if response:
@@ -195,6 +197,25 @@ def http_add_classifier_score(score_data):
 
     return None
 
+
+def http_add_classifier_score_batch(scores_batch):
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v2"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+    
+    try:
+        response = requests.post(url, json=scores_batch, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
 
 def http_add_sigma_score(sigma_score_data):
     url = SERVER_ADDRESS + "/sigma-score/set-image-rank-sigma-score"
@@ -568,6 +589,18 @@ def http_get_tagged_images_by_resolution(tag_id, source = None):
         url = SERVER_ADDRESS + "/tags/get-images-by-resolution/?tag_id={}".format(tag_id)
     else:
         url = SERVER_ADDRESS + "/tags/get-images-by-resolution/?tag_id={}&source={}".format(tag_id, source)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
+
+def http_get_tagged_extracts(tag_id):
+    url = SERVER_ADDRESS + "/tags/get-images-by-tag-id-v1/?tag_id={}".format(tag_id)
     try:
         response = requests.get(url)
 
