@@ -993,15 +993,16 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
 
-        image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len(classifier_scores))
-        print(f"Image hashes: {image_hashes}")
+        # Limit the number of image hashes to the requested size
+        limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
+        print(f"Limited image hashes: {limited_image_hashes}")
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
         all_documents = []
 
-        for i in range(0, len(image_hashes), BATCH_SIZE):
-            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+        for i in range(0, len(limited_image_hashes), BATCH_SIZE):
+            batch_image_hashes = limited_image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
             batch_query['image_hash'] = {'$in': batch_image_hashes}
 
