@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
 DATABASE_NAME = "orchestration-job-db"
-COMPLETED_JOBS_COLLECTION = "extracts"
+COMPLETED_JOBS_COLLECTION = "external_images"
 DATASETS_COLLECTION = "datasets"
 ALL_IMAGES_COLLECTION = "all-images"
-BUCKET_ID = 1  # Hardcoded bucket ID
+BUCKET_ID = 2  # Hardcoded bucket ID
 BATCH_SIZE = 5000  # Number of documents to process in each batch
 
 # Function to generate UUID
