@@ -41,7 +41,7 @@ async def list_all_images(
             image.pop("_id", None)  # Remove the MongoDB ObjectId
 
         return response_handler.create_success_response_v1(
-            data=images,
+            response_data==images,
             http_status_code=200
         )
 
