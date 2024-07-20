@@ -959,13 +959,10 @@ def get_random_image_date_range(
     elif end_date:
         query['upload_date'] = {'$lte': end_date}
 
-    print(f"Initial query: {query}")
-
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
         # Get rank data
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
-        print(f"Rank data: {rank}")
         if rank is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -973,7 +970,6 @@ def get_random_image_date_range(
 
         # Get the relevance classifier model id
         classifier_id = rank["classifier_id"]
-        print(f"Classifier ID: {classifier_id}")
         if classifier_id is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -983,11 +979,9 @@ def get_random_image_date_range(
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
-        print(f"Classifier query: {classifier_query}")
 
         # Fetch image hashes from classifier_scores collection that match the criteria
         classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
-        print(f"Classifier scores count: {len(classifier_scores)}")
         if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -995,7 +989,6 @@ def get_random_image_date_range(
 
         # Limit the number of image hashes to the requested size
         limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
-        print(f"Limited image hashes: {limited_image_hashes}")
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
@@ -1006,7 +999,6 @@ def get_random_image_date_range(
             batch_query = query.copy()
             batch_query['image_hash'] = {'$in': batch_image_hashes}
 
-            print(f"Batch query: {batch_query}")
 
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
@@ -1014,13 +1006,11 @@ def get_random_image_date_range(
             
             batch_documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
             batch_docs_list = list(batch_documents)
-            print(f"Batch documents count: {len(batch_docs_list)}")
             all_documents.extend(batch_docs_list)
             if len(all_documents) >= size:
                 break
 
         documents = all_documents[:size]
-        print(f"Total documents after batch processing: {len(documents)}")
 
     else:
         aggregation_pipeline = [{"$match": query}]
@@ -1028,7 +1018,6 @@ def get_random_image_date_range(
             aggregation_pipeline.append({"$sample": {"size": size}})
 
         documents = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
-        print(f"Documents count without rank_id: {len(documents)}")
 
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
