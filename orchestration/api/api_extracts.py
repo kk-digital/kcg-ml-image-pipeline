@@ -9,6 +9,7 @@ from typing import Optional
 import uuid
 from typing import List
 from datetime import datetime, timedelta
+import random
 from .api_clip import http_clip_server_get_cosine_similarity_list
 
 
@@ -950,11 +951,11 @@ def get_random_image_date_range(
     query = {}
 
     if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        query['upload_date'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
+        query['upload_date'] = {'$gte': start_date}
     elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
+        query['upload_date'] = {'$lte': end_date}
 
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
@@ -972,7 +973,7 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="This Rank has no relevance classifier model assigned to it")
 
-        classifier_query = {'classifier_id': classifier_id}
+        classifier_query = {'classifier_id': classifier_id, 'image_source': 'extract_image'}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
@@ -982,7 +983,7 @@ def get_random_image_date_range(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
-        image_hashes = [score['image_hash'] for score in classifier_scores]
+        image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len([score['image_hash'] for score in classifier_scores]))
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
@@ -991,7 +992,7 @@ def get_random_image_date_range(
         for i in range(0, len(image_hashes), BATCH_SIZE):
             batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
-            batch_query['task_output_file_dict.output_file_hash'] = {'$in': batch_image_hashes}
+            batch_query['image_hash'] = {'$in': batch_image_hashes}
 
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
@@ -999,8 +1000,11 @@ def get_random_image_date_range(
             
             batch_documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
             all_documents.extend(list(batch_documents))
+            if len(all_documents) >= size:
+                break
 
-        documents = all_documents
+        documents = all_documents[:size]
+
     else:
         aggregation_pipeline = [{"$match": query}]
         if size:
