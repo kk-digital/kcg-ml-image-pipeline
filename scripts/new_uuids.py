@@ -2,6 +2,7 @@ import time
 import datetime
 import random
 from pymongo import MongoClient
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
@@ -67,67 +68,86 @@ def process_batch(batch):
         print(f"Inserted {len(batch)} documents")
         batch.clear()
 
+# Process a single job
+def process_job(job, dataset_mapping, existing_image_paths):
+    dataset_name = job.get("task_input_dict", {}).get("dataset")
+    if not dataset_name:
+        print("Skipping job due to missing dataset_name")
+        return None  # Skip if dataset_name is not available
+
+    dataset_id = dataset_mapping.get(dataset_name, None)
+    if dataset_id is None:
+        print(f"Skipping job due to missing dataset_id for dataset_name: {dataset_name}")
+        return None  # Skip if dataset_id is not found
+
+    task_creation_time = job.get("task_creation_time")
+    if not task_creation_time:
+        print("Skipping job due to missing task_creation_time")
+        return None  # Skip if task_creation_time is not available
+
+    image_path = job.get("task_output_file_dict", {}).get("output_file_path")
+    if not image_path:
+        print("Skipping job due to missing image_path")
+        return None  # Skip if image_path is not available
+
+    if image_path in existing_image_paths:
+        print(f"Skipping job with image_path {image_path} as it has already been processed")
+        return None  # Skip if image_path already exists
+
+    try:
+        # Generate UUID
+        uuid = generate_uuid(task_creation_time)
+        print(f"Generated UUID: {uuid}")
+
+        # Convert task_creation_time to int32 Unix time
+        date_int32 = datetime_to_unix_int32(task_creation_time)
+        print(f"Converted task_creation_time to int32 Unix time: {date_int32}")
+
+        # Format the new document
+        new_document = {
+            "uuid": uuid,
+            "index": -1,  # Not used but included as per requirement
+            "bucket_id": BUCKET_ID,
+            "dataset_id": dataset_id,
+            "image_hash": job.get("task_output_file_dict", {}).get("output_file_hash"),
+            "image_path": image_path,
+            "date": date_int32,
+        }
+        return new_document
+
+    except Exception as e:
+        print(f"Error processing job: {e}")
+        return None
+
 # Process each document in completed_jobs_collection in batches
 print("Processing completed jobs...")
 try:
     total_processed = 0
     cursor = completed_jobs_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
     batch = []
-    for job in cursor:
-        # Check if dataset_name is present
-        dataset_name = job.get("task_input_dict", {}).get("dataset")
-        if not dataset_name:
-            print("Skipping job due to missing dataset_name")
-            continue  # Skip if dataset_name is not available
 
-        dataset_id = dataset_mapping.get(dataset_name, None)
-        if dataset_id is None:
-            print(f"Skipping job due to missing dataset_id for dataset_name: {dataset_name}")
-            continue  # Skip if dataset_id is not found
+    # Gather all image paths first to check for duplicates
+    existing_image_paths = set()
+    for doc in all_images_collection.find({}, {"image_path": 1}):
+        existing_image_paths.add(doc["image_path"])
 
-        task_creation_time = job.get("task_creation_time")
-        if not task_creation_time:
-            print("Skipping job due to missing task_creation_time")
-            continue  # Skip if task_creation_time is not available
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_job = {executor.submit(process_job, job, dataset_mapping, existing_image_paths): job for job in cursor}
 
-        image_path = job.get("task_output_file_dict", {}).get("output_file_path")
-        if not image_path:
-            print("Skipping job due to missing image_path")
-            continue  # Skip if image_path is not available
+        for future in as_completed(future_to_job):
+            job = future_to_job[future]
+            try:
+                new_document = future.result()
+                if new_document:
+                    batch.append(new_document)
+                    existing_image_paths.add(new_document["image_path"])
+                    total_processed += 1
 
-        # Check if the document already exists in all_images_collection based on image_path
-        if all_images_collection.find_one({"image_path": image_path}):
-            print(f"Skipping job with image_path {image_path} as it has already been processed")
-            continue
+                if len(batch) >= BATCH_SIZE:
+                    process_batch(batch)
 
-        try:
-            # Generate UUID
-            uuid = generate_uuid(task_creation_time)
-            print(f"Generated UUID: {uuid}")
-
-            # Convert task_creation_time to int32 Unix time
-            date_int32 = datetime_to_unix_int32(task_creation_time)
-            print(f"Converted task_creation_time to int32 Unix time: {date_int32}")
-
-            # Format the new document
-            new_document = {
-                "uuid": uuid,
-                "index": -1,  # Not used but included as per requirement
-                "bucket_id": BUCKET_ID,
-                "dataset_id": dataset_id,
-                "image_hash": job.get("task_output_file_dict", {}).get("output_file_hash"),
-                "image_path": image_path,
-                "date": date_int32,
-            }
-
-            batch.append(new_document)
-            total_processed += 1
-
-            if len(batch) >= BATCH_SIZE:
-                process_batch(batch)
-
-        except Exception as e:
-            print(f"Error processing job: {e}")
+            except Exception as e:
+                print(f"Error processing job: {e}")
 
     if batch:
         process_batch(batch)
