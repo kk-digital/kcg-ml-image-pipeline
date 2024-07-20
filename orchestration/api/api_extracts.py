@@ -940,7 +940,7 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
             http_status_code=500,
         )        
 
-        
+
 @router.get("/extract-images/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -986,14 +986,14 @@ def get_random_image_date_range(
         print(f"Classifier query: {classifier_query}")
 
         # Fetch image hashes from classifier_scores collection that match the criteria
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        print(f"Classifier scores count: {classifier_scores.count()}")
-        if classifier_scores.count() == 0:
+        classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
+        print(f"Classifier scores count: {len(classifier_scores)}")
+        if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
 
-        image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len([score['image_hash'] for score in classifier_scores]))
+        image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len(classifier_scores))
         print(f"Image hashes: {image_hashes}")
 
         # Break down the image hashes into smaller batches
@@ -1026,12 +1026,10 @@ def get_random_image_date_range(
         if size:
             aggregation_pipeline.append({"$sample": {"size": size}})
 
-        documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
-        documents = list(documents)
+        documents = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
         print(f"Documents count without rank_id: {len(documents)}")
 
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
 
     return documents
-
