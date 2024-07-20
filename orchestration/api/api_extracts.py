@@ -939,6 +939,8 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
             error_string=str(e),
             http_status_code=500,
         )        
+
+        
 @router.get("/extract-images/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -957,10 +959,13 @@ def get_random_image_date_range(
     elif end_date:
         query['upload_date'] = {'$lte': end_date}
 
+    print(f"Initial query: {query}")
+
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
         # Get rank data
         rank = request.app.rank_model_models_collection.find_one({'rank_model_id': rank_id})
+        print(f"Rank data: {rank}")
         if rank is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -968,6 +973,7 @@ def get_random_image_date_range(
 
         # Get the relevance classifier model id
         classifier_id = rank["classifier_id"]
+        print(f"Classifier ID: {classifier_id}")
         if classifier_id is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -977,13 +983,18 @@ def get_random_image_date_range(
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
+        print(f"Classifier query: {classifier_query}")
+
         # Fetch image hashes from classifier_scores collection that match the criteria
         classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        print(f"Classifier scores count: {classifier_scores.count()}")
+        if classifier_scores.count() == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
+
         image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len([score['image_hash'] for score in classifier_scores]))
+        print(f"Image hashes: {image_hashes}")
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
@@ -994,16 +1005,21 @@ def get_random_image_date_range(
             batch_query = query.copy()
             batch_query['image_hash'] = {'$in': batch_image_hashes}
 
+            print(f"Batch query: {batch_query}")
+
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
                 aggregation_pipeline.append({"$sample": {"size": size}})
             
             batch_documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
-            all_documents.extend(list(batch_documents))
+            batch_docs_list = list(batch_documents)
+            print(f"Batch documents count: {len(batch_docs_list)}")
+            all_documents.extend(batch_docs_list)
             if len(all_documents) >= size:
                 break
 
         documents = all_documents[:size]
+        print(f"Total documents after batch processing: {len(documents)}")
 
     else:
         aggregation_pipeline = [{"$match": query}]
@@ -1012,8 +1028,10 @@ def get_random_image_date_range(
 
         documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
         documents = list(documents)
+        print(f"Documents count without rank_id: {len(documents)}")
 
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field
 
     return documents
+
