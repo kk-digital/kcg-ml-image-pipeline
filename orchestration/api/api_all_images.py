@@ -34,7 +34,7 @@ async def list_all_images(
             "dataset_id": dataset_id
         }
 
-        cursor = request.app.all_images_collection.find(query).limit(size if size else 0)
+        cursor = request.app.all_image_collection.find(query).limit(size if size else 0)
         images = list(cursor)
 
         for image in images:
