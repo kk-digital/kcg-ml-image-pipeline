@@ -1252,19 +1252,19 @@ def get_random_image_date_range(
             classifier_query['score'] = {'$gte': min_score}
             
         # Fetch image hashes from classifier_scores collection that match the criteria
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
+        if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
-        image_hashes = random.sample([score['image_hash'] for score in classifier_scores], len([score['image_hash'] for score in classifier_scores]))
+        limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
         all_documents = []
 
-        for i in range(0, len(image_hashes), BATCH_SIZE):
-            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+        for i in range(0, len(limited_image_hashes), BATCH_SIZE):
+            batch_image_hashes = limited_image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
             batch_query['image_hash'] = {'$in': batch_image_hashes}
 
@@ -1273,12 +1273,12 @@ def get_random_image_date_range(
                 aggregation_pipeline.append({"$sample": {"size": size}})
             
             batch_documents = request.app.external_images_collection.aggregate(aggregation_pipeline)
-            all_documents.extend(list(batch_documents))
-            
+            batch_docs_list = list(batch_documents)
+            all_documents.extend(batch_docs_list)
             if len(all_documents) >= size:
                 break
 
-        documents = all_documents[:size]  # Ensure the number of documents does not exceed the requested size
+        documents = all_documents[:size]
     else:
         aggregation_pipeline = [{"$match": query}]
         if size:
