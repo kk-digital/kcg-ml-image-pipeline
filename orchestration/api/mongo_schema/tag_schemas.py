@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr, validator
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 import re
 
 class TagDefinition(BaseModel):
@@ -141,3 +141,82 @@ class ExternalImageTag(BaseModel):
     
 class ListExternalImageTag(BaseModel):
     images: List[ExternalImageTag]   
+
+
+class TagDefinitionV1(BaseModel):
+    file_hash: str
+    tag_id: int
+    tag_string: str
+    tag_category_id: int
+    tag_description: str 
+    tag_vector_index: int
+    deprecated: bool 
+    user_who_created: str 
+    creation_time: str
+
+class TagListForImagesV1(BaseModel):
+    images: List[TagDefinitionV1]
+
+
+class TagListForImages(BaseModel):
+    tags: List[TagDefinition]
+
+class TagDefinitionV2(BaseModel):
+    tag_id: int
+    tag_string: str
+    tag_type: int
+    tag_category_id: int
+    tag_description: str 
+    tag_vector_index: int
+    deprecated: bool 
+    deprecated_tag_category: bool
+    user_who_created: str 
+    creation_time: str
+
+class TagListForImagesV2(BaseModel):
+    tags: List[TagDefinitionV2]
+
+class TagListForImages3(BaseModel):
+    file_hash: str
+    tags: List[TagDefinitionV2]
+
+class ListImageTag(BaseModel):
+     images: List[ImageTag]
+
+
+class TagsCategoryListResponse(BaseModel):
+    tag_categories: List[TagCategory]
+
+class TagsListResponse(BaseModel):
+    tags: List[TagDefinition]
+
+class TagCountResponse(BaseModel):
+    tag_id: int
+    count: dict
+
+class ImageTypes(BaseModel):
+    generated_image: str 
+    extract_image: str
+    external_image: str
+
+class TagCountResponseV1(BaseModel):
+    tag_id: int
+    count: Dict[str, ImageTypes]
+
+
+class TagIdResponse(BaseModel):
+    tag_id: int
+
+
+class TagResponse(BaseModel):
+    tag_id: int
+    tag_string: str 
+    tag_type: int
+    tag_category_id: int
+    tag_description: str  
+    tag_vector_index: int
+    deprecated: bool = False
+    deprecated_tag_category: bool = False
+    user_who_created: str
+    creation_time: str    
+

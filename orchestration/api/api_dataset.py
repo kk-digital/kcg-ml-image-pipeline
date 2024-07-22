@@ -879,45 +879,6 @@ async def add_new_dataset(request: Request, dataset_name: str, bucket_id: int):
         http_status_code=200
     )
    
-    
-@router.put("/datasets/update-dataset-ids",
-            description="Update datasets in MongoDB to add bucket_id and dataset_name",
-            tags=["dataset"],
-            response_model=StandardSuccessResponseV1,
-            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_dataset_ids(request: Request, dataset_name: str, bucket_id: int):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    try:
-        # Fetch documents matching the provided dataset_name
-        matching_datasets = list(request.app.datasets_collection.find({"dataset_name": dataset_name}))
-
-        if not matching_datasets:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="No datasets found matching the provided dataset_name",
-                http_status_code=404
-            )
-
-        # Update each document with the provided bucket_id
-        for dataset in matching_datasets:
-            request.app.datasets_collection.update_one(
-                {"_id": dataset["_id"]},
-                {"$set": {
-                    "bucket_id": bucket_id
-                }}
-            )
-
-        return response_handler.create_success_response_v1(
-            response_data={"message": "Datasets updated successfully"},
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
 
 
 @router.get("/datasets/list-datasets-v1",
