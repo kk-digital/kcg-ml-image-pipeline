@@ -1007,15 +1007,27 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
             )
         
         classifier_id = rank_model.get("classifier_id")
-        
+        # Get all classifier scores for the classifier_id
+        # but sample aggregate query select the same columns multiple times so we need to filter
         filtered_classfier_scores = list(request.app.image_classifier_scores_collection.aggregate([
+            {'$sample': {
+                'size': sample_size
+            }}, 
             {'$match': {
                 'classifier_id': classifier_id,
                 'score': {'$gte': min_score},
             }},
-            {'$sample': {
-                'size': sample_size
-            }},
+            {
+            '$group': {
+                '_id': '$uuid',
+                'data': {'$first': '$$ROOT'}
+            }
+            },
+            {
+                '$replaceRoot': {
+                    'newRoot': '$data'
+                }
+            },
             {'$project': {
                 '_id': 0
             }},
@@ -1029,6 +1041,12 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
         filtered_classfier_scores = [filtered_classfier_scores[i] for i in sorted_args]
 
         num_filtered_classifier_scores = len(filtered_classfier_scores)
+        if num_filtered_classifier_scores < 2:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No image pair found.",
+                http_status_code=404
+            )
 
         image_uuid_pair_list = []
         
@@ -1039,10 +1057,35 @@ async def get_ab_rank_image_pair(request: Request, rank_model_id:int, min_score:
                 image_uuid_pair_list.append((filtered_classfier_scores[i]['uuid'], filtered_classfier_scores[j]['uuid']))
 
         num_image_pair_within_max_diff = len(image_uuid_pair_list)
+        
+        if num_image_pair_within_max_diff == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No image pair found.",
+                http_status_code=404
+            )
+            
         image_uuid_pair = image_uuid_pair_list[np.random.randint(0, num_image_pair_within_max_diff)]
 
         image_uuids = image_uuid_pair
-        images = list(request.app.completed_jobs_collection.find({'uuid': {'$in': image_uuids}}))
+        images = list(request.app.completed_jobs_collection.aggregate([
+            {
+                '$match': {
+                    'uuid': {'$in': image_uuids}
+                }
+            },
+            {
+            '$group': {
+                '_id': '$uuid',  
+                'data': {'$first': '$$ROOT'} 
+            }
+            },
+            {
+                '$replaceRoot': {
+                    'newRoot': '$data'
+                }
+            },
+        ]))
 
         image_pair = []
         image_score_pair = []
