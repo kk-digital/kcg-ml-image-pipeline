@@ -9,6 +9,7 @@ from typing import List
 from datetime import datetime, timedelta
 from pymongo import UpdateOne
 from utility.minio import cmd
+import random
 import uuid
 from .api_clip import http_clip_server_get_cosine_similarity_list
 from .api_utils import get_next_external_dataset_seq_id, update_external_dataset_seq_id, get_minio_file_path, PrettyJSONResponse
@@ -1230,11 +1231,11 @@ def get_random_image_date_range(
     query = {}
 
     if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        query['upload_date'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
+        query['upload_date'] = {'$gte': start_date}
     elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
+        query['upload_date'] = {'$lte': end_date}
 
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
@@ -1252,35 +1253,38 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="This Rank has no relevance classifier model assigned to it")
 
-        classifier_query = {'classifier_id': classifier_id}
+        classifier_query = {'classifier_id': classifier_id, 'image_source': 'external_image'}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
         # Fetch image hashes from classifier_scores collection that match the criteria
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
+        if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
-        image_hashes = [score['image_hash'] for score in classifier_scores]
+        limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
         all_documents = []
 
-        for i in range(0, len(image_hashes), BATCH_SIZE):
-            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+        for i in range(0, len(limited_image_hashes), BATCH_SIZE):
+            batch_image_hashes = limited_image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
-            batch_query['task_output_file_dict.output_file_hash'] = {'$in': batch_image_hashes}
+            batch_query['image_hash'] = {'$in': batch_image_hashes}
 
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
                 aggregation_pipeline.append({"$sample": {"size": size}})
             
             batch_documents = request.app.external_images_collection.aggregate(aggregation_pipeline)
-            all_documents.extend(list(batch_documents))
+            batch_docs_list = list(batch_documents)
+            all_documents.extend(batch_docs_list)
+            if len(all_documents) >= size:
+                break
 
-        documents = all_documents
+        documents = all_documents[:size]
     else:
         aggregation_pipeline = [{"$match": query}]
         if size:
