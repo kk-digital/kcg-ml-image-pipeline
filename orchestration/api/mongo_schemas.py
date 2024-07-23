@@ -178,10 +178,10 @@ class ImageMetadataV1(BaseModel):
     image_width: Union[str, None] = None
     image_height: Union[str, None] = None
     image_size: Union[str, None] = None
-    image_source: Union[str, None] = None
     features_type: Union[str, None] = None
     features_model: Union[str, None] = None
     features_vector: Union[list, None] = None
+    image_source: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -192,10 +192,10 @@ class ImageMetadataV1(BaseModel):
             "image_width": self.image_width,
             "image_height": self.image_height,
             "image_size": self.image_size,
-            "image_source": self.image_source,
             "features_type": self.features_type,
             "features_model": self.features_model,
             "features_vector": self.features_vector,
+            "image_source": self.image_source
         }
 
 
