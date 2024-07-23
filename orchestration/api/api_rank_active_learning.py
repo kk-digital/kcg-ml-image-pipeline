@@ -663,11 +663,10 @@ async def sort_ranking_data_by_date_v3(
     skip: int = Query(0, alias="offset"),
     limit: int = Query(10, alias="limit"),
     order: str = Query("desc", regex="^(desc|asc)$"),
-    image_source: str = Query(..., description="Image source to filter by", regex="^(generated_image|external_image|extract_image)$")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        query_filter = {"image_source": image_source}
+        query_filter = {}
         date_filter = {}
 
         if rank_model_id is not None:
