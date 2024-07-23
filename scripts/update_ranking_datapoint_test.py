@@ -52,44 +52,42 @@ def update_image_source(doc):
     
     return doc
 
-def update_datapoint():
-    current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-    
-    # Fetch one document
-    doc = ranking_datapoints_collection.find_one()
+def update_datapoints():
+    # Fetch all documents
+    documents = ranking_datapoints_collection.find.one()
 
-    if not doc:
-        print("No documents found in the collection.")
-        return
+    for doc in documents:
+        # Update the document
+        updated_doc = update_image_source(doc)
 
-    print(f"Processing document ID: {doc['_id']}")
+        # Update MongoDB
+        ranking_datapoints_collection.update_one(
+            {"_id": updated_doc["_id"]},
+            {"$set": updated_doc}
+        )
+        print(f"Updated document ID: {updated_doc['_id']} in MongoDB.")
 
-    # Update the document
-    updated_doc = update_image_source(doc)
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = updated_doc.copy()
+        minio_data.pop("_id")
+        
+        formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
+        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+        
+        # Fetch the corresponding filenames from MinIO
+        objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
+        for obj in objects:
+            file_name = obj.object_name.split('/')[-1]
+            full_path = obj.object_name
+            json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+            data = BytesIO(json_data)
 
-    # Update MongoDB
-    ranking_datapoints_collection.update_one(
-        {"_id": updated_doc["_id"]},
-        {"$set": updated_doc}
-    )
-    print(f"Updated document ID: {updated_doc['_id']} in MongoDB.")
-
-    # Prepare data for MinIO upload (excluding the '_id' field)
-    minio_data = updated_doc.copy()
-    minio_data.pop("_id")
-    minio_data.pop("file_name", None)
-    formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
-    path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-    full_path = os.path.join(path, f"{current_time}-{updated_doc['username']}.json")
-    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-    data = BytesIO(json_data)
-
-    # Upload data to MinIO
-    try:
-        minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
-        print(f"Uploaded successfully to MinIO: {full_path}")
-    except Exception as e:
-        print(f"Error uploading to MinIO: {str(e)}")
+            # Upload data to MinIO
+            try:
+                minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
+                print(f"Uploaded successfully to MinIO: {full_path}")
+            except Exception as e:
+                print(f"Error uploading to MinIO: {str(e)}")
 
 if __name__ == "__main__":
-    update_datapoint()
+    update_datapoints()

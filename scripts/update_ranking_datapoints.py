@@ -35,22 +35,24 @@ def determine_image_source(image_hash):
         return None
 
 def update_image_source(doc):
+    print(f"Updating document ID: {doc['_id']}")
     if 'image_source' in doc:
+        print(f"Removing existing image_source field from document ID: {doc['_id']}")
         doc.pop('image_source')
     
     if 'image_1_metadata' in doc and doc['image_1_metadata'].get('file_hash'):
         image_source_1 = determine_image_source(doc['image_1_metadata']['file_hash'])
         doc['image_1_metadata']['image_source'] = image_source_1
+        print(f"Updated image_1_metadata with image_source: {image_source_1}")
     
     if 'image_2_metadata' in doc and doc['image_2_metadata'].get('file_hash'):
         image_source_2 = determine_image_source(doc['image_2_metadata']['file_hash'])
         doc['image_2_metadata']['image_source'] = image_source_2
+        print(f"Updated image_2_metadata with image_source: {image_source_2}")
     
     return doc
 
 def update_datapoints():
-    current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-    
     # Fetch all documents
     documents = ranking_datapoints_collection.find()
 
@@ -63,23 +65,29 @@ def update_datapoints():
             {"_id": updated_doc["_id"]},
             {"$set": updated_doc}
         )
+        print(f"Updated document ID: {updated_doc['_id']} in MongoDB.")
 
         # Prepare data for MinIO upload (excluding the '_id' field)
         minio_data = updated_doc.copy()
         minio_data.pop("_id")
-        minio_data.pop("file_name", None)
+        
         formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
         path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-        full_path = os.path.join(path, f"{current_time}-{updated_doc['username']}.json")
-        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-        data = BytesIO(json_data)
+        
+        # Fetch the corresponding filenames from MinIO
+        objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
+        for obj in objects:
+            file_name = obj.object_name.split('/')[-1]
+            full_path = obj.object_name
+            json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+            data = BytesIO(json_data)
 
-        # Upload data to MinIO
-        try:
-            minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
-            print(f"Uploaded successfully to MinIO: {full_path}")
-        except Exception as e:
-            print(f"Error uploading to MinIO: {str(e)}")
+            # Upload data to MinIO
+            try:
+                minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
+                print(f"Uploaded successfully to MinIO: {full_path}")
+            except Exception as e:
+                print(f"Error uploading to MinIO: {str(e)}")
 
 if __name__ == "__main__":
     update_datapoints()
