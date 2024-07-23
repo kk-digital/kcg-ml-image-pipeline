@@ -84,16 +84,6 @@ def update_datapoint():
     json_data = json.dumps(minio_data, indent=4).encode('utf-8')
     data = BytesIO(json_data)
 
-    # Delete the old file if it exists
-    try:
-        objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
-        for obj in objects:
-            if obj.object_name.startswith(path):
-                minio_client.remove_object("datasets", obj.object_name)
-                print(f"Deleted old file from MinIO: {obj.object_name}")
-    except Exception as e:
-        print(f"Error deleting old files from MinIO: {str(e)}")
-
     # Upload data to MinIO
     try:
         minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
