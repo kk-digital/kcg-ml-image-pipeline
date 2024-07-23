@@ -54,7 +54,7 @@ def update_image_source(doc):
 
 def update_datapoints():
     # Fetch all documents
-    documents = ranking_datapoints_collection.find.one()
+    documents = ranking_datapoints_collection.find_one()
 
     for doc in documents:
         # Update the document
