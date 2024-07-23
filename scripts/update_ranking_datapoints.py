@@ -1,8 +1,7 @@
 import os
 import json
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from minio import Minio
-from bson import ObjectId
 from datetime import datetime
 from io import BytesIO
 
@@ -23,6 +22,8 @@ minio_client = Minio(
     secret_key='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu',
     secure=False  # Set to True if using HTTPS
 )
+
+BATCH_SIZE = 100  # Adjust the batch size as needed
 
 def determine_image_source(image_hash):
     if completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}):
@@ -53,41 +54,49 @@ def update_image_source(doc):
     return doc
 
 def update_datapoints():
-    # Fetch all documents
-    documents = ranking_datapoints_collection.find()
+    cursor = ranking_datapoints_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
 
-    for doc in documents:
-        # Update the document
-        updated_doc = update_image_source(doc)
+    try:
+        while True:
+            batch = list(cursor.limit(BATCH_SIZE))
+            if not batch:
+                break
 
-        # Update MongoDB
-        ranking_datapoints_collection.update_one(
-            {"_id": updated_doc["_id"]},
-            {"$set": updated_doc}
-        )
-        print(f"Updated document ID: {updated_doc['_id']} in MongoDB.")
+            bulk_updates = []
+            for doc in batch:
+                updated_doc = update_image_source(doc)
+                bulk_updates.append(
+                    UpdateOne({"_id": updated_doc["_id"]}, {"$set": updated_doc})
+                )
 
-        # Prepare data for MinIO upload (excluding the '_id' field)
-        minio_data = updated_doc.copy()
-        minio_data.pop("_id")
-        
-        formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
-        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-        
-        # Fetch the corresponding filenames from MinIO
-        objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
-        for obj in objects:
-            file_name = obj.object_name.split('/')[-1]
-            full_path = obj.object_name
-            json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-            data = BytesIO(json_data)
+                # Prepare data for MinIO upload (excluding the '_id' field)
+                minio_data = updated_doc.copy()
+                minio_data.pop("_id")
 
-            # Upload data to MinIO
-            try:
-                minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
-                print(f"Uploaded successfully to MinIO: {full_path}")
-            except Exception as e:
-                print(f"Error uploading to MinIO: {str(e)}")
+                formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
+                path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+
+                # Fetch the corresponding filenames from MinIO
+                objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
+                for obj in objects:
+                    file_name = obj.object_name.split('/')[-1]
+                    full_path = obj.object_name
+                    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+                    data = BytesIO(json_data)
+
+                    # Upload data to MinIO
+                    try:
+                        minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
+                        print(f"Uploaded successfully to MinIO: {full_path}")
+                    except Exception as e:
+                        print(f"Error uploading to MinIO: {str(e)}")
+
+            if bulk_updates:
+                ranking_datapoints_collection.bulk_write(bulk_updates)
+                print(f"Updated {len(bulk_updates)} documents in MongoDB.")
+    finally:
+        cursor.close()
 
 if __name__ == "__main__":
     update_datapoints()
+s
