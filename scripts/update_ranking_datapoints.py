@@ -7,8 +7,8 @@ from datetime import datetime
 from io import BytesIO
 
 # MongoDB connection setup
-MONGO_URI = "mongodb://your_mongodb_uri"
-DATABASE_NAME = "your_database"
+MONGO_URI = "mongodb://192.168.3.1:32017/"
+DATABASE_NAME = "orchestration-job-db"
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DATABASE_NAME]
 ranking_datapoints_collection = db['ranking_datapoints']
@@ -18,9 +18,9 @@ external_images_collection = db['external_images']
 
 # MinIO connection setup
 minio_client = Minio(
-    'your_minio_endpoint',
-    access_key='your_access_key',
-    secret_key='your_secret_key',
+    '192.168.3.5:9000',
+    access_key='v048BpXpWrsVIHUfdAix',
+    secret_key='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu',
     secure=False  # Set to True if using HTTPS
 )
 
