@@ -111,7 +111,7 @@ def image_list_sorted_by_score(
         scores_query['score'] = {'$gte': min_score}
     elif max_score:
         scores_query['score'] = {'$lte': max_score}
-    scores_data = list(request.app.image_scores_collection.find(scores_query, 
+    scores_data = list(request.app.image_rank_scores_collection.find(scores_query, 
     {'_id': 0, 'image_hash': 1, 'score': 1}).sort("score", sort_order))
 
     images_data = []
@@ -547,7 +547,7 @@ def image_list_sorted_by_score(
         elif max_score is not None:
             scores_query['score'] = {'$lte': max_score}
 
-        scores_data = list(request.app.image_scores_collection.find(
+        scores_data = list(request.app.image_rank_scores_collection.find(
             scores_query,
             {'_id': 0, 'image_hash': 1, 'score': 1}
         ).sort("score", sort_order_mongo))

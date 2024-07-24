@@ -285,6 +285,7 @@ class RankingModel(BaseModel):
 
 class RankingScore(BaseModel):
     rank_model_id: int
+    rank_id: int
     uuid: str
     image_hash: str
     score: float
@@ -301,6 +302,7 @@ class RankingScore(BaseModel):
 
 class ResponseRankingScore(BaseModel):
     rank_model_id: int
+    rank_id: int
     uuid: str
     image_hash: str
     score: float    

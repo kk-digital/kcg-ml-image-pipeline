@@ -36,6 +36,7 @@ from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
 from orchestration.api.api_classifier import router as classifier_router
+from orchestration.api.api_ranking_model import router as ranking_model_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
 from orchestration.api.api_rank_active_learning import router as rank_router
 from orchestration.api.api_rank_active_learning_policy import router as rank_active_learning_policy_router
@@ -85,6 +86,7 @@ app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
 app.include_router(classifier_router)
+app.include_router(ranking_model_router)
 app.include_router(ab_rank_router)
 app.include_router(rank_router)
 app.include_router(rank_active_learning_policy_router)
@@ -116,6 +118,12 @@ def add_models_counter():
 
     return True
 
+def create_collection_if_not_exists(db, collection_name):
+    if collection_name not in db.list_collection_names():
+        db.create_collection(collection_name)
+        print(f"Collection '{collection_name}' created.")
+    else:
+        print(f"Collection '{collection_name}' already exists.")
 
 def create_index_if_not_exists(collection, index_key, index_name):
     existing_indexes = collection.index_information()
@@ -291,6 +299,10 @@ def startup_db_client():
 
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]
+    
+    #ranking models
+    create_collection_if_not_exists(app.mongodb_db, "ranking_models")
+    app.ranking_models_collection = app.mongodb_db["ranking_models"]
 
     # delta score
     app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
@@ -307,9 +319,16 @@ def startup_db_client():
 
     app.uuid_tag_count_collection = app.mongodb_db["tag_count"]
 
-    
     # scores
-    app.image_scores_collection = app.mongodb_db["image-scores"]
+    create_collection_if_not_exists(app.mongodb_db, "image_rank_scores")
+    app.image_rank_scores_collection = app.mongodb_db["image_rank_scores"]
+
+    rank_scores_index=[
+    ("uuid", pymongo.ASCENDING),
+    ("image_hash", pymongo.ASCENDING),
+    ("rank_model_id", pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_rank_scores_collection , rank_scores_index, "rank_scores_index")
 
     # scores for image classfier
     app.image_classifier_scores_collection = app.mongodb_db["image_classifier_scores"]
@@ -361,19 +380,6 @@ def startup_db_client():
         app.max_image_global_id = max_image_doc["image_global_id"] if max_image_doc else 0
     else:
         app.max_image_global_id = 0
-        
-
-    scores_index=[
-    ('model_id', pymongo.ASCENDING), 
-    ('score', pymongo.ASCENDING)
-    ]
-    create_index_if_not_exists(app.image_scores_collection ,scores_index, 'scores_index')
-
-    hash_index=[
-    ('model_id', pymongo.ASCENDING), 
-    ('image_hash', pymongo.ASCENDING)
-    ]
-    create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
 
     # classifier scores classifier_id, tag_id, image_hash
     classifier_image_hash_index=[
