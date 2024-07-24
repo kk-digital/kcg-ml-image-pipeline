@@ -1,5 +1,8 @@
+from datetime import datetime
 from fastapi import Request, APIRouter, HTTPException, Query
 from typing import Optional
+
+from pymongo import UpdateOne
 from orchestration.api.mongo_schemas import RankingScore, ResponseRankingScore, ListRankingScore
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 
@@ -120,6 +123,7 @@ async def set_image_rank_score(
     ranking_score_data = ranking_score.dict()
     ranking_score_data['image_source'] = image_source
     ranking_score_data['image_hash'] = image_hash
+    ranking_score_data["creation_time"] = datetime.utcnow().isoformat(),
     request.app.image_scores_collection.insert_one(ranking_score_data)
 
     ranking_score_data.pop('_id', None)
@@ -128,6 +132,62 @@ async def set_image_rank_score(
         response_data=ranking_score_data,
         http_status_code=201  
     )
+
+@router.post("/image-scores/scores/set-rank-score-batch", 
+             status_code=200,
+             response_model=StandardSuccessResponseV1[ListRankingScore],
+             description="Set rank image scores in a batch",
+             tags=["image scores"], 
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def set_image_rank_score_batch(
+    request: Request, 
+    batch_scores: ListRankingScore
+):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        bulk_operations = []
+        response_data = []
+
+        for ranking_score in batch_scores.scores:
+            query = {
+                "uuid": ranking_score.uuid,
+                "image_hash": ranking_score.image_hash,
+                "rank_model_id": ranking_score.rank_model_id    
+            }
+
+            new_score_data = {
+                "uuid": ranking_score.uuid,
+                "rank_model_id": ranking_score.rank_model_id, 
+                "score": ranking_score.score,
+                "sigma_score": ranking_score.sigma_score,
+                "image_hash": ranking_score.image_hash,
+                "creation_time": datetime.utcnow().isoformat(),
+                "image_source": ranking_score.image_source
+            }
+
+            update_operation = UpdateOne(
+                query,
+                {"$set": new_score_data},
+                upsert=True
+            )
+            bulk_operations.append(update_operation)
+            response_data.append(new_score_data)
+
+        if bulk_operations:
+            request.app.image_scores_collection.bulk_write(bulk_operations)
+
+        return api_response_handler.create_success_response_v1(
+            response_data=response_data,
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
 
 
 @router.get("/image-scores/scores/get-image-rank-score", 
