@@ -54,11 +54,12 @@ def update_image_source(doc):
     return doc
 
 def update_datapoints():
+    total_documents = ranking_datapoints_collection.count_documents({})
     cursor = ranking_datapoints_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
 
     try:
-        while True:
-            batch = list(cursor.limit(BATCH_SIZE))
+        for skip in range(0, total_documents, BATCH_SIZE):
+            batch = list(cursor.skip(skip).limit(BATCH_SIZE))
             if not batch:
                 break
 
@@ -99,4 +100,3 @@ def update_datapoints():
 
 if __name__ == "__main__":
     update_datapoints()
-s
