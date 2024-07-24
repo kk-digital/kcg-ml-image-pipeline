@@ -60,3 +60,25 @@ def get_xgboost_model_card_buf(date,
     buf.seek(0)
 
     return buf, json.dumps(model_card, indent=4)
+
+def get_ranking_model_data(model_name,
+                       model_type,
+                       rank_id,
+                       model_path,
+                       latest_model_creation_time,
+                       creation_time):
+    model_card = {
+                "ranking_model_id": None,
+                "model_name": model_name,
+                "model_type": model_type,
+                "rank_id": rank_id,
+                "latest_model_creation_time": latest_model_creation_time,
+                "model_path": model_path,
+                "creation_time": creation_time
+            }
+
+    buf = BytesIO()
+    buf.write(json.dumps(model_card, indent=4).encode())
+    buf.seek(0)
+
+    return json.dumps(model_card, indent=4)

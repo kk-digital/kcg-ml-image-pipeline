@@ -442,7 +442,7 @@ def list_ranking_files_sort_by_score(
     # Query for model sigma scores
     query = {"model_id": model_id}
     sort_order = -1 if order == "desc" else 1
-    model_scores = request.app.image_scores_collection.find(query).sort("score", sort_order)
+    model_scores = request.app.image_rank_scores_collection.find(query).sort("score", sort_order)
     model_scores = list(model_scores)
 
     if len(model_scores) == 0:

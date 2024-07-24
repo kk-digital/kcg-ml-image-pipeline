@@ -8,12 +8,13 @@ import argparse
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
+from utility.http import request
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_v2 import *
 from data_loader.rank_ab_ranking_loader import ABRankingDatasetLoader
-from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
+from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf, get_ranking_model_data
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
@@ -52,7 +53,8 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
     training_dataset_path = os.path.join(bucket_name, "ranks/{:05}/data/ranking/aggregate".format(rank_model_info["rank_model_id"]))
     network_type = "elm-v1"
     output_type = "score"
-    output_path = "ranks/{:05}/models/ranking".format(rank_model_info["rank_model_id"])
+    rank_id= rank_model_info["rank_model_id"]
+    output_path = "ranks/{:05}/models/ranking".format(rank_id)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
@@ -304,6 +306,18 @@ def train_ranking(rank_model_info: dict, # rank_model_info must have rank_model_
                                         input_type,
                                         output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+    # save model to mongodb if its input type is clip-h
+    ranking_model_name= "{}-{}-{}".format(output_type, network_type, input_type)
+    model_data= get_ranking_model_data(model_name= ranking_model_name,
+                                       model_type="elm-v1",
+                                       rank_id= rank_id,
+                                       model_path= model_output_path,
+                                       latest_model_creation_time= date_now,
+                                       creation_time=date_now)
+    
+    if(input_type==constants.KANDINSKY_CLIP):
+        request.http_add_ranking_model(model_data)
 
     return model_output_path, report_output_path, graph_output_path
 
