@@ -157,6 +157,25 @@ def http_get_classifier_model_list():
 
     return None
 
+def http_get_rank_model_list():
+    url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
+    response = None
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+            return []
+        return response.json()["response"]["ranks"]
+    except Exception as e:
+        print('request exception ', e)
+        
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 
 def http_add_score(score_data):
     url = SERVER_ADDRESS + "/score/set-image-rank-score"
@@ -200,6 +219,25 @@ def http_add_classifier_score(score_data, image_source= "generated_image"):
 
 def http_add_classifier_score_batch(scores_batch):
     url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v2"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+    
+    try:
+        response = requests.post(url, json=scores_batch, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_add_rank_score_batch(scores_batch):
+    url = SERVER_ADDRESS + "/image-scores/scores/set-rank-score-batch"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
     

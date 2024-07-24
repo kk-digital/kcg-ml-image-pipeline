@@ -123,9 +123,8 @@ class ABRankingELMBaseModelDeprecate(nn.Module):
 
 class ABRankingELMModel:
     def __init__(self, inputs_shape, device=None, num_random_layers=1, elm_sparsity=0.5):
-        print("inputs_shape=", inputs_shape)
         if device is not None:
-            self._device = torch.device(device)
+            self._device = device
         elif torch.cuda.is_available():
             self._device = torch.device('cuda')
         else:
