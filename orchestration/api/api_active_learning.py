@@ -183,11 +183,11 @@ def get_ranking_comparison(
     if score_type not in ["clip_sigma_score", "embedding_sigma_score"]:
         raise HTTPException(status_code=400, detail="Invalid score_type parameter")
 
-    image_scores_collection: Collection = request.app.image_scores_collection
+    image_rank_scores_collection: Collection = request.app.image_rank_scores_collection
 
     try:
         # Fetch a random image score within the score range and the specified dataset
-        first_image_cursor = image_scores_collection.aggregate([
+        first_image_cursor = image_rank_scores_collection.aggregate([
             {"$match": {
                 "score": {"$gte": min_score, "$lte": max_score},
                 "dataset": dataset  # Filter by dataset
@@ -203,7 +203,7 @@ def get_ranking_comparison(
         base_score = first_image_score[score_type]  # Use dynamic score_type
 
         # Fetch candidate images for the second image within the specified dataset
-        candidates_cursor = image_scores_collection.find({
+        candidates_cursor = image_rank_scores_collection.find({
             score_type: {"$gte": min_score, "$lte": max_score},
             "image_hash": {"$ne": first_image_score['image_hash']},
             "dataset": dataset  # Filter by dataset

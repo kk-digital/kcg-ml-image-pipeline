@@ -21,9 +21,9 @@ async def set_image_rank_score(request: Request, ranking_score: RankingScore):
     if not image_data:
         raise HTTPException(status_code=404, detail="Image with the given hash not found in completed jobs collection.")
 
-    # Check if the score already exists in image_scores_collection
+    # Check if the score already exists in image_rank_scores_collection
     query = {"image_hash": ranking_score.image_hash, "rank_model_id": ranking_score.rank_model_id}
-    count = request.app.image_scores_collection.count_documents(query)
+    count = request.app.image_rank_scores_collection.count_documents(query)
     if count > 0:
         raise HTTPException(status_code=409, detail="Score for specific rank_model_id and image_hash already exists.")
 
@@ -32,7 +32,7 @@ async def set_image_rank_score(request: Request, ranking_score: RankingScore):
     ranking_score_data['image_source'] = "generated_image"
 
     # Insert the new ranking score
-    request.app.image_scores_collection.insert_one(ranking_score_data)
+    request.app.image_rank_scores_collection.insert_one(ranking_score_data)
 
     return True
 
@@ -56,9 +56,9 @@ async def set_image_rank_score(
 ):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    # Check if rank_model_id exists in rank_model_models_collection
+    # Check if rank_id exists in rank_model_models_collection
     model_exists = request.app.rank_model_models_collection.find_one(
-        {"rank_model_id": ranking_score.rank_model_id},
+        {"rank_model_id": ranking_score.rank_id},
         {"_id": 1}
     )
     if not model_exists:
@@ -105,13 +105,13 @@ async def set_image_rank_score(
             )
         image_hash = image_data['image_hash']
 
-    # Check if the score already exists in image_scores_collection
+    # Check if the score already exists in image_rank_scores_collection
     query = {
         "uuid": ranking_score.uuid,
         "image_hash": image_hash,
         "rank_model_id": ranking_score.rank_model_id
     }
-    count = request.app.image_scores_collection.count_documents(query)
+    count = request.app.image_rank_scores_collection.count_documents(query)
     if count > 0:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
@@ -124,7 +124,7 @@ async def set_image_rank_score(
     ranking_score_data['image_source'] = image_source
     ranking_score_data['image_hash'] = image_hash
     ranking_score_data["creation_time"] = datetime.utcnow().isoformat(),
-    request.app.image_scores_collection.insert_one(ranking_score_data)
+    request.app.image_rank_scores_collection.insert_one(ranking_score_data)
 
     ranking_score_data.pop('_id', None)
 
@@ -158,7 +158,8 @@ async def set_image_rank_score_batch(
 
             new_score_data = {
                 "uuid": ranking_score.uuid,
-                "rank_model_id": ranking_score.rank_model_id, 
+                "rank_model_id": ranking_score.rank_model_id,
+                "rank_id": ranking_score.rank_id,
                 "score": ranking_score.score,
                 "sigma_score": ranking_score.sigma_score,
                 "image_hash": ranking_score.image_hash,
@@ -175,7 +176,7 @@ async def set_image_rank_score_batch(
             response_data.append(new_score_data)
 
         if bulk_operations:
-            request.app.image_scores_collection.bulk_write(bulk_operations)
+            request.app.image_rank_scores_collection.bulk_write(bulk_operations)
 
         return api_response_handler.create_success_response_v1(
             response_data=response_data,
@@ -212,7 +213,7 @@ def get_image_rank_score_by_hash(
 
     # Adjust the query to include rank_model_id and image_source
     query = {"image_hash": image_hash, "rank_model_id": rank_model_id, "image_source": image_source}
-    item = request.app.image_scores_collection.find_one(query)
+    item = request.app.image_rank_scores_collection.find_one(query)
 
     if item is None:
         # Return a standardized error response if not found
@@ -237,7 +238,7 @@ def get_image_rank_score_by_hash(
 def get_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int):
     # check if exist
     query = {"rank_model_id": rank_model_id}
-    items = request.app.image_scores_collection.find(query).sort("score", -1)
+    items = request.app.image_rank_scores_collection.find(query).sort("score", -1)
     if items is None:
         return []
     
@@ -267,7 +268,7 @@ def get_image_rank_scores_by_model_id(
     if image_source:
         query["image_source"] = image_source
 
-    items = list(request.app.image_scores_collection.find(query).sort("score", -1))
+    items = list(request.app.image_rank_scores_collection.find(query).sort("score", -1))
     
     score_data = []
     for item in items:
@@ -304,7 +305,7 @@ def delete_image_rank_score_by_hash(
     
     # Adjust the query to include rank_model_id and image_source
     query = {"image_hash": image_hash, "rank_model_id": rank_model_id, "image_source": image_source}
-    res = request.app.image_scores_collection.delete_one(query)
+    res = request.app.image_rank_scores_collection.delete_one(query)
     
     was_present = res.deleted_count > 0
     
