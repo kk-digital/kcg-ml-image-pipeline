@@ -20,8 +20,8 @@ minio_client = Minio(
     secure=False  # Set to True if using HTTPS
 )
 
-def migrate_to_minio():
-    cursor = ranking_datapoints_collection.find(no_cursor_timeout=True)
+def migrate_to_minio(file_name: str):
+    cursor = ranking_datapoints_collection.find({"file_name": file_name}, no_cursor_timeout=True)
     processed_count = 0
 
     try:
@@ -36,7 +36,6 @@ def migrate_to_minio():
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
             path = f"datasets/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-            file_name = doc['file_name']
             full_path = f"{path}/{file_name}"
             
             json_data = json.dumps(minio_data, indent=4).encode('utf-8')
@@ -57,4 +56,5 @@ def migrate_to_minio():
         print(f"Total documents processed for MinIO upload: {processed_count}")
 
 if __name__ == "__main__":
-    migrate_to_minio()
+    specific_file_name = "2023-10-23-16-00-19-synth-production"
+    migrate_to_minio(specific_file_name)
