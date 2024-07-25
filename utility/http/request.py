@@ -185,7 +185,7 @@ def http_get_ranking_model_list():
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}")
             return []
-        return response.json()["response"]["ranks"]
+        return response.json()["response"]["ranking_models"]
     except Exception as e:
         print('request exception ', e)
         
