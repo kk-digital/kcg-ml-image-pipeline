@@ -33,6 +33,7 @@ def migrate_to_minio(rank_model_id: int):
             # Prepare data for MinIO upload (excluding the '_id' field)
             minio_data = doc.copy()
             minio_data.pop("_id")
+            minio_data.pop("file_name")
 
             # Convert minio_data to JSON and then to bytes
             json_data = json.dumps(minio_data, indent=4)
