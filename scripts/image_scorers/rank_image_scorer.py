@@ -84,31 +84,20 @@ def collate_fn(batch):
     image_hashes = [item['image_hash'] for item in batch]
     return {'uuids': uuids, 'image_hashes':image_hashes , 'clip_vectors': clip_vectors}
 
-def load_model(minio_client, rank_id, model_type, device):
-    models_path= f"ranks/{str(rank_id).zfill(5)}/models"
-    file_extension="-clip-h.safetensors"
+def load_model(minio_client, rank_id, model_type, model_path, device):
 
-    model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', models_path)
-    most_recent_model = None
-
-    for model_file in model_files:
-        if model_file.endswith(file_extension) and model_type in model_file:
-            most_recent_model = model_file
-
-    if most_recent_model:
-        model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
-    else:
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', model_path)
+    
+    if model_file_data is None:
         print(f"No ranking model was found for rank {rank_id}.")
         return None
 
-    print(most_recent_model)
-
-    if model_type == "elm":
+    if model_type == "elm-v1":
         scoring_model = ABRankingELMModel(1280, device=device)
     elif model_type == "linear":
         scoring_model = ABRankingModel(1280, device=device)
     else:
-        print(f"No ranking model was found for rank {rank_id}.")
+        print(f"No ranking models are available for this model type.")
         return None
 
     # Create a BytesIO object and write the downloaded content into it
@@ -119,6 +108,8 @@ def load_model(minio_client, rank_id, model_type, device):
     byte_buffer.seek(0)
 
     scoring_model.load_safetensors(byte_buffer)
+
+    print(f"model {model_path} loaded")
 
     return scoring_model
 
@@ -224,15 +215,20 @@ def main():
     )
 
     print(f"Load all rank models")
-    rank_model_list = request.http_get_rank_model_list()
+    rank_model_list = request.http_get_ranking_model_list()
     rank_models = {}
     for rank_info in rank_model_list:
-        rank_name= rank_info["rank_model_string"]
-        rank_id = rank_info["rank_model_id"]
+        ranking_model_type = rank_info["model_type"]
+
+        if model_type != ranking_model_type:
+            continue
+
+        rank_id = rank_info["rank_id"]
+        model_path = rank_info["model_path"]
         rank_model= None
 
-        print(f"Loading the ranking model for the rank: {rank_name}...")
-        rank_model = load_model(minio_client, rank_id, model_type, torch.device('cpu'))
+        print(f"Loading the ranking model for rank id: {rank_id}...")
+        rank_model = load_model(minio_client, rank_id, model_type, model_path, torch.device('cpu'))
 
         if rank_model is not None:
             rank_models[rank_id] = { "model": rank_model, "rank_id": rank_id}
