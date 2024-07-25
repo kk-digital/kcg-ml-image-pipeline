@@ -36,30 +36,32 @@ def determine_image_source(image_hash):
         return None
 
 def update_image_source(doc):
-    print(f"Updating document ID: {doc['_id']}")
     if 'image_source' in doc:
-        print(f"Removing existing image_source field from document ID: {doc['_id']}")
         doc.pop('image_source')
     
     if 'image_1_metadata' in doc and doc['image_1_metadata'].get('file_hash'):
         image_source_1 = determine_image_source(doc['image_1_metadata']['file_hash'])
         doc['image_1_metadata']['image_source'] = image_source_1
-        print(f"Updated image_1_metadata with image_source: {image_source_1}")
     
     if 'image_2_metadata' in doc and doc['image_2_metadata'].get('file_hash'):
         image_source_2 = determine_image_source(doc['image_2_metadata']['file_hash'])
         doc['image_2_metadata']['image_source'] = image_source_2
-        print(f"Updated image_2_metadata with image_source: {image_source_2}")
     
     return doc
 
 def update_datapoints():
-    total_documents = ranking_datapoints_collection.count_documents({})
     cursor = ranking_datapoints_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
+    processed_count = 0
 
     try:
-        for skip in range(0, total_documents, BATCH_SIZE):
-            batch = list(cursor.skip(skip).limit(BATCH_SIZE))
+        while True:
+            batch = []
+            try:
+                for _ in range(BATCH_SIZE):
+                    batch.append(next(cursor))
+            except StopIteration:
+                pass
+
             if not batch:
                 break
 
@@ -94,9 +96,12 @@ def update_datapoints():
 
             if bulk_updates:
                 ranking_datapoints_collection.bulk_write(bulk_updates)
+                processed_count += len(bulk_updates)
                 print(f"Updated {len(bulk_updates)} documents in MongoDB.")
+
     finally:
         cursor.close()
+        print(f"Total documents processed: {processed_count}")
 
 if __name__ == "__main__":
     update_datapoints()
