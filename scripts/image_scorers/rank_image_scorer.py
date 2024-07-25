@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--bucket', required=True, help='name of bucket')
     parser.add_argument('--dataset', required=True, help='name of dataset')
-    parser.add_argument('--model-type', required=True, help='type of model elm, linear or logistic', default="all")
+    parser.add_argument('--model-type', required=True, help='type of model elm-v1 or linear', default="elm-v1")
     parser.add_argument('--batch-size', required=False, default=256, type=int, help='batch size of the classifier models')
 
     args = parser.parse_args()
