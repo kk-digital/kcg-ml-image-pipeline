@@ -19,7 +19,7 @@ def datetime_to_unix_int32(dt_str):
     formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f"]
     for fmt in formats:
         try:
-            dt = datetime.datetime.strptime(dt_str, fmt)
+            dt = datetime.strptime(dt_str, fmt)
             break
         except ValueError:
             continue
