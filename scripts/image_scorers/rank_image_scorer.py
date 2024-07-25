@@ -113,7 +113,7 @@ def load_model(minio_client, rank_id, model_type, model_path, device):
 
     return scoring_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, ranking_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
@@ -126,9 +126,9 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
     futures = []
     
     with ThreadPoolExecutor(max_workers=50) as executor:
-        for classifier_id, classifier_data in classifier_models.items():
-            rank_id = classifier_data["rank_id"]
-            ranking_model = classifier_data["model"]
+        for model_id, ranking_model_data in ranking_models.items():
+            rank_id = ranking_model_data["rank_id"]
+            ranking_model = ranking_model_data["model"]
             ranking_model.model= ranking_model.model.to(device=rank_device)
             score_mean= float(ranking_model.mean)
             score_std= float(ranking_model.standard_deviation)
@@ -152,7 +152,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
                     scores_batch["scores"]= []
                     for score, sigma_score, uuid, image_hash in zip(scores, sigma_scores, uuids, image_hashes):
                         score_data = {
-                            "rank_model_id": rank_id,
+                            "rank_model_id": model_id,
+                            "rank_id": rank_id,
                             "image_hash": image_hash,
                             "uuid": uuid,
                             "score": score.item(),
@@ -224,6 +225,7 @@ def main():
             continue
 
         rank_id = rank_info["rank_id"]
+        model_id = rank_info["ranking_model_id"]
         model_path = rank_info["model_path"]
         rank_model= None
 
@@ -231,7 +233,7 @@ def main():
         rank_model = load_model(minio_client, rank_id, model_type, model_path, torch.device('cpu'))
 
         if rank_model is not None:
-            rank_models[rank_id] = { "model": rank_model, "rank_id": rank_id}
+            rank_models[model_id] = { "model": rank_model, "rank_id": rank_id}
 
     if dataset_name != "all":
         print(f"Load the {bucket_name}/{dataset_name} dataset")
