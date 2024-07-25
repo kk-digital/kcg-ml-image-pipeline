@@ -60,5 +60,5 @@ def migrate_to_minio(rank_model_id: int):
         print(f"Total documents processed for MinIO upload: {processed_count}")
 
 if __name__ == "__main__":
-    rank_model_id = 2
+    rank_model_id = 4
     migrate_to_minio(rank_model_id)
