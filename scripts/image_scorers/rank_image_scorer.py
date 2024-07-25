@@ -119,12 +119,14 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
-    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset, batch_size=1, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
     total_uploaded = 0
     futures = []
-    
+
+    scores_batch= {}
+    scores_batch["scores"]= []
     with ThreadPoolExecutor(max_workers=50) as executor:
         for model_id, ranking_model_data in ranking_models.items():
             rank_id = ranking_model_data["rank_id"]
@@ -138,33 +140,29 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
             try:
                 for batch_idx, image_data in enumerate(tqdm(dataloader)):
 
-                    clip_vectors = image_data["clip_vectors"]
-                    uuids = image_data["uuids"]
-                    image_hashes = image_data["image_hashes"]
+                    clip_vector = image_data["clip_vectors"]
+                    clip_vector = clip_vector.to(rank_device)
 
-                    clip_vectors = clip_vectors.to(rank_device)
+                    uuid = image_data["uuids"][0]
+                    image_hash = image_data["image_hashes"][0]
                     
-                    print_in_rank("running scorer")
-                    scores = ranking_model.predict_clip(clip_vectors)
-                    sigma_scores= (scores - score_mean) / score_std
+                    score = ranking_model.predict_clip(clip_vector).item()
+                    sigma_score= (score - score_mean) / score_std
                     
-                    print_in_rank("getting batch")
-                    scores_batch= {}
-                    scores_batch["scores"]= []
-                    for score, sigma_score, uuid, image_hash in zip(scores, sigma_scores, uuids, image_hashes):
-                        score_data = {
-                            "rank_model_id": model_id,
-                            "rank_id": rank_id,
-                            "image_hash": image_hash,
-                            "uuid": uuid,
-                            "score": score.item(),
-                            "sigma_score": sigma_score.item(),
-                            "image_source": image_source
-                        }
-                        scores_batch["scores"].append(score_data)
+                    score_data = {
+                        "rank_model_id": model_id,
+                        "rank_id": rank_id,
+                        "image_hash": image_hash,
+                        "uuid": uuid,
+                        "score": score,
+                        "sigma_score": sigma_score,
+                        "image_source": image_source
+                    }
+                    scores_batch["scores"].append(score_data)
                     
-                    print_in_rank("sending job")
-                    futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch))
+                    if len(scores_batch["scores"]) == batch_size:
+                        futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch))
+                        scores_batch["scores"]=[]
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
