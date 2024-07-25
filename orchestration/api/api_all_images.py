@@ -13,6 +13,7 @@ from orchestration.api.mongo_schema.all_images_schemas import AllImagesResponse,
 import io
 from typing import List
 from PIL import Image
+from scripts.new_uuids import datetime_to_unix_int32
 
 
 router = APIRouter()
@@ -48,31 +49,31 @@ async def list_all_images(
                 query = {"$or": query_conditions}
 
         # Add date filters to the query
-        if start_date or end_date or time_interval is not None:
-            date_query = {}
-            if start_date:
-                date_query['$gte'] = start_date
-            if end_date:
-                date_query['$lte'] = end_date
+        date_query = {}
+        if start_date:
+            date_query['$gte'] = datetime_to_unix_int32(start_date)
+        if end_date:
+            date_query['$lte'] = datetime_to_unix_int32(end_date)
 
-            # Calculate the time threshold based on the current time and the specified interval
-            if time_interval is not None:
-                current_time = datetime.utcnow()
-                if time_unit == "minutes":
-                    threshold_time = current_time - timedelta(minutes=time_interval)
-                elif time_unit == "hours":
-                    threshold_time = current_time - timedelta(hours=time_interval)
-                else:
-                    raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-                date_query['$gte'] = threshold_time.isoformat(timespec='milliseconds')
-            
-            query['creation_time'] = date_query
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+            date_query['$gte'] = datetime_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
+        
+        if date_query:
+            query['date'] = date_query
 
         # Decide the sort order based on the 'order' parameter
         sort_order = -1 if order == "desc" else 1
 
         # Query the collection with pagination and sorting
-        cursor = request.app.all_image_collection.find(query).sort('creation_time', sort_order).skip(offset).limit(limit)
+        cursor = request.app.all_image_collection.find(query).sort('date', sort_order).skip(offset).limit(limit)
         images = list(cursor)
 
         for image in images:
