@@ -673,9 +673,11 @@ async def sort_ranking_data_by_date_v3(
             query_filter["rank_model_id"] = rank_model_id
 
         if start_date:
-            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
         if end_date:
-            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
 
         if date_filter:
             query_filter["datetime"] = date_filter
