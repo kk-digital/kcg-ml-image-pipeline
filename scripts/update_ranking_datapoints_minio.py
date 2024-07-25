@@ -38,7 +38,7 @@ def migrate_to_minio(file_name: str):
             print(f"Data to upload: {json.dumps(minio_data, indent=4)}")
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
-            path = f"datasets/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+            path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
             full_path = f"{path}/{file_name}"
             
             json_data = json.dumps(minio_data, indent=4).encode('utf-8')
