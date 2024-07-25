@@ -21,7 +21,6 @@ minio_client = Minio(
 )
 
 def migrate_to_minio(rank_model_id: int):
-    # Updated query to filter by rank_model_id only
     cursor = ranking_datapoints_collection.find({"rank_model_id": rank_model_id}, no_cursor_timeout=True)
     processed_count = 0
 
@@ -34,20 +33,22 @@ def migrate_to_minio(rank_model_id: int):
             # Prepare data for MinIO upload (excluding the '_id' field)
             minio_data = doc.copy()
             minio_data.pop("_id")
+
+            # Convert minio_data to JSON and then to bytes
+            json_data = json.dumps(minio_data, indent=4)
+            data = json_data.encode('utf-8')
+            data_length = len(data)
             
-            # Print the minio_data for debugging
+
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
             path = f"/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
             full_path = f"{path}/{doc['file_name']}"
-            
-            json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-            data = BytesIO(json_data)
 
             # Upload data to MinIO
             try:
                 print(f"Uploading to MinIO: {full_path}")
-                minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
+                minio_client.put_object("datasets", full_path, BytesIO(data), data_length, content_type='application/json')
                 print(f"Uploaded successfully to MinIO: {full_path}")
             except Exception as e:
                 print(f"Error uploading to MinIO: {str(e)}")
