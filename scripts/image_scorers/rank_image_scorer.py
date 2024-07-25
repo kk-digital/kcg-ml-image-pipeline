@@ -145,9 +145,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
                     clip_vectors = clip_vectors.to(rank_device)
                     
                     print_in_rank("running scorer")
-                    with torch.no_grad():
-                        scores = ranking_model.predict_clip(clip_vectors)
-                        sigma_scores= (scores - score_mean) / score_std
+                    scores = ranking_model.predict_clip(clip_vectors)
+                    sigma_scores= (scores - score_mean) / score_std
                     
                     print_in_rank("getting batch")
                     scores_batch= {}
