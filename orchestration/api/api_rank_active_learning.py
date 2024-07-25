@@ -674,10 +674,10 @@ async def sort_ranking_data_by_date_v3(
 
         if start_date:
             start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
-            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d") + " 00:00:00"
         if end_date:
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d") + " 23:59:59"
 
         if date_filter:
             query_filter["datetime"] = date_filter
