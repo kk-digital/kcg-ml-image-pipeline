@@ -144,10 +144,12 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
 
                     clip_vectors = clip_vectors.to(rank_device)
                     
+                    print_in_rank("running scorer")
                     with torch.no_grad():
                         scores = ranking_model.predict_clip(clip_vectors)
                         sigma_scores= (scores - score_mean) / score_std
                     
+                    print_in_rank("getting batch")
                     scores_batch= {}
                     scores_batch["scores"]= []
                     for score, sigma_score, uuid, image_hash in zip(scores, sigma_scores, uuids, image_hashes):
@@ -162,6 +164,7 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
                         }
                         scores_batch["scores"].append(score_data)
                     
+                    print_in_rank("sending job")
                     futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch))
 
             except Exception as e:
