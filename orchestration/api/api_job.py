@@ -2018,3 +2018,19 @@ async def get_completed_job_count(request: Request):
     
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
 
+@router.get("/queue/image-generation/get-completed-jobs-data-by-hashes", 
+            response_model=StandardSuccessResponseV1[ListTaskV1],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves the data of completed jobs by a list of image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_jobs_by_image_hashes(request: Request, image_hashes: List[str] = Query(...), fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    # Use the $in operator to find all matching documents in one query
+    jobs = list(request.app.completed_jobs_collection.find({"task_output_file_dict.output_file_hash": {"$in": image_hashes}}, projection))
+
+    # Return the data found in the success response
+    return response_handler.create_success_response_v1(response_data={'images': jobs}, http_status_code=200)
