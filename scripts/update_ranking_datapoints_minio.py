@@ -27,6 +27,8 @@ def migrate_to_minio():
     try:
         for doc in cursor:
             print(f"Processing document with ID: {doc['_id']}")
+            print(f"File Name: {doc['file_name']}")
+            print(f"Rank Model ID: {doc['rank_model_id']}")
 
             # Prepare data for MinIO upload (excluding the '_id' field)
             minio_data = doc.copy()
