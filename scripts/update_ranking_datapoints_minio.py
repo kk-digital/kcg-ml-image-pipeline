@@ -56,5 +56,5 @@ def migrate_to_minio(file_name: str):
         print(f"Total documents processed for MinIO upload: {processed_count}")
 
 if __name__ == "__main__":
-    specific_file_name = "2023-10-23-16-00-19-synth-production.json"
+    specific_file_name = "2024-03-03-18-15-15-hoa.json"
     migrate_to_minio(specific_file_name)
