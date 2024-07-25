@@ -663,12 +663,14 @@ class ABRankingELMModel:
 
     def predict_clip(self, inputs):
         print(inputs.shape)
+        outputs=None
         try:
             # concatenate
             inputs = inputs.reshape(len(inputs), -1)
 
             with torch.no_grad():
                 outputs = self.model.forward(inputs).squeeze()
+
         except Exception as e:
             print(f"exception {e}")
 
