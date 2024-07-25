@@ -33,6 +33,9 @@ def migrate_to_minio(file_name: str):
             # Prepare data for MinIO upload (excluding the '_id' field)
             minio_data = doc.copy()
             minio_data.pop("_id")
+            
+            # Print the minio_data for debugging
+            print(f"Data to upload: {json.dumps(minio_data, indent=4)}")
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
             path = f"datasets/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
@@ -43,6 +46,7 @@ def migrate_to_minio(file_name: str):
 
             # Upload data to MinIO
             try:
+                print(f"Uploading to MinIO: {full_path}")
                 minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
                 print(f"Uploaded successfully to MinIO: {full_path}")
             except Exception as e:
