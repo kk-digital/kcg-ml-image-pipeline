@@ -39,11 +39,9 @@ def migrate_to_minio(rank_model_id: int):
             json_data = json.dumps(minio_data, indent=4)
             data = json_data.encode('utf-8')
             data_length = len(data)
-            
-
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
-            path = f"/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+            path = f"datasets/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
             full_path = f"{path}/{doc['file_name']}"
 
             # Upload data to MinIO
@@ -62,5 +60,7 @@ def migrate_to_minio(rank_model_id: int):
         print(f"Total documents processed for MinIO upload: {processed_count}")
 
 if __name__ == "__main__":
-    rank_model_id = 0
-    migrate_to_minio(rank_model_id)
+    rank_model_ids = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10]
+    for rank_model_id in rank_model_ids:
+        print(f"Processing rank_model_id: {rank_model_id}")
+        migrate_to_minio(rank_model_id)
