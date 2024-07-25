@@ -16,10 +16,14 @@ from PIL import Image
 import time
 
 def datetime_to_unix_int32(dt_str):
-    formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f"]
+    formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d"]
     for fmt in formats:
         try:
-            dt = datetime.strptime(dt_str, fmt)
+            if fmt == "%Y-%m-%d":
+                dt = datetime.strptime(dt_str, fmt)
+                dt = dt.replace(hour=0, minute=0, second=0)  # Ensure time part is 00:00:00
+            else:
+                dt = datetime.strptime(dt_str, fmt)
             break
         except ValueError:
             continue
