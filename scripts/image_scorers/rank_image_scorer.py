@@ -161,7 +161,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, r
                     scores_batch["scores"].append(score_data)
                     
                     if len(scores_batch["scores"]) == batch_size:
-                        futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch))
+                        scores_batch_copy = {"scores": scores_batch["scores"].copy()}
+                        futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch_copy))
                         scores_batch["scores"]=[]
 
             except Exception as e:
