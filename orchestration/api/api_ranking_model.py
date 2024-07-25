@@ -1,7 +1,8 @@
 from datetime import datetime
 from fastapi import APIRouter, Request
 from typing import List
-from mongo_schema.ranking_models_schemas import RankingModel, RequestRanking_model, ListRankingModels
+
+from orchestration.api.mongo_schema.ranking_models_schemas import RankingModel, RequestRanking_model, ListRankingModels
 from .api_utils import ErrorCode, StandardSuccessResponseV1, ApiResponseHandlerV1
 
 router = APIRouter()
