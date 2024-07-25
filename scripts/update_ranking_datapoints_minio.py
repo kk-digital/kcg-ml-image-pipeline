@@ -20,8 +20,9 @@ minio_client = Minio(
     secure=False  # Set to True if using HTTPS
 )
 
-def migrate_to_minio(file_name: str):
-    cursor = ranking_datapoints_collection.find({"file_name": file_name}, no_cursor_timeout=True)
+def migrate_to_minio(rank_model_id: int):
+    # Updated query to filter by rank_model_id only
+    cursor = ranking_datapoints_collection.find({"rank_model_id": rank_model_id}, no_cursor_timeout=True)
     processed_count = 0
 
     try:
@@ -35,11 +36,10 @@ def migrate_to_minio(file_name: str):
             minio_data.pop("_id")
             
             # Print the minio_data for debugging
-            print(f"Data to upload: {json.dumps(minio_data, indent=4)}")
 
             formatted_rank_model_id = f"{doc['rank_model_id']:05d}"
-            path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-            full_path = f"{path}/{file_name}"
+            path = f"/ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+            full_path = f"{path}/{doc['file_name']}"
             
             json_data = json.dumps(minio_data, indent=4).encode('utf-8')
             data = BytesIO(json_data)
@@ -60,5 +60,5 @@ def migrate_to_minio(file_name: str):
         print(f"Total documents processed for MinIO upload: {processed_count}")
 
 if __name__ == "__main__":
-    specific_file_name = "2024-03-03-18-15-15-hoa.json"
-    migrate_to_minio(specific_file_name)
+    rank_model_id = 2
+    migrate_to_minio(rank_model_id)
