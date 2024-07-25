@@ -13,8 +13,21 @@ from orchestration.api.mongo_schema.all_images_schemas import AllImagesResponse,
 import io
 from typing import List
 from PIL import Image
-from scripts.new_uuids import datetime_to_unix_int32
+import time
 
+def datetime_to_unix_int32(dt_str):
+    formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f"]
+    for fmt in formats:
+        try:
+            dt = datetime.datetime.strptime(dt_str, fmt)
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError(f"time data '{dt_str}' does not match any known format")
+    
+    unix_time = int(time.mktime(dt.timetuple()))
+    return unix_time & 0xFFFFFFFF
 
 router = APIRouter()
 
