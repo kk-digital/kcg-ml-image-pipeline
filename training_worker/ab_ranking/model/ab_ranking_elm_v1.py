@@ -667,6 +667,7 @@ class ABRankingELMModel:
 
         with torch.no_grad():
             outputs = self.model.forward(inputs).squeeze()
+            print(outputs)
 
             return outputs
 
