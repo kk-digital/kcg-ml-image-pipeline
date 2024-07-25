@@ -65,12 +65,16 @@ async def list_all_images(
             if query_conditions:
                 query = {"$or": query_conditions}
 
+        print(f"Initial query conditions: {query}")
+
         # Add date filters to the query
         date_query = {}
         if start_date:
             date_query['$gte'] = datetime_to_unix_int32(start_date)
         if end_date:
             date_query['$lte'] = datetime_to_unix_int32(end_date)
+
+        print(f"Date query after adding start_date and end_date: {date_query}")
 
         # Calculate the time threshold based on the current time and the specified interval
         if time_interval is not None:
@@ -82,9 +86,13 @@ async def list_all_images(
             else:
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
             date_query['$gte'] = datetime_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
-        
+
+        print(f"Date query after adding time interval: {date_query}")
+
         if date_query:
             query['date'] = date_query
+
+        print(f"Final query: {query}")
 
         # Decide the sort order based on the 'order' parameter
         sort_order = -1 if order == "desc" else 1
@@ -92,6 +100,8 @@ async def list_all_images(
         # Query the collection with pagination and sorting
         cursor = request.app.all_image_collection.find(query).sort('date', sort_order).skip(offset).limit(limit)
         images = list(cursor)
+
+        print(f"Number of images found: {len(images)}")
 
         for image in images:
             image.pop("_id", None)  # Remove the MongoDB ObjectId
@@ -102,6 +112,7 @@ async def list_all_images(
         )
 
     except Exception as e:
+        print(f"Exception: {e}")
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
