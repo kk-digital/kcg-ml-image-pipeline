@@ -662,6 +662,7 @@ class ABRankingELMModel:
             return outputs
 
     def predict_clip(self, inputs):
+        print(inputs.shape)
         # concatenate
         inputs = inputs.reshape(len(inputs), -1)
 
