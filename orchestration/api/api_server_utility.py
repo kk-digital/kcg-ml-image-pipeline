@@ -40,18 +40,10 @@ async def get_database_sizes(request: Request):
     try:
         response_handler = await ApiResponseHandlerV1.createInstance(request)
         database_stats = db.command("dbstats")
-        total_allocated_size_gb = format_size_gb(database_stats["storageSize"])
-        data_size_gb = format_size_gb(database_stats["dataSize"])
-        index_size_gb = format_size_gb(database_stats["indexSize"])
         total_used_size_gb = format_size_gb(database_stats["dataSize"] + database_stats["indexSize"])
-        total_allocated_size_bytes = database_stats["storageSize"]
-        total_used_size_bytes = database_stats["dataSize"] + database_stats["indexSize"]
-        available_size_gb = format_size_gb(total_allocated_size_bytes - total_used_size_bytes)
 
         result = {
-            "total_allocated_size_gb": total_allocated_size_gb,
             "total_used_size_gb": total_used_size_gb,
-            "available_size_gb": available_size_gb
         }
         return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
     except Exception as e:
