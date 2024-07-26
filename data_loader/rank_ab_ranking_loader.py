@@ -20,7 +20,7 @@ from data_loader.ab_data import ABData
 from data_loader.utils import *
 
 # import request service for getting rank model list
-from utility.http.request import http_get_rank_model_list
+from utility.http.request import http_get_rank_list
 
 
 class ABRankingDatasetLoader:
@@ -90,7 +90,7 @@ class ABRankingDatasetLoader:
         print("Loading dataset references...")
 
         # Getting existing rank model list 
-        rank_model_list = http_get_rank_model_list()
+        rank_model_list = http_get_rank_list()
         rank_model_ids = [rank_model["rank_model_id"] for rank_model in rank_model_list]
 
         if self.rank_model_id not in rank_model_ids:

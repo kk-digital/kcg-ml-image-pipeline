@@ -20,7 +20,7 @@ from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
 
 # import http request service for getting rank model list
-from utility.http.request import http_get_rank_model_list
+from utility.http.request import http_get_rank_list
 
 # import constants for training ranking model
 from training_worker.ab_ranking.model import constants
@@ -371,7 +371,7 @@ def main():
     args = parse_args()
 
     # Get all rank model infor
-    rank_model_list = http_get_rank_model_list()
+    rank_model_list = http_get_rank_list()
 
     for rank_model in rank_model_list:
         print("{} Ranking....".format(rank_model["rank_model_string"]))

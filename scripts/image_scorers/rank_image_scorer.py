@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--bucket', required=True, help='name of bucket')
     parser.add_argument('--dataset', required=True, help='name of dataset')
-    parser.add_argument('--model-type', required=True, help='type of model elm, linear or logistic', default="all")
+    parser.add_argument('--model-type', required=True, help='type of model elm-v1 or linear', default="elm-v1")
     parser.add_argument('--batch-size', required=False, default=256, type=int, help='batch size of the classifier models')
 
     args = parser.parse_args()
@@ -84,31 +84,20 @@ def collate_fn(batch):
     image_hashes = [item['image_hash'] for item in batch]
     return {'uuids': uuids, 'image_hashes':image_hashes , 'clip_vectors': clip_vectors}
 
-def load_model(minio_client, rank_id, model_type, device):
-    models_path= f"ranks/{str(rank_id).zfill(5)}/models"
-    file_extension="-clip-h.safetensors"
+def load_model(minio_client, rank_id, model_type, model_path, device):
 
-    model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', models_path)
-    most_recent_model = None
-
-    for model_file in model_files:
-        if model_file.endswith(file_extension) and model_type in model_file:
-            most_recent_model = model_file
-
-    if most_recent_model:
-        model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
-    else:
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', model_path)
+    
+    if model_file_data is None:
         print(f"No ranking model was found for rank {rank_id}.")
         return None
 
-    print(most_recent_model)
-
-    if model_type == "elm":
+    if model_type == "elm-v1":
         scoring_model = ABRankingELMModel(1280, device=device)
     elif model_type == "linear":
         scoring_model = ABRankingModel(1280, device=device)
     else:
-        print(f"No ranking model was found for rank {rank_id}.")
+        print(f"No ranking models are available for this model type.")
         return None
 
     # Create a BytesIO object and write the downloaded content into it
@@ -120,24 +109,28 @@ def load_model(minio_client, rank_id, model_type, device):
 
     scoring_model.load_safetensors(byte_buffer)
 
+    print(f"model {model_path} loaded")
+
     return scoring_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, ranking_models, batch_size):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
     dataset = ClipDataset(image_dataset)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
-    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset, batch_size=1, sampler=sampler, collate_fn=collate_fn)
 
     start_time = time.time()
     total_uploaded = 0
     futures = []
-    
+
+    scores_batch= {}
+    scores_batch["scores"]= []
     with ThreadPoolExecutor(max_workers=50) as executor:
-        for classifier_id, classifier_data in classifier_models.items():
-            rank_id = classifier_data["rank_id"]
-            ranking_model = classifier_data["model"]
+        for model_id, ranking_model_data in ranking_models.items():
+            rank_id = ranking_model_data["rank_id"]
+            ranking_model = ranking_model_data["model"]
             ranking_model.model= ranking_model.model.to(device=rank_device)
             score_mean= float(ranking_model.mean)
             score_std= float(ranking_model.standard_deviation)
@@ -147,30 +140,30 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
             try:
                 for batch_idx, image_data in enumerate(tqdm(dataloader)):
 
-                    clip_vectors = image_data["clip_vectors"]
-                    uuids = image_data["uuids"]
-                    image_hashes = image_data["image_hashes"]
+                    clip_vector = image_data["clip_vectors"]
+                    clip_vector = clip_vector.to(rank_device)
 
-                    clip_vectors = clip_vectors.to(rank_device)
+                    uuid = image_data["uuids"][0]
+                    image_hash = image_data["image_hashes"][0]
                     
-                    with torch.no_grad():
-                        scores = ranking_model.predict_clip(clip_vectors)
-                        sigma_scores= (scores - score_mean) / score_std
+                    score = ranking_model.predict_clip(clip_vector).item()
+                    sigma_score= (score - score_mean) / score_std
                     
-                    scores_batch= {}
-                    scores_batch["scores"]= []
-                    for score, sigma_score, uuid, image_hash in zip(scores, sigma_scores, uuids, image_hashes):
-                        score_data = {
-                            "rank_model_id": rank_id,
-                            "image_hash": image_hash,
-                            "uuid": uuid,
-                            "score": score.item(),
-                            "sigma_score": sigma_score.item(),
-                            "image_source": image_source
-                        }
-                        scores_batch["scores"].append(score_data)
+                    score_data = {
+                        "rank_model_id": model_id,
+                        "rank_id": rank_id,
+                        "image_hash": image_hash,
+                        "uuid": uuid,
+                        "score": score,
+                        "sigma_score": sigma_score,
+                        "image_source": image_source
+                    }
+                    scores_batch["scores"].append(score_data)
                     
-                    futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch))
+                    if len(scores_batch["scores"]) == batch_size:
+                        scores_batch_copy = {"scores": scores_batch["scores"].copy()}
+                        futures.append(executor.submit(request.http_add_rank_score_batch, scores_batch=scores_batch_copy))
+                        scores_batch["scores"]=[]
 
             except Exception as e:
                 print_in_rank(f"exception occurred when uploading scores {e}")
@@ -224,18 +217,24 @@ def main():
     )
 
     print(f"Load all rank models")
-    rank_model_list = request.http_get_rank_model_list()
+    rank_model_list = request.http_get_ranking_model_list()
     rank_models = {}
     for rank_info in rank_model_list:
-        rank_name= rank_info["rank_model_string"]
-        rank_id = rank_info["rank_model_id"]
+        ranking_model_type = rank_info["model_type"]
+
+        if model_type != ranking_model_type:
+            continue
+
+        rank_id = rank_info["rank_id"]
+        model_id = rank_info["ranking_model_id"]
+        model_path = rank_info["model_path"]
         rank_model= None
 
-        print(f"Loading the ranking model for the rank: {rank_name}...")
-        rank_model = load_model(minio_client, rank_id, model_type, torch.device('cpu'))
+        print(f"Loading the ranking model for rank id: {rank_id}...")
+        rank_model = load_model(minio_client, rank_id, model_type, model_path, torch.device('cpu'))
 
         if rank_model is not None:
-            rank_models[rank_id] = { "model": rank_model, "rank_id": rank_id}
+            rank_models[model_id] = { "model": rank_model, "rank_id": rank_id}
 
     if dataset_name != "all":
         print(f"Load the {bucket_name}/{dataset_name} dataset")

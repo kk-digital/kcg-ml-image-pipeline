@@ -157,7 +157,7 @@ def http_get_classifier_model_list():
 
     return None
 
-def http_get_rank_model_list():
+def http_get_rank_list():
     url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
     response = None
     try:
@@ -167,6 +167,25 @@ def http_get_rank_model_list():
             print(f"request failed with status code: {response.status_code}")
             return []
         return response.json()["response"]["ranks"]
+    except Exception as e:
+        print('request exception ', e)
+        
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_get_ranking_model_list():
+    url = SERVER_ADDRESS + "/ranking-models/list-ranking-models"
+    response = None
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+            return []
+        return response.json()["response"]["ranking_models"]
     except Exception as e:
         print('request exception ', e)
         
@@ -701,16 +720,3 @@ def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None)
 
     except Exception as e:
         print('request exception ', e)
-
-
-def http_get_rank_model_list():
-    url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
-    try:
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            data_json = response.json()
-            return data_json["response"]["ranks"]
-        
-    except Exception as e:
-        print('request exception', e)
