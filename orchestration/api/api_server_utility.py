@@ -44,7 +44,8 @@ async def get_database_used_size(request: Request):
         total_used_size_gb = data_size_gb + index_size_gb
         
         result = {
-            "total_used_size_gb": total_used_size_gb
+            "dataSize": total_used_size_gb, 
+            "indexSize": index_size_gb
         }
         return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
     except Exception as e:
