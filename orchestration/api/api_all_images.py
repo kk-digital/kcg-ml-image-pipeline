@@ -5,7 +5,7 @@ import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata, ListTask
-from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
+from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode, api_date_to_unix_int32
 from .api_ranking import get_image_rank_use_count
 import os
 from .api_utils import find_or_create_next_folder_and_index
@@ -14,23 +14,6 @@ import io
 from typing import List
 from PIL import Image
 import time
-
-def datetime_to_unix_int32(dt_str):
-    if 'T' not in dt_str and ' ' not in dt_str:
-        dt_str += "T00:00:00.000"
-
-    formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(dt_str, fmt)
-            break
-        except ValueError:
-            continue
-    else:
-        raise ValueError(f"time data '{dt_str}' does not match any known format")
-    
-    unix_time = int(time.mktime(dt.timetuple()))
-    return unix_time & 0xFFFFFFFF
 
 router = APIRouter()
 
@@ -69,9 +52,9 @@ async def list_all_images(
         # Add date filters to the query
         date_query = {}
         if start_date:
-            date_query['$gte'] = datetime_to_unix_int32(start_date)
+            date_query['$gte'] = api_date_to_unix_int32(start_date)
         if end_date:
-            date_query['$lte'] = datetime_to_unix_int32(end_date)
+            date_query['$lte'] = api_date_to_unix_int32(end_date)
 
         print(f"Date query after adding start_date and end_date: {date_query}")
 
@@ -84,7 +67,7 @@ async def list_all_images(
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-            date_query['$gte'] = datetime_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
+            date_query['$gte'] = api_date_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
 
         print(f"Date query after adding time interval: {date_query}")
 
