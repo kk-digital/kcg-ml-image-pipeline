@@ -1,8 +1,8 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
-import pymongo
+import pymongo 
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse
+from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse, RankSelectionV1
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse, IrrelevantResponseV1
 from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ListScoreImageTask, ListRankActiveLearningPairWithScore
 from .mongo_schemas import FlaggedDataUpdate
@@ -20,7 +20,7 @@ import random
 import time
 
 router = APIRouter()
-
+ 
 generated_image = "generated_image"
 
 @router.post("/rank-active-learning-queue/add-image-pair",
@@ -430,14 +430,16 @@ async def add_datapoints(request: Request, selection: RankSelection, image_sourc
         dataset = selection.image_1_metadata.file_path.split('/')[1]
         rank_model_string = rank.get("rank_model_string", None)
 
+        # Convert selection to dict and add image_source to image metadata
         dict_data = selection.to_dict()
+        dict_data['image_1_metadata']['image_source'] = image_source
+        dict_data['image_2_metadata']['image_source'] = image_source
 
         # Prepare ordered data for MongoDB insertion
         mongo_data = OrderedDict([
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             *dict_data.items(),  # Unpack the rest of dict_data
-            ("image_source", image_source),
             ("datetime", current_time)
         ])
 
@@ -479,6 +481,85 @@ async def add_datapoints(request: Request, selection: RankSelection, image_sourc
             error_string=str(e),
             http_status_code=500
         )
+    
+
+@router.post("/rank-training/add-ranking-data-point-v1", 
+             status_code=201,
+             tags=['rank-training'],
+             response_model=StandardSuccessResponseV1[ResponseRankSelection],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_datapoints_v1(request: Request, selection: RankSelectionV1):
+    api_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        rank = request.app.rank_model_models_collection.find_one(
+            {"rank_model_id": selection.rank_model_id}
+        )
+
+        if not rank:
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Rank with ID {selection.rank_model_id} not found",
+                http_status_code=404
+            )
+
+        policy = None
+        if selection.rank_active_learning_policy_id:
+            policy = request.app.rank_active_learning_policies_collection.find_one(
+                {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
+            )
+
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        file_name = f"{current_time}-{selection.username}.json"
+
+        dict_data = selection.to_dict()
+
+        # Prepare ordered data for MongoDB insertion
+        mongo_data = OrderedDict([
+            ("_id", ObjectId()),  # Generate new ObjectId
+            ("file_name", file_name),
+            *dict_data.items(),  # Unpack the rest of dict_data
+            ("datetime", current_time)
+        ])
+
+        # Insert the ordered data into MongoDB
+        request.app.ranking_datapoints_collection.insert_one(mongo_data)
+
+        formatted_rank_model_id = f"{selection.rank_model_id:05d}"
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = mongo_data.copy()
+        minio_data.pop("_id")
+        minio_data.pop("file_name")
+        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+        full_path = os.path.join(path, file_name)
+        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # Upload data to MinIO
+        try:
+            cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+            print(f"Uploaded successfully to MinIO: {full_path}")
+        except Exception as e:
+            print(f"Error uploading to MinIO: {str(e)}")
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string=f"Failed to upload file to MinIO: {str(e)}",
+                http_status_code=500
+            )
+
+        mongo_data.pop("_id")
+        # Return a success response
+        return api_handler.create_success_response_v1(
+            response_data=mongo_data,
+            http_status_code=201
+        )
+
+    except Exception as e:
+        return api_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )    
 
 
 @router.get("/rank-training/list-ranking-datapoints",
@@ -584,20 +665,19 @@ async def sort_ranking_data_by_date_v3(
     skip: int = Query(0, alias="offset"),
     limit: int = Query(10, alias="limit"),
     order: str = Query("desc", regex="^(desc|asc)$"),
-    image_source: str = Query(..., description="Image source to filter by", regex="^(generated_image|external_image|extract_image)$")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
-        query_filter = {"image_source": image_source}
+        query_filter = {}
         date_filter = {}
 
         if rank_model_id is not None:
             query_filter["rank_model_id"] = rank_model_id
 
         if start_date:
-            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter["$gte"] = start_date + "-00-00-00"
         if end_date:
-            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+            date_filter["$lte"] = end_date + "-23-59-59"
 
         if date_filter:
             query_filter["datetime"] = date_filter

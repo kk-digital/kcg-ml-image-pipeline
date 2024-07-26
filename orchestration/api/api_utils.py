@@ -633,3 +633,40 @@ def build_date_query(date_from: Optional[Union[str, datetime]] = None,
             date_to.strftime('%Y-%m-%d') if isinstance(date_to, datetime) else date_to
     
     return {key: date_range_query} if date_range_query else {}
+
+def date_to_unix_int32(dt_str):
+    if 'T' not in dt_str and ' ' not in dt_str:
+        dt_str += "T00:00:00.000"
+
+    formats = ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(dt_str, fmt)
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError(f"time data '{dt_str}' does not match any known format")
+    
+    unix_time = int(time.mktime(dt.timetuple()))
+    return unix_time & 0xFFFFFFFF
+
+
+def api_date_to_unix_int32(date_str: str):
+    print(f"Input date string: {date_str}")
+    
+    try:
+        # Parse the date string to a datetime object
+        parsed_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+        print(f"Parsed datetime object: {parsed_date}")
+        
+        # Convert datetime object to Unix timestamp and cast to int32
+        unix_timestamp = int(parsed_date.timestamp())
+        print(f"Unix timestamp: {unix_timestamp}")
+        
+        return unix_timestamp
+    except ValueError as e:
+        # Print error message if date parsing fails
+        print(f"Error parsing date string: {e}")
+        return None
+

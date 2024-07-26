@@ -9,10 +9,11 @@ from typing import List
 from datetime import datetime, timedelta
 from pymongo import UpdateOne
 from utility.minio import cmd
+import random
 import uuid
 from .api_clip import http_clip_server_get_cosine_similarity_list
 from .api_utils import get_next_external_dataset_seq_id, update_external_dataset_seq_id, get_minio_file_path, PrettyJSONResponse
-
+import asyncio
 
 
 router = APIRouter()
@@ -42,7 +43,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         '''
 
         # Check if the dataset exists
-        dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 2})
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -77,8 +78,11 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
         image_data_dict.pop('_id', None)
 
         # update sequential
-        update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
-
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, 
+                                            update_external_dataset_seq_id, 
+                                            request, "external", image_data.dataset, next_seq_id)
+        
         return api_response_handler.create_success_response_v1(
             response_data=image_data_dict,
             http_status_code=200
@@ -102,7 +106,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
     try:
         for image_data in image_data_list:
             # Check if the dataset exists
-            dataset_result = request.app.external_datasets_collection.find_one({"dataset_name": image_data.dataset})
+            dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset,"bucket_id": 2 })
             if not dataset_result:
                 return api_response_handler.create_error_response_v1(
                     error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -135,7 +139,10 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 # Insert the new image data into the collection
                 request.app.external_images_collection.insert_one(image_data_dict)
                 # update sequential id
-                update_external_dataset_seq_id(request=request, bucket="external", dataset=image_data.dataset, seq_id=next_seq_id)
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(None, 
+                                                    update_external_dataset_seq_id, 
+                                                    request, "external", image_data.dataset, next_seq_id)
 
                 # add updated image_data into updated_image_data_list
                 updated_image_data_list.append(image_data_dict)
@@ -972,7 +979,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
         )
 
 @router.get("/external-images/get-image-details-by-hashes", 
-            response_model=StandardSuccessResponseV1[ListExternalImageDataV2],
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
             status_code=200,
             tags=["external-images"],
             description="Retrieves the details of external images by image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
@@ -1066,8 +1073,8 @@ async def get_random_external_image_similarity(
         )
 
 @router.post("/external-images/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["external-images"],
+            description="changed with /datasets/add-new-dataset",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -1101,8 +1108,8 @@ async def add_new_dataset(request: Request, dataset: Dataset):
 
 
 @router.get("/external-images/list-datasets",
-            description="list datasets from mongodb",
-            tags=["external-images"],
+            description="changed with /datasets/list-datasets-v1",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -1119,8 +1126,8 @@ async def list_datasets(request: Request):
 
 
 @router.delete("/external-images/remove-dataset",
-               description="Remove dataset",
-               tags=["external-images"],
+               description="changed with datasets/remove-dataset-v1",
+               tags=["deprecated_datasets"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
@@ -1224,11 +1231,11 @@ def get_random_image_date_range(
     query = {}
 
     if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        query['upload_date'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
+        query['upload_date'] = {'$gte': start_date}
     elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
+        query['upload_date'] = {'$lte': end_date}
 
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
@@ -1246,35 +1253,38 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="This Rank has no relevance classifier model assigned to it")
 
-        classifier_query = {'classifier_id': classifier_id}
+        classifier_query = {'classifier_id': classifier_id, 'image_source': 'external_image'}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
         # Fetch image hashes from classifier_scores collection that match the criteria
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
+        if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
-        image_hashes = [score['image_hash'] for score in classifier_scores]
+        limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
         all_documents = []
 
-        for i in range(0, len(image_hashes), BATCH_SIZE):
-            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+        for i in range(0, len(limited_image_hashes), BATCH_SIZE):
+            batch_image_hashes = limited_image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
-            batch_query['task_output_file_dict.output_file_hash'] = {'$in': batch_image_hashes}
+            batch_query['image_hash'] = {'$in': batch_image_hashes}
 
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
                 aggregation_pipeline.append({"$sample": {"size": size}})
             
             batch_documents = request.app.external_images_collection.aggregate(aggregation_pipeline)
-            all_documents.extend(list(batch_documents))
+            batch_docs_list = list(batch_documents)
+            all_documents.extend(batch_docs_list)
+            if len(all_documents) >= size:
+                break
 
-        documents = all_documents
+        documents = all_documents[:size]
     else:
         aggregation_pipeline = [{"$match": query}]
         if size:

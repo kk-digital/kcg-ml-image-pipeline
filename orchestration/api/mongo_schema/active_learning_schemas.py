@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, constr, validator
 from typing import List, Union, Optional
 import re
 from datetime import datetime
-from orchestration.api.mongo_schemas import ImageMetadata
+from orchestration.api.mongo_schemas import ImageMetadata, ImageMetadataV1
 
 
 class ActiveLearningPolicy(BaseModel):
@@ -133,6 +133,30 @@ class RankSelection(BaseModel):
             "training_mode": self.training_mode,
             "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
         }
+    
+class RankSelectionV1(BaseModel):
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadataV1
+    image_2_metadata: ImageMetadataV1
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+
+    def to_dict(self):
+        return {
+            "rank_model_id": self.rank_model_id,
+            "task": self.task,
+            "username": self.username,
+            "image_1_metadata": self.image_1_metadata.to_dict(),
+            "image_2_metadata": self.image_2_metadata.to_dict(),
+            "selected_image_index": self.selected_image_index,
+            "selected_image_hash": self.selected_image_hash,
+            "training_mode": self.training_mode,
+            "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
+        }    
     
 class ResponseRankSelection(BaseModel):
     file_name: str

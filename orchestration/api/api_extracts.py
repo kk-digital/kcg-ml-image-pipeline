@@ -11,6 +11,7 @@ from typing import Optional
 import uuid
 from typing import List
 from datetime import datetime, timedelta
+import random
 from .api_clip import http_clip_server_get_cosine_similarity_list
 
 
@@ -114,7 +115,7 @@ async def add_extract(request: Request, image_data: ExtractImageData):
 
     try:
         
-        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 1 })
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -170,7 +171,8 @@ async def add_extract(request: Request, image_data: ExtractImageDataV1):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        dataset_result = request.app.extract_datasets_collection.find_one({"dataset_name": image_data.dataset})
+        dataset_result = request.app.datasets_collection.find_one({"dataset_name": image_data.dataset, "bucket_id": 1})
+
         if not dataset_result:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND, 
@@ -586,8 +588,8 @@ def get_images_count_by_tag_id(request: Request, tag_id: int):
     
 
 @router.post("/extract-images/add-new-dataset",
-            description="Add new dataset in MongoDB",
-            tags=["extracts"],
+            description="changed with /datasets/add-new-dataset",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[Dataset],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def add_new_dataset(request: Request, dataset: Dataset):
@@ -620,8 +622,8 @@ async def add_new_dataset(request: Request, dataset: Dataset):
  
 
 @router.get("/extract-images/list-datasets",
-            description="list datasets from mongodb",
-            tags=["extracts"],
+            description="changed with /datasets/list-datasets-v1",
+            tags=["deprecated_datasets"],
             response_model=StandardSuccessResponseV1[ListDataset],  
             responses=ApiResponseHandlerV1.listErrors([422]))
 async def list_datasets(request: Request):
@@ -637,8 +639,8 @@ async def list_datasets(request: Request):
             )  
 
 @router.delete("/extract-images/remove-dataset",
-               description="Remove dataset",
-               tags=["extracts"],
+               description="changed with datasets/remove-dataset-v1",
+               tags=["deprecated_datasets"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],  
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def remove_dataset(request: Request, dataset: str = Query(...)):
@@ -940,6 +942,8 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
             error_string=str(e),
             http_status_code=500,
         )        
+
+
 @router.get("/extract-images/get_random_image_by_classifier_score", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -952,11 +956,11 @@ def get_random_image_date_range(
     query = {}
 
     if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        query['upload_date'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
+        query['upload_date'] = {'$gte': start_date}
     elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
+        query['upload_date'] = {'$lte': end_date}
 
     # If rank_id is provided, adjust the query to consider classifier scores
     if rank_id is not None:
@@ -974,42 +978,49 @@ def get_random_image_date_range(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="This Rank has no relevance classifier model assigned to it")
 
-        classifier_query = {'classifier_id': classifier_id}
+        classifier_query = {'classifier_id': classifier_id, 'image_source': 'extract_image'}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             
+
         # Fetch image hashes from classifier_scores collection that match the criteria
-        classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
-        if classifier_scores is None:
+        classifier_scores = list(request.app.image_classifier_scores_collection.find(classifier_query))
+        if not classifier_scores:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="The relevance classifier model has no scores.")
-        image_hashes = [score['image_hash'] for score in classifier_scores]
+
+        # Limit the number of image hashes to the requested size
+        limited_image_hashes = random.sample([score['image_hash'] for score in classifier_scores], min(size, len(classifier_scores)))
 
         # Break down the image hashes into smaller batches
         BATCH_SIZE = 1000  # Adjust batch size as needed
         all_documents = []
 
-        for i in range(0, len(image_hashes), BATCH_SIZE):
-            batch_image_hashes = image_hashes[i:i+BATCH_SIZE]
+        for i in range(0, len(limited_image_hashes), BATCH_SIZE):
+            batch_image_hashes = limited_image_hashes[i:i+BATCH_SIZE]
             batch_query = query.copy()
-            batch_query['task_output_file_dict.output_file_hash'] = {'$in': batch_image_hashes}
+            batch_query['image_hash'] = {'$in': batch_image_hashes}
+
 
             aggregation_pipeline = [{"$match": batch_query}]
             if size:
                 aggregation_pipeline.append({"$sample": {"size": size}})
             
             batch_documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
-            all_documents.extend(list(batch_documents))
+            batch_docs_list = list(batch_documents)
+            all_documents.extend(batch_docs_list)
+            if len(all_documents) >= size:
+                break
 
-        documents = all_documents
+        documents = all_documents[:size]
+
     else:
         aggregation_pipeline = [{"$match": query}]
         if size:
             aggregation_pipeline.append({"$sample": {"size": size}})
 
-        documents = request.app.extracts_collection.aggregate(aggregation_pipeline)
-        documents = list(documents)
+        documents = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
 
     for document in documents:
         document.pop('_id', None)  # Remove the auto-generated field

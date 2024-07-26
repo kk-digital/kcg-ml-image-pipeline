@@ -45,6 +45,8 @@ from orchestration.api.api_external_images import router as external_images_rout
 from orchestration.api.api_extracts import router as extracts_router
 from orchestration.api.api_ingress_videos import router as ingress_videos_router
 from orchestration.api.api_bucket import router as bucket_router
+from orchestration.api.api_all_images import router as all_images
+from orchestration.api.api_video_game import router as video_game_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -94,6 +96,8 @@ app.include_router(external_images_router)
 app.include_router(extracts_router)
 app.include_router(ingress_videos_router)
 app.include_router(bucket_router)
+app.include_router(all_images)
+app.include_router(video_game_router)
 
 
 
@@ -221,6 +225,7 @@ def startup_db_client():
     app.training_in_progress_jobs_collection = app.mongodb_db["training-in-progress-jobs"]
     app.training_completed_jobs_collection = app.mongodb_db["training-completed-jobs"]
     app.training_failed_jobs_collection = app.mongodb_db["training-failed-jobs"]
+    app.video_game_collection = app.mongodb_db["video-game"]
 
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]

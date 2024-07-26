@@ -757,8 +757,8 @@ async def set_image_classifier_score_list(request: Request, classifier_score_lis
 
 
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v3", 
-            description="List image scores based on classifier",
-            tags=["pseudotag-classifier-scores"],  
+            description="changed with /pseudotag-classifier-scores/list-images-by-scores-v5",
+            tags=["deprecated3"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores_v3(
@@ -826,12 +826,13 @@ async def list_image_scores_v3(
         http_status_code=200
     )
 
-@router.get("/pseudotag-classifier-scores/list-images-by-scores-v4", 
+
+@router.get("/pseudotag-classifier-scores/list-images-by-scores-v5", 
             description="List image scores based on classifier",
             tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-async def list_image_scores_v4(
+async def list_image_scores_v5(
     request: Request,
     classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
     task_type: Optional[str] = Query(None, description="Filter by task_type"),
@@ -841,16 +842,32 @@ async def list_image_scores_v4(
     offset: int = Query(0, description="Offset for pagination"),
     order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
     random_sampling: bool = Query(True, description="Enable random sampling"),
-    image_sources: Optional[List[str]] = Query(None, regex="^(generated_image|extract_image|external_image)$", description="The source of the image")
+    image_sources: Optional[str] = Query(None, description="The source of the image (comma-separated values: generated_image,extract_image,external_image)")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     start_time = time.time()  # Start time tracking
 
     print("Building query...")
+
+    # Validate image_sources
+    valid_image_sources = {"generated_image", "extract_image", "external_image"}
+    image_sources_list = []
+    if image_sources:
+        image_sources_list = image_sources.split(',')
+        invalid_sources = [src for src in image_sources_list if src not in valid_image_sources]
+        if invalid_sources:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string=f"Invalid image_sources: {', '.join(invalid_sources)}",
+                http_status_code=422
+            )
+        # Remove duplicates
+        image_sources_list = list(set(image_sources_list))
+
     # Build the query based on provided filters
     query = {}
-    if image_sources is not None:
-        query["image_source"] = {"$in": image_sources}
+    if image_sources_list:
+        query["image_source"] = {"$in": image_sources_list}
     if classifier_id is not None:
         query["classifier_id"] = classifier_id
     if task_type is not None:
@@ -892,9 +909,10 @@ async def list_image_scores_v4(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=scores_data,  # Directly return the fetched data
+        response_data={"images": scores_data},  # Directly return the fetched data
         http_status_code=200
-    )    
+    )
+
 
 
 @router.get("/pseudotag-classifier-scores/list-classifier-scores-for-image",

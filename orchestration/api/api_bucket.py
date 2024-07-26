@@ -93,31 +93,3 @@ async def remove_bucket(request: Request, bucket_id: str = Query(...)):
             False, 
             http_status_code=200
         )
-
-@router.delete("/buckets/delete-all-buckets",
-               description="Delete all buckets in MongoDB",
-               tags=["buckets"], 
-               response_model=StandardSuccessResponseV1[WasPresentResponse],  
-               responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def delete_all_buckets(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    # Attempt to delete all documents in the buckets collection
-    result = request.app.buckets_collection.delete_many({})
-
-    # Check if any documents were deleted
-    was_present = result.deleted_count > 0
-
-    # Using the check to determine which response to send
-    if was_present:
-        # If any documents were deleted, return True
-        return response_handler.create_success_delete_response_v1(
-            True, 
-            http_status_code=200
-        )
-    else:
-        # If no documents were deleted, return False
-        return response_handler.create_success_delete_response_v1(
-            False, 
-            http_status_code=200
-        )
