@@ -842,7 +842,7 @@ async def list_image_scores_v5(
     offset: int = Query(0, description="Offset for pagination"),
     order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
     random_sampling: bool = Query(True, description="Enable random sampling"),
-    image_sources: Optional[List[str]] = Query(None, description="The source of the image (generated_image, extract_image, external_image)")
+    image_sources: Optional[List[str]] = Query(None, description="The source of the image (generated_image,extract_image,external_image)")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     start_time = time.time()  # Start time tracking
@@ -852,6 +852,8 @@ async def list_image_scores_v5(
     # Validate image_sources
     valid_image_sources = {"generated_image", "extract_image", "external_image"}
     if image_sources:
+        # Remove duplicates and check for invalid sources
+        image_sources = list(set(image_sources))
         invalid_sources = [src for src in image_sources if src not in valid_image_sources]
         if invalid_sources:
             return response_handler.create_error_response_v1(
@@ -859,9 +861,6 @@ async def list_image_scores_v5(
                 error_string=f"Invalid image_sources: {', '.join(invalid_sources)}",
                 http_status_code=422
             )
-            
-        # Remove duplicates
-        image_sources = list(set(image_sources))
 
     # Build the query based on provided filters
     query = {}
