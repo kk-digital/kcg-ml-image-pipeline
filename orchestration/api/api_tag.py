@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, TagsListResponse, ImageTagResponse, TagCountResponse, TagCountResponseV1, TagListForImages, TagListForImagesV1, TagListForImagesV2, TagListForImages3, TagsCategoryListResponse, TagIdResponse, ListImageTag
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory, TagsListResponse, ImageTagResponse, TagCountResponse, TagCountResponseV1, TagListForImages, TagListForImagesV1, TagListForImagesV2, ListTagListForImages3, TagsCategoryListResponse, TagIdResponse, ListImageTag
 from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
 from .api_utils import build_date_query
 import traceback
@@ -884,7 +884,7 @@ async def get_tag_list_for_multiple_images(request: Request, file_hashes: List[s
         )
 
 @router.post("/tags/get-tag-list-for-multiple-images-v1", 
-             response_model=StandardSuccessResponseV1[TagListForImages3], 
+             response_model=StandardSuccessResponseV1[ListTagListForImages3], 
              description="Get tag lists for multiple images,the request body must contain an array with the hashes of the images that will be checked",
              tags=["tags"],
              status_code=200,
@@ -1488,7 +1488,7 @@ def get_image_count_by_tag(
             status_code=200,
             tags=["tags"], 
             description="Get count of images with a specific tag",
-            response_model=StandardSuccessResponseV1[TagCountResponseV1],
+            response_model=StandardSuccessResponseV1[TagCountResponse],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_image_count_by_tag_v1(
     request: Request,
