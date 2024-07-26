@@ -33,7 +33,7 @@ db = client["orchestration-job-db"]
 
 def format_size_gb(size_in_bytes):
     size_in_gb = size_in_bytes / (1024 ** 3)
-    return f"{size_in_gb:.2f} GB"
+    return f"{size_in_gb:.5f} GB"
 
 @router.get("/database-sizes")
 async def get_database_sizes(request: Request):
