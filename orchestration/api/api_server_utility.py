@@ -36,21 +36,6 @@ def format_size_gb(size_in_bytes):
     return f"{size_in_gb:.5f} GB"
 
 
-@router.get("/database-sizes")
-async def get_database_sizes(request: Request):
-    try:
-        response_handler = await ApiResponseHandlerV1.createInstance(request)
-        database_stats = db.command("dbstats")
-        total_used_size_gb = format_size_gb(database_stats["dataSize"] + database_stats["indexSize"])
-
-        result = {
-            "total_used_size_gb": total_used_size_gb,
-        }
-        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 
 @router.get("/collection-sizes")
 async def get_collection_sizes(request: Request):
