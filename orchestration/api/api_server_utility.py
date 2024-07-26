@@ -34,21 +34,24 @@ db = client["orchestration-job-db"]
 def bytes_to_gb(size_in_bytes):
     return size_in_bytes / (1024 ** 3)
 
-@app.get("/database-size")
-async def get_database_size():
+@router.get("/database-size")
+async def get_database_size(request: Request):
     try:
+        response_handler = await ApiResponseHandlerV1.createInstance(request)
         database_stats = db.command("dbstats")
-        return {
+        result = {
             "database_size_gb": bytes_to_gb(database_stats["storageSize"]),
             "data_size_gb": bytes_to_gb(database_stats["dataSize"]),
             "index_size_gb": bytes_to_gb(database_stats["indexSize"])
         }
+        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/collection-sizes")
-async def get_collection_sizes():
+@router.get("/collection-sizes")
+async def get_collection_sizes(request: Request):
     try:
+        response_handler = await ApiResponseHandlerV1.createInstance(request)
         collection_sizes = {}
         for collection_name in db.list_collection_names():
             collection_stats = db.command("collstats", collection_name)
@@ -57,6 +60,6 @@ async def get_collection_sizes():
                 "storage_size_gb": bytes_to_gb(collection_stats["storageSize"]),
                 "total_index_size_gb": bytes_to_gb(collection_stats["totalIndexSize"])
             }
-        return collection_sizes
+        return response_handler.create_success_response_v1(response_data=collection_sizes, http_status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
