@@ -31,28 +31,31 @@ def ping(request: Request):
 client = MongoClient("mongodb://192.168.3.1:32017/")
 db = client["orchestration-job-db"]
 
-@router.get("/database-size")
+def bytes_to_gb(size_in_bytes):
+    return size_in_bytes / (1024 ** 3)
+
+@app.get("/database-size")
 async def get_database_size():
     try:
         database_stats = db.command("dbstats")
         return {
-            "database_size": database_stats["storageSize"],
-            "data_size": database_stats["dataSize"],
-            "index_size": database_stats["indexSize"]
+            "database_size_gb": bytes_to_gb(database_stats["storageSize"]),
+            "data_size_gb": bytes_to_gb(database_stats["dataSize"]),
+            "index_size_gb": bytes_to_gb(database_stats["indexSize"])
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/collection-sizes")
+@app.get("/collection-sizes")
 async def get_collection_sizes():
     try:
         collection_sizes = {}
         for collection_name in db.list_collection_names():
             collection_stats = db.command("collstats", collection_name)
             collection_sizes[collection_name] = {
-                "size": collection_stats["size"],
-                "storage_size": collection_stats["storageSize"],
-                "total_index_size": collection_stats["totalIndexSize"]
+                "size_gb": bytes_to_gb(collection_stats["size"]),
+                "storage_size_gb": bytes_to_gb(collection_stats["storageSize"]),
+                "total_index_size_gb": bytes_to_gb(collection_stats["totalIndexSize"])
             }
         return collection_sizes
     except Exception as e:
