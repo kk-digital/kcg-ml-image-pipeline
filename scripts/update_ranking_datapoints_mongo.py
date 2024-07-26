@@ -1,7 +1,6 @@
 import os
 import json
 from pymongo import MongoClient, UpdateOne
-from minio import Minio
 from datetime import datetime
 from io import BytesIO
 
@@ -14,14 +13,6 @@ ranking_datapoints_collection = db['ranking_datapoints']
 completed_jobs_collection = db['completed-jobs']
 extracts_collection = db['extracts']
 external_images_collection = db['external_images']
-
-# MinIO connection setup
-minio_client = Minio(
-    '192.168.3.5:9000',
-    access_key='v048BpXpWrsVIHUfdAix',
-    secret_key='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu',
-    secure=False  # Set to True if using HTTPS
-)
 
 BATCH_SIZE = 100  # Adjust the batch size as needed
 
@@ -49,7 +40,7 @@ def update_image_source(doc):
     
     return doc
 
-def update_datapoints():
+def update_mongodb():
     cursor = ranking_datapoints_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
     processed_count = 0
 
@@ -72,28 +63,6 @@ def update_datapoints():
                     UpdateOne({"_id": updated_doc["_id"]}, {"$set": updated_doc})
                 )
 
-                # Prepare data for MinIO upload (excluding the '_id' field)
-                minio_data = updated_doc.copy()
-                minio_data.pop("_id")
-
-                formatted_rank_model_id = f"{updated_doc['rank_model_id']:05d}"
-                path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-
-                # Fetch the corresponding filenames from MinIO
-                objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
-                for obj in objects:
-                    file_name = obj.object_name.split('/')[-1]
-                    full_path = obj.object_name
-                    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-                    data = BytesIO(json_data)
-
-                    # Upload data to MinIO
-                    try:
-                        minio_client.put_object("datasets", full_path, data, len(json_data), content_type='application/json')
-                        print(f"Uploaded successfully to MinIO: {full_path}")
-                    except Exception as e:
-                        print(f"Error uploading to MinIO: {str(e)}")
-
             if bulk_updates:
                 ranking_datapoints_collection.bulk_write(bulk_updates)
                 processed_count += len(bulk_updates)
@@ -104,4 +73,4 @@ def update_datapoints():
         print(f"Total documents processed: {processed_count}")
 
 if __name__ == "__main__":
-    update_datapoints()
+    update_mongodb()

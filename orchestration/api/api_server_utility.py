@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse
+from pymongo import MongoClient
 
 
 router = APIRouter()
@@ -25,3 +26,45 @@ def ping(request: Request):
         response_data=None,  
         http_status_code=200
     )
+
+# Replace with your MongoDB connection string
+client = MongoClient("mongodb://192.168.3.1:32017/")
+db = client["orchestration-job-db"]
+
+def format_size_gb(size_in_bytes):
+    size_in_gb = size_in_bytes / (1024 ** 3)
+    return f"{size_in_gb:.5f} GB"
+
+
+
+@router.get("/collection-sizes")
+async def get_collection_sizes(request: Request):
+    try:
+        response_handler = await ApiResponseHandlerV1.createInstance(request)
+        collection_sizes = {}
+        for collection_name in db.list_collection_names():
+            collection_stats = db.command("collstats", collection_name)
+            used_size_gb = format_size_gb(collection_stats["size"] + collection_stats["totalIndexSize"])
+            num_objects = collection_stats["count"]
+
+            # Calculate min, max, and average object sizes manually
+            sizes = [len(str(doc).encode('utf-8')) for doc in db[collection_name].find()]
+            if sizes:
+                min_obj_size_bytes = min(sizes)
+                max_obj_size_bytes = max(sizes)
+                avg_obj_size_bytes = sum(sizes) / len(sizes)
+            else:
+                min_obj_size_bytes = 0
+                max_obj_size_bytes = 0
+                avg_obj_size_bytes = 0
+
+            collection_sizes[collection_name] = {
+                "used_size_gb": used_size_gb,
+                "number_of_objects": num_objects,
+                "average_object_size_bytes": avg_obj_size_bytes,
+                "min_object_size_bytes": min_obj_size_bytes,
+                "max_object_size_bytes": max_obj_size_bytes
+            }
+        return response_handler.create_success_response_v1(response_data=collection_sizes, http_status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

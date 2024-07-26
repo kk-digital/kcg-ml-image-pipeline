@@ -180,6 +180,9 @@ class TagListForImages3(BaseModel):
     file_hash: str
     tags: List[TagDefinitionV2]
 
+class ListTagListForImages3(BaseModel):
+    images: List[TagListForImages3]  
+
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 

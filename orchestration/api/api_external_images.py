@@ -979,7 +979,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
         )
 
 @router.get("/external-images/get-image-details-by-hashes", 
-            response_model=StandardSuccessResponseV1[ListExternalImageDataV2],
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
             status_code=200,
             tags=["external-images"],
             description="Retrieves the details of external images by image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",

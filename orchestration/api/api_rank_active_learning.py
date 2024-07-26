@@ -20,7 +20,7 @@ import random
 import time
 
 router = APIRouter()
-
+ 
 generated_image = "generated_image"
 
 @router.post("/rank-active-learning-queue/add-image-pair",
@@ -430,14 +430,16 @@ async def add_datapoints(request: Request, selection: RankSelection, image_sourc
         dataset = selection.image_1_metadata.file_path.split('/')[1]
         rank_model_string = rank.get("rank_model_string", None)
 
+        # Convert selection to dict and add image_source to image metadata
         dict_data = selection.to_dict()
+        dict_data['image_1_metadata']['image_source'] = image_source
+        dict_data['image_2_metadata']['image_source'] = image_source
 
         # Prepare ordered data for MongoDB insertion
         mongo_data = OrderedDict([
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             *dict_data.items(),  # Unpack the rest of dict_data
-            ("image_source", image_source),
             ("datetime", current_time)
         ])
 
@@ -673,9 +675,9 @@ async def sort_ranking_data_by_date_v3(
             query_filter["rank_model_id"] = rank_model_id
 
         if start_date:
-            date_filter["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter["$gte"] = start_date + "-00-00-00"
         if end_date:
-            date_filter["$lte"] = datetime.strptime(end_date, "%Y-%m-%d")
+            date_filter["$lte"] = end_date + "-23-59-59"
 
         if date_filter:
             query_filter["datetime"] = date_filter
