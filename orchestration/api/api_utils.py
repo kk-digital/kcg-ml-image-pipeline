@@ -651,8 +651,22 @@ def date_to_unix_int32(dt_str):
     unix_time = int(time.mktime(dt.timetuple()))
     return unix_time & 0xFFFFFFFF
 
+
 def api_date_to_unix_int32(date_str: str):
+    print(f"Input date string: {date_str}")
+    
     try:
-        return int(datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S").timestamp())
-    except ValueError:
+        # Parse the date string to a datetime object
+        parsed_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+        print(f"Parsed datetime object: {parsed_date}")
+        
+        # Convert datetime object to Unix timestamp and cast to int32
+        unix_timestamp = int(parsed_date.timestamp())
+        print(f"Unix timestamp: {unix_timestamp}")
+        
+        return unix_timestamp
+    except ValueError as e:
+        # Print error message if date parsing fails
+        print(f"Error parsing date string: {e}")
         return None
+
