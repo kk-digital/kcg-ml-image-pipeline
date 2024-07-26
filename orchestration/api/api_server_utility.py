@@ -60,21 +60,18 @@ async def get_collection_sizes(request: Request):
         for collection_name in db.list_collection_names():
             collection_stats = db.command("collstats", collection_name)
             used_size_gb = format_size_gb(collection_stats["size"] + collection_stats["totalIndexSize"])
-            avg_obj_size_bytes = collection_stats["avgObjSize"]
             num_objects = collection_stats["count"]
-            # Min and max size are not directly available, need to compute if needed
-            min_obj_size_bytes = collection_stats.get("minObjSize", 0)
-            max_obj_size_bytes = collection_stats.get("maxObjSize", 0)
 
-            # If min and max object size are not available in stats, they need to be computed manually (could be heavy)
-            if "minObjSize" not in collection_stats or "maxObjSize" not in collection_stats:
-                sizes = [len(str(doc).encode('utf-8')) for doc in db[collection_name].find()]
-                if sizes:
-                    min_obj_size_bytes = min(sizes)
-                    max_obj_size_bytes = max(sizes)
-                else:
-                    min_obj_size_bytes = 0
-                    max_obj_size_bytes = 0
+            # Calculate min, max, and average object sizes manually
+            sizes = [len(str(doc).encode('utf-8')) for doc in db[collection_name].find()]
+            if sizes:
+                min_obj_size_bytes = min(sizes)
+                max_obj_size_bytes = max(sizes)
+                avg_obj_size_bytes = sum(sizes) / len(sizes)
+            else:
+                min_obj_size_bytes = 0
+                max_obj_size_bytes = 0
+                avg_obj_size_bytes = 0
 
             collection_sizes[collection_name] = {
                 "used_size_gb": used_size_gb,
