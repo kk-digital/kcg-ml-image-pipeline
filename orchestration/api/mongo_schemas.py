@@ -814,6 +814,8 @@ class VideoMetaData(BaseModel):
     video_frame_rate: int
     video_description: str
     dataset: str
+    processed: bool
+    game_id: str
     upload_date: str
 
     def to_dict(self):
@@ -828,8 +830,25 @@ class VideoMetaData(BaseModel):
             "video_frame_rate": self.video_frame_rate,
             "video_description": self.video_description,
             "dataset": self.dataset,
+            "processed": self.processed,
+            "game_id": self.game_id,
             "upload_date": self.upload_date
         }
+        
+class VideoGame(BaseModel):
+    game_id: str
+    title: str
+    description: str
+    
+    def to_dict(self):
+        return {
+            "game_id": self.game_id,
+            "title": self.title,
+            "description": self.description
+        }
 
+class ListVideoGame(BaseModel):
+    games: List[VideoGame]
+    
 class ListVideoMetaData(BaseModel):
     data: List[VideoMetaData]
