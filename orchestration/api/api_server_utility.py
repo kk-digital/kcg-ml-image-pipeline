@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse
+from pymongo import MongoClient
 
 
 router = APIRouter()
@@ -25,3 +26,34 @@ def ping(request: Request):
         response_data=None,  
         http_status_code=200
     )
+
+# Replace with your MongoDB connection string
+client = MongoClient("mongodb://192.168.3.1:32017/")
+db = client["orchestration-job-db"]
+
+@router.get("/database-size")
+async def get_database_size():
+    try:
+        database_stats = db.command("dbstats")
+        return {
+            "database_size": database_stats["storageSize"],
+            "data_size": database_stats["dataSize"],
+            "index_size": database_stats["indexSize"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/collection-sizes")
+async def get_collection_sizes():
+    try:
+        collection_sizes = {}
+        for collection_name in db.list_collection_names():
+            collection_stats = db.command("collstats", collection_name)
+            collection_sizes[collection_name] = {
+                "size": collection_stats["size"],
+                "storage_size": collection_stats["storageSize"],
+                "total_index_size": collection_stats["totalIndexSize"]
+            }
+        return collection_sizes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
