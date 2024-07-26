@@ -842,7 +842,7 @@ async def list_image_scores_v5(
     offset: int = Query(0, description="Offset for pagination"),
     order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
     random_sampling: bool = Query(True, description="Enable random sampling"),
-    image_sources: Optional[List[str]] = Query(None, description="The source of the image (generated_image,extract_image,external_image)")
+    image_sources: Optional[str] = Query(None, description="The source of the image (comma-separated values: generated_image,extract_image,external_image)")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     start_time = time.time()  # Start time tracking
@@ -851,21 +851,23 @@ async def list_image_scores_v5(
 
     # Validate image_sources
     valid_image_sources = {"generated_image", "extract_image", "external_image"}
+    image_sources_list = []
     if image_sources:
-        # Remove duplicates and check for invalid sources
-        image_sources = list(set(image_sources))
-        invalid_sources = [src for src in image_sources if src not in valid_image_sources]
+        image_sources_list = image_sources.split(',')
+        invalid_sources = [src for src in image_sources_list if src not in valid_image_sources]
         if invalid_sources:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string=f"Invalid image_sources: {', '.join(invalid_sources)}",
                 http_status_code=422
             )
+        # Remove duplicates
+        image_sources_list = list(set(image_sources_list))
 
     # Build the query based on provided filters
     query = {}
-    if image_sources:
-        query["image_source"] = {"$in": image_sources}
+    if image_sources_list:
+        query["image_source"] = {"$in": image_sources_list}
     if classifier_id is not None:
         query["classifier_id"] = classifier_id
     if task_type is not None:
