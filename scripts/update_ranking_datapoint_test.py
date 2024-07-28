@@ -35,7 +35,8 @@ def determine_image_source(image_hash):
         return None
 
 def update_image_source(doc):
-    print(f"Updating document ID: {doc['_id']}")
+    if '_id' in doc:
+        print(f"Updating document ID: {doc['_id']}")
     
     if 'image_1_metadata' in doc and doc['image_1_metadata'].get('file_hash'):
         image_source_1 = determine_image_source(doc['image_1_metadata']['file_hash'])
