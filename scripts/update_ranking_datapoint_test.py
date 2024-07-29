@@ -85,7 +85,5 @@ def update_minio_objects():
         except Exception as e:
             print(f"Error processing file {full_path}: {str(e)}")
 
-        break  # Process only one file for testing
-
 if __name__ == "__main__":
     update_minio_objects()
