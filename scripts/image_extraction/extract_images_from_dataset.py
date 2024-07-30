@@ -340,7 +340,7 @@ class ImageExtractionPipeline:
             
             processed_images+= len(extract_data)
             print(f"{len(extract_data)} images filtered from {self.batch_size} images")
-            print(f"total extracted images: {processed_images}")
+            print(f"total extracted images: {processed_images}/{total_images}")
 
         # check if all upload threads are completed
         for thread in self.threads:
