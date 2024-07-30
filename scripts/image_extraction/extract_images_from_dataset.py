@@ -91,7 +91,7 @@ class ImageExtractionPipeline:
         try:
             print("loading the ranking models")
             # load ranking models
-            dataset_list= request.http_get_dataset_names()
+            dataset_list= ['environmental']
 
             for dataset in dataset_list:
                 scoring_model= self.load_scoring_model(dataset)
@@ -103,13 +103,13 @@ class ImageExtractionPipeline:
             print("loading the classifier models")
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags]
-            tag_types= ['defect', 'topic', 'perspective', 'style', 'concept']
+            tag_types= ['defect', 'irrelevant', 'topic', 'style', 'concept', 'game', 'environmental']
 
             for tag in tag_names:
                 if any(tag_type in tag for tag_type in tag_types):
                     classifier_model= self.get_classifier_model(tag)
                     if classifier_model:
-                        if "defect" in tag:
+                        if ("defect" in tag) or ("irrelevant" in tag):
                             self.defect_models[tag]= classifier_model
                         else:
                             self.topic_models[tag]= classifier_model
