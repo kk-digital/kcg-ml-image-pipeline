@@ -250,7 +250,7 @@ async def delete_video_list(request: Request, video_hash_list: List[str]):
             tags=["video-game", "video", "game"],
             response_model=StandardSuccessResponseV1[VideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_game(request: Request, video_metadata: VideoMetaData):
+async def update(request: Request, video_metadata: VideoMetaData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
