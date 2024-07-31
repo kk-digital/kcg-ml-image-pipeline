@@ -51,39 +51,39 @@ def update_image_source(doc):
     return doc
 
 def update_minio_objects():
-    # Set rank_model_id to 0
-    rank_model_id = 10
+    # List of rank_model_id values to process
+    rank_model_ids = range(11)  # 0 to 10 inclusive
 
-    # Fetch the corresponding filenames from MinIO
-    formatted_rank_model_id = f"{rank_model_id:05d}"
-    path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
-    
-    objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
-    for obj in objects:
-        full_path = obj.object_name
+    for rank_model_id in rank_model_ids:
+        formatted_rank_model_id = f"{rank_model_id:05d}"
+        path = f"ranks/{formatted_rank_model_id}/data/ranking/aggregate"
+        
+        objects = minio_client.list_objects("datasets", prefix=path, recursive=True)
+        for obj in objects:
+            full_path = obj.object_name
 
-        try:
-            # Read the file from MinIO
-            response = minio_client.get_object("datasets", full_path)
-            file_data = response.read()
-            response.close()
-            response.release_conn()
+            try:
+                # Read the file from MinIO
+                response = minio_client.get_object("datasets", full_path)
+                file_data = response.read()
+                response.close()
+                response.release_conn()
 
-            # Parse the JSON data
-            json_data = json.loads(file_data)
+                # Parse the JSON data
+                json_data = json.loads(file_data)
 
-            # Update the JSON data
-            json_data = update_image_source(json_data)
+                # Update the JSON data
+                json_data = update_image_source(json_data)
 
-            # Serialize the updated JSON data
-            updated_json_data = json.dumps(json_data, indent=4).encode('utf-8')
-            data = BytesIO(updated_json_data)
+                # Serialize the updated JSON data
+                updated_json_data = json.dumps(json_data, indent=4).encode('utf-8')
+                data = BytesIO(updated_json_data)
 
-            # Upload the updated data back to MinIO
-            minio_client.put_object("datasets", full_path, data, len(updated_json_data), content_type='application/json')
-            print(f"Uploaded successfully to MinIO: {full_path}")
-        except Exception as e:
-            print(f"Error processing file {full_path}: {str(e)}")
+                # Upload the updated data back to MinIO
+                minio_client.put_object("datasets", full_path, data, len(updated_json_data), content_type='application/json')
+                print(f"Uploaded successfully to MinIO: {full_path}")
+            except Exception as e:
+                print(f"Error processing file {full_path}: {str(e)}")
 
 if __name__ == "__main__":
     update_minio_objects()
