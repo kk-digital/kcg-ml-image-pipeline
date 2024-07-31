@@ -164,13 +164,13 @@ class ImageExtractionPipeline:
 
     def get_classifier_model(self, tag_name):
         input_path = f"environmental/models/classifiers/{tag_name}/"
-        file_suffix = "elm-regression-clip-h.safetensors"
+        file_suffix = "elm-regression-clip-h-all_resolutions.pth"
 
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
         
         if not model_files:
-            print(f"No .safetensors models found for tag: {tag_name}")
+            print(f"No models found for tag: {tag_name}")
             return None
 
         # Assuming there's only one model per tag or choosing the first one
