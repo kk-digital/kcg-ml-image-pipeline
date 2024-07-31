@@ -10,45 +10,32 @@ from datetime import datetime
 
 # import typing
 from typing import List
-from .api_utils import get_next_external_dataset_seq_id, \
-                        update_external_dataset_seq_id, \
-                        get_minio_file_path, \
-                        get_ingress_video_path
 
 router = APIRouter()
 
-api_prefix = '/ingress-video'
+api_prefix = '/ingress-videos'
 
-@router.post(f'{api_prefix}/add-video',
-             description='Add video for extracting external images',
-             response_model=StandardSuccessResponseV1[VideoMetaData],
-             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+@router.post(f'{api_prefix}/add',
+            description='Add ingress video',
+            response_model=StandardSuccessResponseV1[VideoMetaData],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def add_video(request: Request, video_meta_data: VideoMetaData):
-    # TODO: add minio path into video meta data:
-    # for this, need to add dataset name
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         # check if video already exists
-        video_file_hash = video_meta_data.file_hash
+        video_id = video_meta_data.video_id
         existed = request.app.ingress_video_collection.find_one({
-            'file_hash': video_file_hash
+            'video_id': video_id
         })
 
-        video_meta_data.upload_date = str(datetime.now())
         if existed is None:
-            # TODO: add dataset so get sequential id for specific dataset
-            next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
-                            
-            video_meta_data.file_path = get_ingress_video_path(bucket="ingress-video", video_metadata=video_meta_data)
-
+            video_meta_data.upload_date = str(datetime.now())
             request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-            update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
-
         else:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="Video data with this hash already exists.",
+                error_string="Video data with this video-id already exists.",
                 http_status_code=422
             )
 
@@ -63,39 +50,26 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
             http_status_code=500
         )
     
-@router.post(f'{api_prefix}/add-video-list',
-             description='Add video for extracting external image list',
-             response_model=StandardSuccessResponseV1[ListVideoMetaData],
-             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+@router.post(f'{api_prefix}/add-list',
+            description='Add video list',
+            response_model=StandardSuccessResponseV1[ListVideoMetaData],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-
         for video_meta_data in video_meta_data_list:
-            # add minio video path
-            
             # check if video already exists
             video_file_hash = video_meta_data.file_hash
             existed = request.app.ingress_video_collection.find_one({
-                'file_hash': video_file_hash
+                'video_id': video_meta_data.video_id
             })
-
+            
+            if existed is not None:
+                continue
+                
             video_meta_data.upload_date = str(datetime.now())
-            if existed is None:
-                next_seq_id = get_next_external_dataset_seq_id(request, bucket="ingress-video", dataset=video_meta_data.dataset)
-                
-                video_meta_data.file_path = get_ingress_video_path(bucket="ingress-video", video_metadata=video_meta_data)
-                
-                request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
-                update_external_dataset_seq_id(request=request, bucket="ingress-video", dataset=video_meta_data.dataset, seq_id=next_seq_id)
-
-            else:
-                return api_response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="Video with these hash already exists.",
-                    http_status_code=422
-                )
+            request.app.ingress_video_collection.insert_one(video_meta_data.to_dict())
 
         return api_response_handler.create_success_response_v1(
             response_data={'data': [video_meta_data.to_dict() \
@@ -110,19 +84,18 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
         )
 
 
-@router.get(f'{api_prefix}/get-video',
+@router.get(f'{api_prefix}/get',
             description='Get video data by video hash',
             response_model=StandardSuccessResponseV1[VideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_video_list(request: Request, video_hash: str):
+async def get_video_by_hash(request: Request, video_hash: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        video_data = request.app.ingress_video_collection.find_one({
-            'file_hash': video_hash
-        })
-
-        video_data.pop('_id')
+        video_data = dict(request.app.ingress_video_collection.find_one({
+            'video_id': video_hash
+        }, {'_id': 0}))
+        
         video_data = dict(video_data)
 
         return api_response_handler.create_success_response_v1(
@@ -137,11 +110,11 @@ async def get_video_list(request: Request, video_hash: str):
         )
 
 
-@router.get(f'{api_prefix}/get-video-list',
+@router.get(f'{api_prefix}/get-list',
             description='Get list of video by video hash list',
             response_model=StandardSuccessResponseV1[ListVideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_video_list(request: Request, video_hash_list: List[str]):
+async def get_video_list_by_hash_list(request: Request, video_hash_list: List[str]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -172,25 +145,36 @@ async def get_video_list(request: Request, video_hash_list: List[str]):
             http_status_code=500
         )
     
-@router.get(f'{api_prefix}/get-all-video',
-            description='Get list of video by video hash list',
+@router.get(f'{api_prefix}/list',
+            description='Get get all video data',
             response_model=StandardSuccessResponseV1[ListVideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_video_list(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        pipeline = [
-            {
-                '$match': {}
-            },
-            {
-                '$project': {
-                    '_id': 0
-                }
-            }
-        ]
-        video_list = list(request.app.ingress_video_collection.aggregate(pipeline))
+        video_list = list(request.app.ingress_video_collection.find({}, {'_id': 0}))
+
+        return api_response_handler.create_success_response_v1(
+            response_data={'data': video_list},
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+        
+@router.get(f'{api_prefix}/unprocessed-list',
+            description='Get get all video data',
+            response_model=StandardSuccessResponseV1[ListVideoMetaData],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_unprocessed_video_list(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        video_list = list(request.app.ingress_video_collection.find({"processed": False}, {'_id': 0}))
 
         return api_response_handler.create_success_response_v1(
             response_data={'data': video_list},
@@ -203,16 +187,16 @@ async def get_video_list(request: Request):
             http_status_code=500
         )
 
-@router.delete(f'{api_prefix}/delete-video',
-               description='Delete ingress video',
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+@router.delete(f'{api_prefix}/delete',
+            description='Delete ingress video with video hash',
+            response_model=StandardSuccessResponseV1[WasPresentResponse],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def delete_video(request: Request, video_hash: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         result = request.app.ingress_video_collection.delete_one({
-            'file_hash': video_hash
+            'video_id': video_hash
         })
 
         if result.deleted_count == 0:
@@ -232,7 +216,7 @@ async def delete_video(request: Request, video_hash: str):
             http_status_code=500
         )
     
-@router.delete(f'{api_prefix}/delete-video-list',
+@router.delete(f'{api_prefix}/delete-list',
                description='Delete ingress video list',
                response_model=StandardSuccessResponseV1[DeletedCount],
                responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
@@ -256,6 +240,44 @@ async def delete_video_list(request: Request, video_hash_list: List[str]):
     except Exception as e:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+        
+
+@router.put("/ingress-videos/update",
+            description="Update a video game",
+            tags=["video-game", "video", "game"],
+            response_model=StandardSuccessResponseV1[VideoMetaData],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_game(request: Request, video_metadata: VideoMetaData):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        existed = request.app.ingress_video_collection.find_one(
+            {"video_id": video_metadata.video_id}
+        )
+        
+        if not existed:
+            return api_response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string=f"Video game data with {video_metadata.video_id} not found",
+                http_status_code=422
+            )
+        
+        request.app.ingress_video_collection.update_one(
+            {"video_id": video_metadata.video_id}, 
+            {"$set": video_metadata.to_dict()}
+        )
+        
+        return api_response_handler.create_success_response_v1(
+            response_data=video_metadata.to_dict(),
+            http_status_code=200
+        )
+        
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
             http_status_code=500
         )
