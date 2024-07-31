@@ -27,18 +27,19 @@ def determine_image_source(image_hash):
         return None
 
 def update_image_source(doc):
-    if 'image_source' in doc:
-        doc.pop('image_source')
-    
-    if 'image_1_metadata' in doc and doc['image_1_metadata'].get('file_hash'):
+    updated = False
+
+    if 'image_1_metadata' in doc and doc['image_1_metadata'].get('file_hash') and 'image_source' not in doc['image_1_metadata']:
         image_source_1 = determine_image_source(doc['image_1_metadata']['file_hash'])
         doc['image_1_metadata']['image_source'] = image_source_1
+        updated = True
     
-    if 'image_2_metadata' in doc and doc['image_2_metadata'].get('file_hash'):
+    if 'image_2_metadata' in doc and doc['image_2_metadata'].get('file_hash') and 'image_source' not in doc['image_2_metadata']:
         image_source_2 = determine_image_source(doc['image_2_metadata']['file_hash'])
         doc['image_2_metadata']['image_source'] = image_source_2
+        updated = True
     
-    return doc
+    return doc, updated
 
 def update_mongodb():
     cursor = ranking_datapoints_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
@@ -58,10 +59,11 @@ def update_mongodb():
 
             bulk_updates = []
             for doc in batch:
-                updated_doc = update_image_source(doc)
-                bulk_updates.append(
-                    UpdateOne({"_id": updated_doc["_id"]}, {"$set": updated_doc})
-                )
+                updated_doc, is_updated = update_image_source(doc)
+                if is_updated:
+                    bulk_updates.append(
+                        UpdateOne({"_id": updated_doc["_id"]}, {"$set": updated_doc})
+                    )
 
             if bulk_updates:
                 ranking_datapoints_collection.bulk_write(bulk_updates)
