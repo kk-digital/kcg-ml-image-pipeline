@@ -313,12 +313,12 @@ class ImageExtractionPipeline:
     def extract_images(self):
         print("loading external dataset images..........")
         try:
-            external_images= external_images_request.http_get_external_image_list(dataset=self.dataset)
+            external_images= external_images_request.http_get_external_dataset_in_batches(dataset=self.dataset, batch_size=self.batch_size)
         except Exception as e:
             raise Exception(f"An error occured when querying the external image dataset: {e}.")
         
         total_images= len(external_images)
-        print("total images:", total_images)
+        print("total images loaded:", total_images)
         processed_images= 0
         print("Extracting images.......")
         num_batches= math.ceil(total_images / self.batch_size)

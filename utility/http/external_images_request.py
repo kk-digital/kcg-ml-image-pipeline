@@ -38,6 +38,34 @@ def http_get_external_image_list(dataset= None, size=None):
     except Exception as e:
         print('request exception ', e)
 
+def http_get_external_dataset_in_batches(dataset: str, batch_size: int):
+    external_images=[]
+    
+    limit=batch_size
+    offset=0
+
+    while True:
+        endpoint_url= "/external-images/list-images-v2?dataset={}&limit={}&offset={}&order=asc".format(dataset, limit, offset)
+
+        url = SERVER_ADDRESS + endpoint_url
+        try:
+            response = requests.get(url)
+            
+            if response.status_code == 200:
+                data_json = response.json()
+                external_images.extend(data_json['response']['images'])
+            else:
+                break
+
+        except Exception as e:
+            print('request exception ', e)
+            break
+
+        offset += batch_size
+    
+    return external_images
+        
+
 def http_get_external_image_list_without_extracts(dataset, size=None):
     endpoint_url= "/external-images/get-external-image-list-without-extracts?dataset={}".format(dataset)
 
