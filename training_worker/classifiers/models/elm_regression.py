@@ -44,6 +44,13 @@ class ELMRegression():
         self.loss_func_name = "mse"
         self._loss = nn.MSELoss()
 
+    def set_device(self, device):
+        # transfer model components to a device
+        self._device = device
+        self._weight = self._weight.to(device)
+        self._beta = self._beta.to(device)
+        self._bias = self._bias.to(device)
+
     def set_config(self, tag_string, input_size, hidden_layer_neuron_count, output_size=1, activation_func_name="sigmoid"):
         self.tag_string = tag_string
         self.model_file_path = ''

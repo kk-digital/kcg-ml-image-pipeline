@@ -36,7 +36,18 @@ if __name__ == '__main__':
         "512": "512*512_resolutions"
     }
     
+    tags = http_get_tag_list()
+
     if args.tag_name != "all":
+
+        tag_id = None
+        for tag in tags:
+            if args.tag_name == tag["tag_string"]:
+                tag_id = tag["tag_id"]
+
+        if tag_id is None:
+            raise Exception(f"There is no tag called {args.tag_name}")
+        
         try:
             print("Training model for tag: {}".format(args.tag_name))
             train_classifier(minio_ip_addr=args.minio_ip_addr,
@@ -45,6 +56,7 @@ if __name__ == '__main__':
                              input_type=args.input_type,
                              image_type=image_types[args.image_type],
                              tag_name=args.tag_name,
+                             tag_id= tag_id,
                              pooling_strategy=args.pooling_strategy,
                              train_percent=args.train_percent,
                              epochs=args.epochs,
@@ -56,7 +68,6 @@ if __name__ == '__main__':
             print("Error training model for tag {}: {}".format(args.tag_name, e))
     else:
         # train for all
-        tags = http_get_tag_list()
         tag_string_list = []
         tag_id_list = []
         for tag in tags:

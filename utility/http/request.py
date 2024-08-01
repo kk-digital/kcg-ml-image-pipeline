@@ -11,7 +11,7 @@ db = client['orchestration-job-db']
 # Access the specific collection
 comleted_jobs_collection = db["completed-jobs"]
 
-# SERVER_ADDRESS = 'http://123.176.98.90:8764'
+# SERVER_ADDRESS = 'http://103.20.60.90:8764'
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
@@ -98,7 +98,7 @@ def http_add_model(model_card):
     return None
 
 def http_add_classifier_model(model_card):
-    url = SERVER_ADDRESS + "/classifier/register-tag-classifier"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/register-tag-classifier"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
@@ -139,7 +139,7 @@ def http_get_model_id(model_hash):
     return None
 
 def http_get_classifier_model_list():
-    url = SERVER_ADDRESS + "/classifier/list-classifiers"
+    url = SERVER_ADDRESS + "/pseudotag-classifiers/list-classifiers"
     response = None
     try:
         response = requests.get(url)
@@ -147,7 +147,7 @@ def http_get_classifier_model_list():
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}")
             return []
-        return response.json()["response"]
+        return response.json()["response"]["classifiers"]
     except Exception as e:
         print('request exception ', e)
         
@@ -157,6 +157,64 @@ def http_get_classifier_model_list():
 
     return None
 
+def http_get_rank_list():
+    url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
+    response = None
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+            return []
+        return response.json()["response"]["ranks"]
+    except Exception as e:
+        print('request exception ', e)
+        
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_get_ranking_model_list():
+    url = SERVER_ADDRESS + "/ranking-models/list-ranking-models"
+    response = None
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+            return []
+        return response.json()["response"]["ranking_models"]
+    except Exception as e:
+        print('request exception ', e)
+        
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_add_ranking_model(model_data):
+    url = SERVER_ADDRESS + "/ranking-models/register-ranking-model"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+
+    try:
+        response = requests.post(url, data=model_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+        print("ranking model data=", response.content)
+        return response.content
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
 
 def http_add_score(score_data):
     url = SERVER_ADDRESS + "/score/set-image-rank-score"
@@ -177,17 +235,19 @@ def http_add_score(score_data):
 
     return None
 
-def http_add_classifier_score(score_data):
-    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score"
+def http_add_classifier_score(score_data, image_source= "generated_image"):
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v1"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    params = {"image_source": image_source}  # Query parameters
     response = None
+    
     try:
-        response = requests.post(url, json=score_data, headers=headers)
+        response = requests.post(url, json=score_data, headers=headers, params=params)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
     except Exception as e:
-        print('request exception ', e)
+        print('request exception', e)
 
     finally:
         if response:
@@ -195,6 +255,44 @@ def http_add_classifier_score(score_data):
 
     return None
 
+
+def http_add_classifier_score_batch(scores_batch):
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score-v2"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+    
+    try:
+        response = requests.post(url, json=scores_batch, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_add_rank_score_batch(scores_batch):
+    url = SERVER_ADDRESS + "/image-scores/scores/set-rank-score-batch"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+    
+    try:
+        response = requests.post(url, json=scores_batch, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
 
 def http_add_sigma_score(sigma_score_data):
     url = SERVER_ADDRESS + "/sigma-score/set-image-rank-sigma-score"
@@ -578,6 +676,18 @@ def http_get_tagged_images_by_resolution(tag_id, source = None):
     except Exception as e:
         print('request exception ', e)
 
+def http_get_tagged_extracts(tag_id):
+    url = SERVER_ADDRESS + "/tags/get-images-by-tag-id-v1/?tag_id={}".format(tag_id)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
+
 
 def http_get_random_image_list(dataset, size):
     url = SERVER_ADDRESS + "/image/get_random_image_list?dataset={}&size={}".format(dataset, size)
@@ -610,16 +720,3 @@ def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None)
 
     except Exception as e:
         print('request exception ', e)
-
-
-def http_get_rank_model_list():
-    url = SERVER_ADDRESS + "/ab-rank/list-rank-models"
-    try:
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            data_json = response.json()
-            return data_json["response"]["ranks"]
-        
-    except Exception as e:
-        print('request exception', e)
