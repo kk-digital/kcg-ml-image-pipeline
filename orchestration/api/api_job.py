@@ -1803,8 +1803,8 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
 @router.get("/queue/image-generation/get-completed-jobs-data-by-hashes", 
             response_model=StandardSuccessResponseV1[ListTaskV1],
             status_code=200,
-            tags=["jobs-standardized"],
-            description="Retrieves the data of completed jobs by a list of image hashes. It returns the full data by default, but it can return only some properties by listing them using the 'fields' param",
+            tags=["deprecated3"],
+            description="changed with /queue/image-generation/get-completed-jobs-data-by-hashes-v1",
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_jobs_by_image_hashes(request: Request, image_hashes: List[str] = Query(...), fields: List[str] = Query(None)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -2019,7 +2019,7 @@ async def get_completed_job_count(request: Request):
     return response_handler.create_success_response_v1(response_data=count, http_status_code=200)
 
 
-@router.get("/queue/image-generation/get-completed-jobs-data-by-hashes", 
+@router.get("/queue/image-generation/get-completed-jobs-data-by-hashes-v1", 
             response_model=StandardSuccessResponseV1[ListTaskV1],
             status_code=200,
             tags=["jobs-standardized"],

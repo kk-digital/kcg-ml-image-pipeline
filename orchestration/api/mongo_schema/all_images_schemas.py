@@ -5,7 +5,7 @@ from datetime import datetime
 from orchestration.api.mongo_schemas import ImageMetadata
 
 class AllImagesResponse(BaseModel):
-    uuid: int
+    uuid: str
     index: int
     bucket_id: int
     dataset_id: int

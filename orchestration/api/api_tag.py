@@ -1488,7 +1488,7 @@ def get_image_count_by_tag(
             status_code=200,
             tags=["tags"], 
             description="Get count of images with a specific tag",
-            response_model=StandardSuccessResponseV1[TagCountResponse],
+            response_model=StandardSuccessResponseV1[TagCountResponseV1],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_image_count_by_tag_v1(
     request: Request,
