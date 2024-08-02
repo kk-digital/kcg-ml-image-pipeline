@@ -20,7 +20,8 @@ router = APIRouter()
 @router.get("/all-images/list",
             description="list images according dataset_id and bucket_id",
             tags=["all-images"],
-            response_model=StandardSuccessResponseV1)
+            response_model=StandardSuccessResponseV1[ListAllImagesResponse],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def list_all_images(
     request: Request,
     bucket_ids: Optional[List[int]] = Query(None, description="Bucket IDs"),
@@ -31,7 +32,7 @@ async def list_all_images(
     start_date: Optional[str] = Query(None, description="Start date for filtering results"),
     end_date: Optional[str] = Query(None, description="End date for filtering results"),
     time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
-    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours")
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -67,7 +68,7 @@ async def list_all_images(
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-            date_query['$gte'] = api_date_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
+            date_query['$gte'] = date_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
 
         print(f"Date query after adding time interval: {date_query}")
 
@@ -87,9 +88,11 @@ async def list_all_images(
 
         for image in images:
             image.pop("_id", None)  # Remove the MongoDB ObjectId
+            if 'uuid' in image:
+                image['uuid'] = str(image['uuid'])  # Convert uuid to string
 
         return response_handler.create_success_response_v1(
-            response_data=images,
+            response_data={"images": images},
             http_status_code=200
         )
 
