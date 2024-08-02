@@ -53,7 +53,13 @@ def http_get_external_dataset_in_batches(dataset: str, batch_size: int):
             
             if response.status_code == 200:
                 data_json = response.json()
-                external_images.extend(data_json['response']['images'])
+                image_batch= data_json['response']['images']
+
+                if len(image_batch)>0: 
+                    external_images.extend(image_batch)
+                else:
+                    break
+
             else:
                 break
 
