@@ -24,11 +24,11 @@ all_images_collection = db[ALL_IMAGES_COLLECTION]
 
 # Determine the target collection for the job based on the hash
 def determine_target_collection(image_hash):
-    if completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}):
+    if completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}) is not None:
         return completed_jobs_collection, "task_output_file_dict.output_file_hash"
-    elif extracts_collection.find_one({"image_hash": image_hash}):
+    elif extracts_collection.find_one({"image_hash": image_hash}) is not None:
         return extracts_collection, "image_hash"
-    elif external_images_collection.find_one({"image_hash": image_hash}):
+    elif external_images_collection.find_one({"image_hash": image_hash}) is not None:
         return external_images_collection, "image_hash"
     else:
         return None, None
@@ -52,7 +52,7 @@ def process_job(job):
         return None  # Skip if uuid is not available
 
     target_collection, field_path = determine_target_collection(image_hash)
-    if not target_collection:
+    if target_collection is None:
         print("Skipping job due to undefined target collection")
         return None
 
@@ -69,12 +69,12 @@ print("Processing the specified image hash...")
 
 try:
     job = all_images_collection.find_one({"image_hash": image_hash})
-    if not job:
+    if job is None:
         print(f"No job found with image_hash: {image_hash}")
     else:
         processed_job, target_collection = process_job(job)
 
-        if processed_job:
+        if processed_job is not None:
             target_collection.insert_one(processed_job)
             print(f"Inserted document with image_uuid {processed_job['image_uuid']} into {target_collection.name}")
 
