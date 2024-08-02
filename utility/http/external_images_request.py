@@ -68,6 +68,8 @@ def http_get_external_dataset_in_batches(dataset: str, batch_size: int):
             break
 
         offset += batch_size
+
+        print(f"Loaded {offset} images")
     
     return external_images
         
