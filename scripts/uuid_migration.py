@@ -1,7 +1,6 @@
 import time
 import datetime
 from pymongo import MongoClient
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
@@ -10,7 +9,9 @@ COMPLETED_JOBS_COLLECTION = "completed-jobs"
 EXTRACTS_COLLECTION = "extracts"
 EXTERNAL_IMAGES_COLLECTION = "external_images"
 ALL_IMAGES_COLLECTION = "all-images"
-BATCH_SIZE = 5000  # Number of documents to process in each batch
+
+# Hardcoded image_hash
+image_hash = "c7bb1a8ac9337733a2b5a095fbefbf6209bf840fec74aecc72e89d71ca7e1442"
 
 # Connect to MongoDB
 print("Connecting to MongoDB...")
@@ -63,64 +64,24 @@ def process_job(job):
 
     return job, target_collection
 
-# Process each document in all_images_collection in batches
-print("Processing all images...")
+# Process the document with the specific image_hash
+print("Processing the specified image hash...")
+
 try:
-    total_processed = 0
-    cursor = all_images_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
-    completed_batch = []
-    extracts_batch = []
-    external_images_batch = []
+    job = all_images_collection.find_one({"image_hash": image_hash})
+    if not job:
+        print(f"No job found with image_hash: {image_hash}")
+    else:
+        processed_job, target_collection = process_job(job)
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_job = {executor.submit(process_job, job): job for job in cursor}
-
-        for future in as_completed(future_to_job):
-            job = future_to_job[future]
-            try:
-                result = future.result()
-                if result:
-                    new_document, target_collection = result
-                    if target_collection == completed_jobs_collection:
-                        completed_batch.append(new_document)
-                        if len(completed_batch) >= BATCH_SIZE:
-                            completed_jobs_collection.insert_many(completed_batch)
-                            print(f"Inserted {len(completed_batch)} documents into {completed_jobs_collection.name}")
-                            completed_batch.clear()
-                    elif target_collection == extracts_collection:
-                        extracts_batch.append(new_document)
-                        if len(extracts_batch) >= BATCH_SIZE:
-                            extracts_collection.insert_many(extracts_batch)
-                            print(f"Inserted {len(extracts_batch)} documents into {extracts_collection.name}")
-                            extracts_batch.clear()
-                    elif target_collection == external_images_collection:
-                        external_images_batch.append(new_document)
-                        if len(external_images_batch) >= BATCH_SIZE:
-                            external_images_collection.insert_many(external_images_batch)
-                            print(f"Inserted {len(external_images_batch)} documents into {external_images_collection.name}")
-                            external_images_batch.clear()
-                    total_processed += 1
-
-            except Exception as e:
-                print(f"Error processing job: {e}")
-
-    # Insert any remaining documents in the batches
-    if completed_batch:
-        completed_jobs_collection.insert_many(completed_batch)
-        print(f"Inserted {len(completed_batch)} documents into {completed_jobs_collection.name}")
-    if extracts_batch:
-        extracts_collection.insert_many(extracts_batch)
-        print(f"Inserted {len(extracts_batch)} documents into {extracts_collection.name}")
-    if external_images_batch:
-        external_images_collection.insert_many(external_images_batch)
-        print(f"Inserted {len(external_images_batch)} documents into {external_images_collection.name}")
-
-    print(f"Total processed jobs: {total_processed}")
+        if processed_job:
+            target_collection.insert_one(processed_job)
+            print(f"Inserted document with image_uuid {processed_job['image_uuid']} into {target_collection.name}")
 
 except Exception as e:
-    print(f"Error processing jobs: {e}")
+    print(f"Error processing job: {e}")
+
 finally:
-    cursor.close()
+    client.close()
 
 print("Data migrated successfully.")
-client.close()
