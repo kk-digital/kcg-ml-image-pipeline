@@ -206,14 +206,14 @@ class ImageExtractionPipeline:
                 score_std= float(model.standard_deviation)
                 sigma_score = (clip_score - score_mean) / score_std
             
-            if sigma_score > self.min_quality_sigma:
+            if sigma_score >= self.min_quality_sigma:
                 return False
 
         # check classifier scores
         for tag, model in self.topic_models.items():
             with torch.no_grad():
                 classifier_score = model.classify(clip_vector).item()
-            if classifier_score > self.min_classifier_score:
+            if classifier_score >= self.min_classifier_score:
                 return False
         
         return False
