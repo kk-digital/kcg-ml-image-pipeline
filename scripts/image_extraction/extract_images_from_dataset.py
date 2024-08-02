@@ -216,7 +216,7 @@ class ImageExtractionPipeline:
             if classifier_score >= self.min_classifier_score:
                 return False
         
-        return False
+        return True
 
     def filter_extracts(self, external_images: list, extracted_images: list):
         print("Filtering extracted images...........")
