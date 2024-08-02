@@ -15,11 +15,11 @@ router = APIRouter()
 
 api_prefix = '/ingress-videos'
 
-@router.post(f'{api_prefix}/add',
-            description='Add ingress video',
-            response_model=StandardSuccessResponseV1[VideoMetaData],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_video(request: Request, video_meta_data: VideoMetaData):
+@router.post(f'{api_prefix}/add-ingress-video',
+             description='Add ingress video',
+             response_model=StandardSuccessResponseV1[VideoMetaData],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_ingress_video(request: Request, video_meta_data: VideoMetaData):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -50,11 +50,11 @@ async def add_video(request: Request, video_meta_data: VideoMetaData):
             http_status_code=500
         )
     
-@router.post(f'{api_prefix}/add-list',
-            description='Add video list',
-            response_model=StandardSuccessResponseV1[ListVideoMetaData],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaData]):
+@router.post(f'{api_prefix}/add-ingress-video-list',
+             description='Add ingress videos',
+             response_model=StandardSuccessResponseV1[ListVideoMetaData],
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def add_ingress_video_list(request: Request, video_meta_data_list: List[VideoMetaData]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -84,11 +84,11 @@ async def add_video_list(request: Request, video_meta_data_list: List[VideoMetaD
         )
 
 
-@router.get(f'{api_prefix}/get',
-            description='Get video data by video hash',
+@router.get(f'{api_prefix}/get-ingress-video-by-video-hash',
+            description='Get ingress video by video hash',
             response_model=StandardSuccessResponseV1[VideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_video_by_hash(request: Request, video_hash: str):
+async def get_ingress_video_by_video_hash(request: Request, video_hash: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -110,11 +110,11 @@ async def get_video_by_hash(request: Request, video_hash: str):
         )
 
 
-@router.get(f'{api_prefix}/get-list',
-            description='Get list of video by video hash list',
+@router.get(f'{api_prefix}/get-ingress-videos-by-video-hash-list',
+            description='Get ingress videos whose video hash is in the list video hash list',
             response_model=StandardSuccessResponseV1[ListVideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_video_list_by_hash_list(request: Request, video_hash_list: List[str]):
+async def get_ingress_videos_by_video_hash_list(request: Request, video_hash_list: List[str]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -145,11 +145,11 @@ async def get_video_list_by_hash_list(request: Request, video_hash_list: List[st
             http_status_code=500
         )
     
-@router.get(f'{api_prefix}/list',
-            description='Get get all video data',
+@router.get(f'{api_prefix}/get-all-ingress-videos',
+            description='Get all ingress videos',
             response_model=StandardSuccessResponseV1[ListVideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_video_list(request: Request):
+async def get_all_ingress_videos(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -216,11 +216,11 @@ async def delete_video(request: Request, video_hash: str):
             http_status_code=500
         )
     
-@router.delete(f'{api_prefix}/delete-list',
-               description='Delete ingress video list',
+@router.delete(f'{api_prefix}/delete-ingress-videos-by-video-hash-list',
+               description='Delete an Ingress video whose video hash is in the list of video hashes for deletion.',
                response_model=StandardSuccessResponseV1[DeletedCount],
                responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def delete_video_list(request: Request, video_hash_list: List[str]):
+async def delete_ingress_videos_by_video_hash_list(request: Request, video_hash_list: List[str]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
