@@ -206,14 +206,14 @@ def http_get_extract_dataset_list():
 def http_add_dataset(dataset_name: str, bucket_id: int):
     url = SERVER_ADDRESS + "/datasets/add-new-dataset"
     headers = {"Content-type": "application/json"}
-    payload = {
+    params = {
         "dataset_name": dataset_name,
         "bucket_id": bucket_id
     }
     response = None
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, params=params)
 
         if response.status_code != 200:
             print(f"Request failed with status code: {response.status_code}: {response.content.decode('utf-8')}")
