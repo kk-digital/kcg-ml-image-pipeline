@@ -272,9 +272,9 @@ class ImageExtractionPipeline:
                 extract_data.append(data)
 
                 # spawn upload data thread
-                thread = threading.Thread(target=upload_extract_data, args=(self.minio_client, data,))
-                thread.start()
-                self.threads.append(thread)
+                # thread = threading.Thread(target=upload_extract_data, args=(self.minio_client, data,))
+                # thread.start()
+                # self.threads.append(thread)
 
                 self.clip_vectors.append(clip_vector)
                 self.vae_latents.append(vae_latent)
@@ -289,9 +289,9 @@ class ImageExtractionPipeline:
                     self.clip_vectors =[]
                     self.vae_latents =[]
 
-                    thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
-                    thread.start()
-                    self.threads.append(thread)
+                    # thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
+                    # thread.start()
+                    # self.threads.append(thread)
             
             index+=1
         
@@ -304,9 +304,9 @@ class ImageExtractionPipeline:
             self.clip_vectors =[]
             self.vae_latents =[]
             
-            thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
-            thread.start()
-            self.threads.append(thread)
+            # thread = threading.Thread(target=save_latents_and_vectors, args=(self.minio_client, self.dataset, clip_vectors, vae_latents, self.image_hashes,))
+            # thread.start()
+            # self.threads.append(thread)
 
         return extract_data
 
