@@ -72,9 +72,13 @@ try:
     if job is None:
         print(f"No job found with image_hash: {image_hash}")
     else:
-        processed_job, target_collection = process_job(job)
+        print(f"Found job with image_hash: {image_hash} -> {job}")
 
+        processed_job, target_collection = process_job(job)
         if processed_job is not None:
+            print(f"Processed job: {processed_job}")
+            print(f"Target collection: {target_collection.name}")
+
             update_result = target_collection.update_one(
                 {"_id": job["_id"]},
                 {"$set": {"image_uuid": processed_job["image_uuid"]}}
@@ -82,7 +86,7 @@ try:
             if update_result.modified_count > 0:
                 print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
             else:
-                print(f"No documents were updated in {target_collection.name}")
+                print(f"No documents were updated in {target_collection.name}. The document may already have the field set or the update criteria did not match.")
 
 except Exception as e:
     print(f"Error processing job: {e}")
