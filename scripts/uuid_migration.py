@@ -80,7 +80,7 @@ try:
             print(f"Target collection: {target_collection.name}")
 
             update_result = target_collection.update_one(
-                {"_id": job["_id"]},
+                {"image_hash": image_hash},
                 {"$set": {"image_uuid": processed_job["image_uuid"]}}
             )
             if update_result.modified_count > 0:
