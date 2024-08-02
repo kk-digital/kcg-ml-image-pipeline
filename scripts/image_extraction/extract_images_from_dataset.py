@@ -191,8 +191,13 @@ class ImageExtractionPipeline:
         return clip_model
     
     def is_filtered(self, clip_vector):
-        above_quality_threshold= False
-        above_classifier_threshold= False
+        # check if the image has any defects
+        for tag, model in self.defect_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score >= self.defect_threshold:
+                return True
+
         # Check quality score
         for dataset, model in self.quality_models.items():
             with torch.no_grad():
@@ -202,27 +207,14 @@ class ImageExtractionPipeline:
                 sigma_score = (clip_score - score_mean) / score_std
             
             if sigma_score > self.min_quality_sigma:
-                above_quality_threshold =True
-                break
+                return False
 
         # check classifier scores
-        if not above_quality_threshold:
-            for tag, model in self.topic_models.items():
-                with torch.no_grad():
-                    classifier_score = model.classify(clip_vector).item()
-                if classifier_score > self.min_classifier_score:
-                    above_classifier_threshold= True
-                    break
-        
-        if above_classifier_threshold or above_quality_threshold:
-            # check if the image has any defects
-            for tag, model in self.defect_models.items():
-                with torch.no_grad():
-                    classifier_score = model.classify(clip_vector).item()
-                if classifier_score >= self.defect_threshold:
-                    return True
-        else:
-            return True
+        for tag, model in self.topic_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score > self.min_classifier_score:
+                return False
         
         return False
 
