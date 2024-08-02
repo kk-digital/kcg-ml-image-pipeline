@@ -351,6 +351,8 @@ class ImageExtractionPipeline:
 def main():
     args= parse_args()
 
+    external_images_request.http_add_dataset(dataset_name=args.dataset, bucket_id=1)
+
     # initialize image extraction pipeline
     pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,

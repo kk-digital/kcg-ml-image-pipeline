@@ -203,6 +203,31 @@ def http_get_extract_dataset_list():
 
     return None
 
+def http_add_dataset(dataset_name: str, bucket_id: int):
+    url = SERVER_ADDRESS + "/datasets/add-new-dataset"
+    headers = {"Content-type": "application/json"}
+    payload = {
+        "dataset_name": dataset_name,
+        "bucket_id": bucket_id
+    }
+    response = None
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            print(f"Request failed with status code: {response.status_code}: {response.content.decode('utf-8')}")
+        else:
+            print(f"the {dataset_name} dataset was successfully created in bucket {bucket_id}")
+    except Exception as e:
+        print('Request exception', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 # delete an extract by hash
 def http_delete_extract(image_hash: str):
     url = SERVER_ADDRESS + "/extracts/delete-extract?image_hash={}".format(image_hash)
