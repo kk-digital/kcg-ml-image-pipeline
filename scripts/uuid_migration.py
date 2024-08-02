@@ -75,8 +75,14 @@ try:
         processed_job, target_collection = process_job(job)
 
         if processed_job is not None:
-            target_collection.insert_one(processed_job)
-            print(f"Inserted document with image_uuid {processed_job['image_uuid']} into {target_collection.name}")
+            update_result = target_collection.update_one(
+                {"_id": job["_id"]},
+                {"$set": {"image_uuid": processed_job["image_uuid"]}}
+            )
+            if update_result.modified_count > 0:
+                print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
+            else:
+                print(f"No documents were updated in {target_collection.name}")
 
 except Exception as e:
     print(f"Error processing job: {e}")
