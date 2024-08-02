@@ -79,6 +79,7 @@ class ImageExtractionPipeline:
         # models
         self.quality_models= {}
         self.topic_models= {}
+        self.irrelevant_image_models= {}
         self.defect_models= {}
         self.clip = None
         self.vae = None
@@ -109,8 +110,10 @@ class ImageExtractionPipeline:
                 if any(tag_type in tag for tag_type in tag_types):
                     classifier_model= self.get_classifier_model(tag)
                     if classifier_model:
-                        if ("defect" in tag) or ("irrelevant" in tag):
+                        if "defect" in tag:
                             self.defect_models[tag]= classifier_model
+                        elif "irrelevant" in tag:
+                            self.irrelevant_image_models[tag] = classifier_model
                         else:
                             self.topic_models[tag]= classifier_model
             
@@ -191,6 +194,13 @@ class ImageExtractionPipeline:
         return clip_model
     
     def is_filtered(self, clip_vector):
+        # check if the image is irrelevant
+        for tag, model in self.irrelevant_image_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score >= self.defect_threshold:
+                return True
+
         # check if the image has any defects
         for tag, model in self.defect_models.items():
             with torch.no_grad():
