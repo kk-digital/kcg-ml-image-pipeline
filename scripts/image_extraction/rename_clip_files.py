@@ -8,7 +8,10 @@ from utility.minio import cmd
 def rename_files_in_bucket(minio_client: Minio, bucket_name: str):
     try:
         objects = minio_client.list_objects(bucket_name, recursive=True)
-        for obj in tqdm(objects):
+
+        total_objects = len(objects)
+        print(f'Total number of objects: {total_objects}')
+        for obj in tqdm(objects, total=total_objects):
             if obj.object_name.endswith('_clip-h.msgpack'):
                 new_name = obj.object_name.replace('_clip-h.msgpack', '_clip_kandinsky.msgpack')
                 minio_client.copy_object(bucket_name, new_name, f'/{bucket_name}/{obj.object_name}')
