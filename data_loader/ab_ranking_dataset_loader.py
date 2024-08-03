@@ -176,9 +176,11 @@ class ABRankingDatasetLoader:
         # get .msgpack data
         features_path_img_1 = file_path_img_1.replace(".jpg", input_type_extension)
         bucket_img_1, features_path_img_1 = separate_bucket_and_file_path(features_path_img_1)
+        print(bucket_img_1, features_path_img_1)
 
         features_path_img_2 = file_path_img_2.replace(".jpg", input_type_extension)
         bucket_img_2, features_path_img_2 = separate_bucket_and_file_path(features_path_img_2)
+        print(bucket_img_2, features_path_img_2)
 
         features_img_1_data = cmd.get_file_from_minio(self.minio_client, bucket_img_1, features_path_img_1)
         features_img_1_data = msgpack.unpackb(features_img_1_data)
