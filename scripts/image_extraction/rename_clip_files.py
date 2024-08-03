@@ -1,7 +1,10 @@
 import argparse
+import sys
 from minio import Minio, S3Error
 from tqdm import tqdm
 
+base_directory = "./"
+sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 
