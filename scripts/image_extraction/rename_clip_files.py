@@ -2,6 +2,7 @@ import argparse
 import sys
 from minio import Minio, S3Error
 from tqdm import tqdm
+from minio.commonconfig import CopySource
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -17,7 +18,8 @@ def rename_files_in_bucket(minio_client: Minio, bucket_name: str):
         print(f'Total number of objects: {total_objects}')
         for file_path in tqdm(object_names, total=total_objects):
             new_name = file_path.replace('_clip-h.msgpack', '_clip_kandinsky.msgpack')
-            minio_client.copy_object(bucket_name, new_name, f'/{bucket_name}/{file_path}')
+            source = CopySource(bucket_name, file_path)
+            minio_client.copy_object(bucket_name, new_name, source)
             minio_client.remove_object(bucket_name, file_path)
             print(f'Renaming {file_path} to {new_name}')
     except S3Error as e:
