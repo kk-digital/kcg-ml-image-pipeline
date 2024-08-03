@@ -13,10 +13,7 @@ def get_image_clip_from_minio(minio_client, image_path, bucket_name):
     base_path = image_path.rstrip(image_path[-4:])
 
     # finds the clip file associated with the image
-    if bucket_name == "extracts":
-        image_clip_vector_path = f'{base_path}_clip-h.msgpack'
-    elif bucket_name in ['datasets', 'external']:
-        image_clip_vector_path = f'{base_path}_clip_kandinsky.msgpack'
+    image_clip_vector_path = f'{base_path}_clip_kandinsky.msgpack'
 
     print(f'image clip vector path : {image_clip_vector_path}')
     # get the clip.msgpack from minio

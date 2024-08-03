@@ -104,7 +104,7 @@ class ImageExtractionPipeline:
             print("loading the classifier models")
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags]
-            tag_types= ['defect', 'irrelevant', 'topic', 'game', 'environmental']
+            tag_types= ['defect', 'irrelevant', 'topic', 'game']
 
             for tag in tag_names:
                 if any(tag_type in tag for tag_type in tag_types):

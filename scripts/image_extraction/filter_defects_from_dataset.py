@@ -35,7 +35,7 @@ def delete_extract(minio_client, hash, file_path):
         # delete files associated to the image
         bucket_name, image_path = separate_bucket_and_file_path(file_path)
         filename = os.path.splitext(image_path)[0]
-        clip_path= filename + "_clip-h.msgpack"
+        clip_path= filename + "_clip_kandinsky.msgpack"
         latent_path= filename + "_vae_latent.msgpack"
         # delete the image
         cmd.remove_an_object(minio_client, bucket_name, image_path)
@@ -49,7 +49,7 @@ def load_clip_vector(minio_client, file_path, device):
     bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
     file_path = os.path.splitext(input_file_path)[0]
     
-    output_clip_path = file_path + "_clip-h.msgpack"
+    output_clip_path = file_path + "_clip_kandinsky.msgpack"
     features_data = cmd.get_file_from_minio(minio_client, bucket_name, output_clip_path)
     features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
     clip_vector= torch.tensor(features_vector).to(device)

@@ -93,7 +93,7 @@ class TaggedDatasetLoader:
             features_data = get_object_with_bucket(self.minio_client, bucket_name, file_path)
         except Exception as e:
             if self.input_type in [constants.KANDINSKY_CLIP, constants.KANDINSKY_CLIP_WITH_LENGTH]:
-                file_path = path.replace(".jpg", "_clip-h.msgpack")
+                file_path = path.replace(".jpg", "_clip_kandinsky.msgpack")
                 print(file_path)
                 bucket_name, file_path = separate_bucket_and_file_path(file_path)
                 features_data = get_object_with_bucket(self.minio_client, bucket_name, file_path)
