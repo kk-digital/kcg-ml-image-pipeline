@@ -1,6 +1,6 @@
 class ABData:
     def __init__(self, task, username, hash_image_1, hash_image_2, selected_image_index, selected_image_hash,
-                 image_1_path, image_2_path, image_1_source, image_2_source, datetime, flagged=False):
+                 image_1_path, image_2_path, datetime, flagged=False):
         self.task = task
         self.username = username
         self.hash_image_1 = hash_image_1
