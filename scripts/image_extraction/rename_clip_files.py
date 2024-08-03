@@ -11,15 +11,15 @@ from utility.minio import cmd
 def rename_files_in_bucket(minio_client: Minio, bucket_name: str):
     try:
         objects = minio_client.list_objects(bucket_name, recursive=True)
-        object_names= [obj.object_name for obj in objects]
+        object_names= [obj.object_name for obj in objects if obj.object_name.endswith('_clip-h.msgpack')]
 
         total_objects = len(object_names)
         print(f'Total number of objects: {total_objects}')
         for file_path in tqdm(object_names, total=total_objects):
-            if file_path.endswith('_clip-h.msgpack'):
-                new_name = file_path.replace('_clip-h.msgpack', '_clip_kandinsky.msgpack')
-                minio_client.copy_object(bucket_name, new_name, f'/{bucket_name}/{file_path}')
-                minio_client.remove_object(bucket_name, file_path)
+            new_name = file_path.replace('_clip-h.msgpack', '_clip_kandinsky.msgpack')
+            minio_client.copy_object(bucket_name, new_name, f'/{bucket_name}/{file_path}')
+            minio_client.remove_object(bucket_name, file_path)
+            print(f'Renaming {file_path} to {new_name}')
     except S3Error as e:
         print(f'An error occurred: {e}')
 
