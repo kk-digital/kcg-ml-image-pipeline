@@ -1,7 +1,6 @@
 import time
 import datetime
 from pymongo import MongoClient
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
@@ -10,7 +9,6 @@ COMPLETED_JOBS_COLLECTION = "completed-jobs"
 EXTRACTS_COLLECTION = "extracts"
 EXTERNAL_IMAGES_COLLECTION = "external_images"
 ALL_IMAGES_COLLECTION = "all-images"
-BATCH_SIZE = 5000  # Number of documents to process in each batch
 
 # Connect to MongoDB
 print("Connecting to MongoDB...")
@@ -23,11 +21,11 @@ all_images_collection = db[ALL_IMAGES_COLLECTION]
 
 # Determine the target collection for the job based on the hash
 def determine_target_collection(image_hash):
-    if completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}):
+    if completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}) is not None:
         return completed_jobs_collection, "task_output_file_dict.output_file_hash"
-    elif extracts_collection.find_one({"image_hash": image_hash}):
+    elif extracts_collection.find_one({"image_hash": image_hash}) is not None:
         return extracts_collection, "image_hash"
-    elif external_images_collection.find_one({"image_hash": image_hash}):
+    elif external_images_collection.find_one({"image_hash": image_hash}) is not None:
         return external_images_collection, "image_hash"
     else:
         return None, None
@@ -51,7 +49,7 @@ def process_job(job):
         return None  # Skip if uuid is not available
 
     target_collection, field_path = determine_target_collection(image_hash)
-    if not target_collection:
+    if target_collection is None:
         print("Skipping job due to undefined target collection")
         return None
 
@@ -63,64 +61,35 @@ def process_job(job):
 
     return job, target_collection
 
-# Process each document in all_images_collection in batches
-print("Processing all images...")
+# Process all documents in all_images_collection
+print("Processing all documents in all_images_collection...")
+
 try:
-    total_processed = 0
-    cursor = all_images_collection.find(no_cursor_timeout=True).batch_size(BATCH_SIZE)
-    completed_batch = []
-    extracts_batch = []
-    external_images_batch = []
+    cursor = all_images_collection.find(no_cursor_timeout=True)
+    for job in cursor:
+        image_hash = job.get("image_hash")
+        if image_hash:
+            print(f"Found job with image_hash: {image_hash} -> {job}")
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_job = {executor.submit(process_job, job): job for job in cursor}
+            processed_job, target_collection = process_job(job)
+            if processed_job is not None:
+                print(f"Processed job: {processed_job}")
+                print(f"Target collection: {target_collection.name}")
 
-        for future in as_completed(future_to_job):
-            job = future_to_job[future]
-            try:
-                result = future.result()
-                if result:
-                    new_document, target_collection = result
-                    if target_collection == completed_jobs_collection:
-                        completed_batch.append(new_document)
-                        if len(completed_batch) >= BATCH_SIZE:
-                            completed_jobs_collection.insert_many(completed_batch)
-                            print(f"Inserted {len(completed_batch)} documents into {completed_jobs_collection.name}")
-                            completed_batch.clear()
-                    elif target_collection == extracts_collection:
-                        extracts_batch.append(new_document)
-                        if len(extracts_batch) >= BATCH_SIZE:
-                            extracts_collection.insert_many(extracts_batch)
-                            print(f"Inserted {len(extracts_batch)} documents into {extracts_collection.name}")
-                            extracts_batch.clear()
-                    elif target_collection == external_images_collection:
-                        external_images_batch.append(new_document)
-                        if len(external_images_batch) >= BATCH_SIZE:
-                            external_images_collection.insert_many(external_images_batch)
-                            print(f"Inserted {len(external_images_batch)} documents into {external_images_collection.name}")
-                            external_images_batch.clear()
-                    total_processed += 1
-
-            except Exception as e:
-                print(f"Error processing job: {e}")
-
-    # Insert any remaining documents in the batches
-    if completed_batch:
-        completed_jobs_collection.insert_many(completed_batch)
-        print(f"Inserted {len(completed_batch)} documents into {completed_jobs_collection.name}")
-    if extracts_batch:
-        extracts_collection.insert_many(extracts_batch)
-        print(f"Inserted {len(extracts_batch)} documents into {extracts_collection.name}")
-    if external_images_batch:
-        external_images_collection.insert_many(external_images_batch)
-        print(f"Inserted {len(external_images_batch)} documents into {external_images_collection.name}")
-
-    print(f"Total processed jobs: {total_processed}")
+                update_result = target_collection.update_one(
+                    {"image_hash": image_hash},
+                    {"$set": {"image_uuid": processed_job["image_uuid"]}}
+                )
+                if update_result.modified_count > 0:
+                    print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
+                else:
+                    print(f"No documents were updated in {target_collection.name}. The document may already have the field set or the update criteria did not match.")
 
 except Exception as e:
-    print(f"Error processing jobs: {e}")
+    print(f"Error processing job: {e}")
+
 finally:
     cursor.close()
+    client.close()
 
 print("Data migrated successfully.")
-client.close()
