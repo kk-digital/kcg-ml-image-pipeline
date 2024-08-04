@@ -100,7 +100,7 @@ class ImageExtractionPipeline:
         self.device = torch.device(device)
 
         # models
-        self.quality_models= {}
+        self.quality_models= []
         self.topic_models= {}
         self.irrelevant_image_models= {}
         self.defect_models= {}
