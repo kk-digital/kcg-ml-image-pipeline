@@ -40,6 +40,29 @@ def parse_args():
 
     return parser.parse_args()
 
+def load_scoring_model(minio_client, rank_id, model_path, device):
+
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', model_path)
+    
+    if model_file_data is None:
+        print(f"No ranking model was found for rank {rank_id}.")
+        return None
+
+    scoring_model = ABRankingELMModel(1280, device=device)
+
+    # Create a BytesIO object and write the downloaded content into it
+    byte_buffer = io.BytesIO()
+    for data in model_file_data.stream(amt=8192):
+        byte_buffer.write(data)
+    # Reset the buffer's position to the beginning
+    byte_buffer.seek(0)
+
+    scoring_model.load_safetensors(byte_buffer)
+
+    print(f"model {model_path} loaded")
+
+    return scoring_model
+
 class ImageExtractionPipeline:
 
     def __init__(self,
@@ -88,34 +111,39 @@ class ImageExtractionPipeline:
         self.threads=[]
 
     def load_models(self):
-
         try:
-            print("loading the ranking models")
-            # load ranking models
-            dataset_list= ['environmental']
+            print(f"Load all rank models")
+            rank_model_list = request.http_get_ranking_model_list()
 
-            for dataset in dataset_list:
-                scoring_model= self.load_scoring_model(dataset)
+            for rank_info in rank_model_list:
+                ranking_model_type = rank_info["model_type"]
 
-                if scoring_model is not None:
-                        self.quality_models[dataset]= scoring_model
+                if  ranking_model_type != "elm-v1":
+                    continue
+
+                rank_id = rank_info["rank_id"]
+                model_path = rank_info["model_path"]
+                rank_model= None
+
+                rank_model = load_scoring_model(self.minio_client, rank_id, "elm-v1", model_path, torch.device('cpu'))
+                self.quality_models.append(rank_model)
             
             # load topic and defect models
             print("loading the classifier models")
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags]
-            tag_types= ['defect', 'irrelevant', 'topic', 'game']
 
             for tag in tag_names:
-                if any(tag_type in tag for tag_type in tag_types):
-                    classifier_model= self.get_classifier_model(tag)
-                    if classifier_model:
-                        if "defect" in tag:
-                            self.defect_models[tag]= classifier_model
-                        elif "irrelevant" in tag:
-                            self.irrelevant_image_models[tag] = classifier_model
-                        else:
-                            self.topic_models[tag]= classifier_model
+                classifier_model= self.get_classifier_model(tag)
+                if classifier_model:
+                    if tag.startswith("defect"):
+                        self.defect_models[tag]= classifier_model
+                    elif tag.startswith("irrelevant"):
+                        self.irrelevant_image_models[tag] = classifier_model
+                    elif tag.startswith("game"):
+                        self.topic_models[tag]= classifier_model
+                    else:
+                        continue
             
             print("Loading the image encoder")
             # load clip image encoder
@@ -131,39 +159,6 @@ class ImageExtractionPipeline:
         except Exception as e:
             raise Exception(f"An error occured while loading the models: {e}.")
         
-
-    # load elm scoring models
-    def load_scoring_model(self, dataset):
-        input_path=f"{dataset}/models/ranking/"
-        scoring_model = ABRankingELMModel(1280, device=self.device)
-        file_name=f"score-elm-v1-clip-h.safetensors"
-
-        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
-        most_recent_model = None
-
-        for model_file in model_files:
-            if model_file.endswith(file_name):
-                most_recent_model = model_file
-
-        if most_recent_model:
-            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
-        else:
-            print("No .safetensors files found in the list.")
-            return None
-
-        print(most_recent_model)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in model_file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        scoring_model.load_safetensors(byte_buffer)
-        scoring_model.model=scoring_model.model.to(torch.device(self.device))
-
-        return scoring_model 
 
     def get_classifier_model(self, tag_name):
         input_path = f"environmental/models/classifiers/{tag_name}/"
@@ -209,7 +204,7 @@ class ImageExtractionPipeline:
                 return True
 
         # Check quality score
-        for dataset, model in self.quality_models.items():
+        for model in self.quality_models:
             with torch.no_grad():
                 clip_score = model.predict_clip(clip_vector).item()
                 score_mean= float(model.mean)
