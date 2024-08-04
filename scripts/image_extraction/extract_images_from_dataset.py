@@ -125,7 +125,7 @@ class ImageExtractionPipeline:
                 model_path = rank_info["model_path"]
                 rank_model= None
 
-                rank_model = load_scoring_model(self.minio_client, rank_id, model_path, torch.device('cpu'))
+                rank_model = load_scoring_model(self.minio_client, rank_id, model_path, self.device)
                 self.quality_models.append(rank_model)
             
             # load topic and defect models
