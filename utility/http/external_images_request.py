@@ -203,6 +203,27 @@ def http_get_extract_dataset_list():
 
     return None
 
+# Get list of all game names
+def http_get_video_game_list():
+    url = SERVER_ADDRESS + "/video-games/list"
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json['response']['games']
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 def http_add_dataset(dataset_name: str, bucket_id: int):
     url = SERVER_ADDRESS + "/datasets/add-new-dataset"
     headers = {"Content-type": "application/json"}
