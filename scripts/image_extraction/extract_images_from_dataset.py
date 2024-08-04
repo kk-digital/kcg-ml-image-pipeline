@@ -354,6 +354,8 @@ def main():
     if args.dataset == "all_games":
         games= external_images_request.http_get_video_game_list()
 
+        print(f"list of games: {games}")
+
         for game in games:
             dataset = game["title"]
 
