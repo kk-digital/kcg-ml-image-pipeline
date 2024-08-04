@@ -195,11 +195,11 @@ class ImageExtractionPipeline:
     
     def is_filtered(self, clip_vector):
         # check if the image is irrelevant
-        for tag, model in self.irrelevant_image_models.items():
-            with torch.no_grad():
-                classifier_score = model.classify(clip_vector).item()
-            if classifier_score >= self.defect_threshold:
-                return True
+        # for tag, model in self.irrelevant_image_models.items():
+        #     with torch.no_grad():
+        #         classifier_score = model.classify(clip_vector).item()
+        #     if classifier_score >= self.defect_threshold:
+        #         return True
 
         # check if the image has any defects
         for tag, model in self.defect_models.items():
