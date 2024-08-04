@@ -208,6 +208,13 @@ class ImageExtractionPipeline:
             if classifier_score >= self.defect_threshold:
                 return True
 
+        # check classifier scores
+        for tag, model in self.topic_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score >= self.min_classifier_score:
+                return False
+        
         # Check quality score
         for model in self.quality_models:
             with torch.no_grad():
@@ -217,13 +224,6 @@ class ImageExtractionPipeline:
                 sigma_score = (clip_score - score_mean) / score_std
             
             if sigma_score >= self.min_quality_sigma:
-                return False
-
-        # check classifier scores
-        for tag, model in self.topic_models.items():
-            with torch.no_grad():
-                classifier_score = model.classify(clip_vector).item()
-            if classifier_score >= self.min_classifier_score:
                 return False
         
         return True
