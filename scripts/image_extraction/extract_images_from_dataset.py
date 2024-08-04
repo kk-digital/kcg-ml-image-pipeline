@@ -351,23 +351,48 @@ class ImageExtractionPipeline:
 def main():
     args= parse_args()
 
-    external_images_request.http_add_dataset(dataset_name=args.dataset, bucket_id=1)
+    if args.dataset == "all_games":
+        games= external_images_request.http_get_video_game_list()
 
-    # initialize image extraction pipeline
-    pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key,
-                                        dataset=args.dataset,
-                                        min_quality_sigma= args.min_quality_sigma,
-                                        min_classifier_score= args.min_classifier_score,
-                                        defect_threshold= args.defect_threshold,
-                                        target_size= args.target_size,
-                                        batch_size= args.batch_size,
-                                        file_batch_size= args.file_batch_size) 
-    # load all necessary models
-    pipeline.load_models()
+        for game in games:
+            dataset = game["title"]
 
-    # run image extraction
-    pipeline.extract_images()
+            external_images_request.http_add_dataset(dataset_name=dataset, bucket_id=1)
+
+            # initialize image extraction pipeline
+            pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
+                                                minio_secret_key=args.minio_secret_key,
+                                                dataset=dataset,
+                                                min_quality_sigma= args.min_quality_sigma,
+                                                min_classifier_score= args.min_classifier_score,
+                                                defect_threshold= args.defect_threshold,
+                                                target_size= args.target_size,
+                                                batch_size= args.batch_size,
+                                                file_batch_size= args.file_batch_size) 
+            # load all necessary models
+            pipeline.load_models()
+
+            # run image extraction
+            pipeline.extract_images()
+
+    else:
+        external_images_request.http_add_dataset(dataset_name=args.dataset, bucket_id=1)
+
+        # initialize image extraction pipeline
+        pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
+                                            minio_secret_key=args.minio_secret_key,
+                                            dataset=args.dataset,
+                                            min_quality_sigma= args.min_quality_sigma,
+                                            min_classifier_score= args.min_classifier_score,
+                                            defect_threshold= args.defect_threshold,
+                                            target_size= args.target_size,
+                                            batch_size= args.batch_size,
+                                            file_batch_size= args.file_batch_size) 
+        # load all necessary models
+        pipeline.load_models()
+
+        # run image extraction
+        pipeline.extract_images()
 
 if __name__ == "__main__":
     main()
