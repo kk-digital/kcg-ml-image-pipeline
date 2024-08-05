@@ -177,7 +177,7 @@ class TagListForImagesV2(BaseModel):
     tags: List[TagDefinitionV2]
 
 class TagListForImages3(BaseModel):
-    file_hash: str
+    file_hash: str 
     tags: List[TagDefinitionV2]
 
 class ListTagListForImages3(BaseModel):
@@ -204,7 +204,7 @@ class ImageTypes(BaseModel):
 
 class TagCountResponseV1(BaseModel):
     tag_id: int
-    count: Dict[str, ImageTypes]
+    count: ImageTypes
 
 
 class TagIdResponse(BaseModel):
