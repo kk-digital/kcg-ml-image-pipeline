@@ -194,7 +194,7 @@ def http_get_extract_dataset_list():
             data_json = response.json()
             datasets = data_json['response']['datasets']
 
-            datasets= [dataset["dataset_name"] for dataset in datasets if dataset["bucket_id"]==1]
+            datasets= [dataset for dataset in datasets if dataset["bucket_id"]==1]
             return datasets
 
     except Exception as e:
