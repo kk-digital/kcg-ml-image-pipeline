@@ -55,7 +55,7 @@ async def list_all_images(
         if start_date:
             date_query['$gte'] = date_to_unix_int32(start_date)
         if end_date:
-            date_query['$lte'] = date_to_unix_int32(end_date)
+            date_query['$lte'] = date_to_unix_int32(end_date) 
 
         print(f"Date query after adding start_date and end_date: {date_query}")
 
@@ -68,7 +68,7 @@ async def list_all_images(
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-            date_query['$gte'] = date_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
+            date_query['$gte'] = int(threshold_time.timestamp())
 
         print(f"Date query after adding time interval: {date_query}")
 

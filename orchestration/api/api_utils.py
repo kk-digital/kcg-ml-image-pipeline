@@ -653,6 +653,15 @@ def date_to_unix_int32(dt_str):
 
 
 def api_date_to_unix_int32(date_str: str):
+    """
+    Converts a date string in the format 'YYYY-MM-DDTHH:MM:SS' to a Unix timestamp.
+    
+    Parameters:
+    - date_str (str): The date string to be converted. Must be in the format 'YYYY-MM-DDTHH:MM:SS'.
+    
+    Returns:
+    - int: The Unix timestamp representation of the date.
+    """
     print(f"Input date string: {date_str}")
     
     try:
@@ -669,4 +678,3 @@ def api_date_to_unix_int32(date_str: str):
         # Print error message if date parsing fails
         print(f"Error parsing date string: {e}")
         return None
-
