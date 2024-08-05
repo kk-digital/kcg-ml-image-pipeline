@@ -900,16 +900,17 @@ def tag_images_v2(dataset_name, number_of_samples, number_of_images_to_tag,model
 
 
 def get_all_ebm_classifier():
-    # get all the classifier
+    # get all the classifiers
     print('Loading classifiers')
-    #energy-based-model-clip-h  = classifier_name
-    response = requests.get(f'{API_URL2}/classifier/list-classifiers')
+    response = requests.get(f'{API_URL2}/pseudotag-classifiers/list-classifiers')
     
     if response.status_code == 200:
         try:
             jobs_full = json.loads(response.content)
 
-            jobs = jobs_full.get('response', [])
+            # Extract the classifiers list from the new response format
+            jobs = jobs_full.get('response', {}).get('classifiers', [])
+            
             #print(jobs)
             # classifier_id=[job['classifier_id'] for job in jobs]
             # tag_id=[job['tag_id'] for job in jobs]
@@ -920,26 +921,24 @@ def get_all_ebm_classifier():
             #     print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
 
             filtered_data = [item for item in jobs if "-energy-energy-based-model-clip-h" in item["model_path"]]
-            # classifier_id=[job['classifier_id'] for job in filtered_data]
+                        # classifier_id=[job['classifier_id'] for job in filtered_data]
             # tag_id=[job['tag_id'] for job in filtered_data]
             # model_path =[job['model_path'] for job in filtered_data] 
 
             # for j in  range(len(filtered_data)):
             #     print("classifier_id : ", classifier_id[j], " Tag_id : ", tag_id[j], " model_path : ",model_path[j])
-
+            
             filtered_dict = {
                 "classifier_id": [job['classifier_id'] for job in filtered_data],
                 "tag_id": [job['tag_id'] for job in filtered_data],
                 "model_path": [job['model_path'] for job in filtered_data]
             }
 
-
             return filtered_dict
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
         print(f"Error: HTTP request failed with status code {response.status_code}")
-
 
 
 
