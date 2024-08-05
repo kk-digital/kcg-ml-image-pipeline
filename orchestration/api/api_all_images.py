@@ -68,7 +68,7 @@ async def list_all_images(
                 threshold_time = current_time - timedelta(hours=time_interval)
             else:
                 raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-            date_query['$gte'] = int(threshold_time.timestamp())
+            date_query['$gte'] = date_to_unix_int32(threshold_time.isoformat(timespec='milliseconds'))
 
         print(f"Date query after adding time interval: {date_query}")
 
