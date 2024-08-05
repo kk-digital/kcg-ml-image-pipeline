@@ -243,6 +243,7 @@ def main():
         mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
+        world_size = torch.cuda.device_count()
         print("Dataset names:", dataset_names)
         for dataset in dataset_names:
             try:
