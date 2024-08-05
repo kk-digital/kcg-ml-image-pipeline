@@ -184,7 +184,7 @@ def http_get_external_dataset_list():
 
 # Get list of all dataset names for extracts
 def http_get_extract_dataset_list():
-    url = SERVER_ADDRESS + "/extract-images/list-datasets"
+    url = SERVER_ADDRESS + "/datasets/list-datasets-v1"
     response = None
 
     try:
@@ -192,7 +192,10 @@ def http_get_extract_dataset_list():
 
         if response.status_code == 200:
             data_json = response.json()
-            return data_json['response']['datasets']
+            datasets = data_json['response']['datasets']
+
+            datasets= [dataset["dataset_name"] for dataset in datasets if dataset["bucket_id"]==1]
+            return datasets
 
     except Exception as e:
         print('request exception ', e)
