@@ -118,7 +118,7 @@ def load_model(minio_client, classifier_model_info, device):
     
     return loaded_model
 
-def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size):
+def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, classifier_models, batch_size, done_event):
     initialize_dist_env(rank, world_size)
     rank_device = torch.device(f'cuda:{rank}')
 
@@ -194,8 +194,8 @@ def calculate_and_upload_scores(rank, world_size, image_dataset, image_source, c
             print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
     
     dist.barrier()
-    
     cleanup()
+    done_event.set()
 
 def main():
     args = parse_args()
@@ -205,6 +205,7 @@ def main():
     model_type = args.model_type
     batch_size = args.batch_size
     world_size = torch.cuda.device_count()
+    done_event = mp.Event()
 
     # set image source
     if args.bucket=="external":
@@ -240,7 +241,7 @@ def main():
         dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
         image_dataset = dataset_loader.load_dataset()
 
-        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
+        mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size, done_event), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
         print("Dataset names:", dataset_names)
@@ -248,7 +249,11 @@ def main():
             try:
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
-                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
+                mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size, done_event), nprocs=world_size, join=True)
+                
+                while not done_event.is_set():
+                    time.sleep(1)
+
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
