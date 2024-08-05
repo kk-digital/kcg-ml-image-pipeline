@@ -249,8 +249,6 @@ def main():
                 dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
                 image_dataset = dataset_loader.load_dataset()
                 mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
-                # Wait for all processes to complete before moving to the next dataset
-                dist.barrier()
             except Exception as e:
                 print(f"Error running image scorer for {dataset}: {e}")
 
