@@ -208,7 +208,7 @@ def http_get_extract_dataset_list():
 
 # Get list of all game names
 def http_get_video_game_list():
-    url = SERVER_ADDRESS + "/video-games/list"
+    url = SERVER_ADDRESS + "/video-games/get-all-video-games"
     response = None
 
     try:
