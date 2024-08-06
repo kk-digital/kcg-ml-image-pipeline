@@ -226,37 +226,7 @@ async def get_external_image_data_list(request: Request, body: ListImageHashRequ
             error_string=str(e),
             http_status_code=500
         )
-    
-@router.get("/external-images/get-external-image-with-hash", 
-            description="Get external image data by image hash",
-            tags=["external-images"],  
-            response_model=StandardSuccessResponseV1[ListExternalImageData],  
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def get_external_image_data(request: Request, image_hash: str = Query(..., description="Image Hash")):
-    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        result = request.app.external_images_collection.find_one({
-            "image_hash": image_hash
-        }, {"_id": 0})
-        
-        if result is None:
-            return api_response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="Image hash not found.",
-                http_status_code=404
-            )
-
-        return api_response_handler.create_success_response_v1(
-            response_data={"data": [result]},
-            http_status_code=200
-        )
-    
-    except Exception as e:
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR, 
-            error_string=str(e),
-            http_status_code=500
-        )    
+     
         
 @router.get("/external-images/get-all-external-image-list", 
             description="Get all external image data. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
