@@ -193,7 +193,7 @@ def calculate_and_upload_scores(rank, world_size, dataset_names, datasets, image
                 print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
         dist.barrier()
-        
+
     cleanup()
 
 def main():
@@ -236,8 +236,9 @@ def main():
     datasets = []
     if args.dataset == "all":
         dataset_names = get_dataset_list(bucket_name)
-        print("Dataset names:", dataset_names)
+
         for dataset in dataset_names:
+            print(f"Loading the {dataset} dataset")
             dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset)
             image_dataset = dataset_loader.load_dataset()
             datasets.append(image_dataset)
