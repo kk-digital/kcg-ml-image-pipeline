@@ -3,11 +3,11 @@ from typing import Optional
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode
 from .mongo_schemas import VideoGame, ListVideoGame
 router = APIRouter()
-video_game = "video-game"
 
-@router.get("/video-games/list",
-            description="List all the games",
-            tags=["video-game", "video", "game"],
+
+@router.get("/video-games/get-all-video-games",
+            description="get all the video games",
+            tags=["video-game"],
             response_model=StandardSuccessResponseV1[ListVideoGame],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def list_games(request: Request):
@@ -15,7 +15,7 @@ async def list_games(request: Request):
     
     try:
         video_games = list(request.app.video_game_collection.find({}, {"_id": 0}))
-        print(video_games)
+        
         return api_response_handler.create_success_response_v1(
             response_data={ "games": video_games },
             http_status_code=200
@@ -27,12 +27,12 @@ async def list_games(request: Request):
             http_status_code=500
         )
 
-@router.get("/video-games/get",
+@router.get("/video-games/get-video-game-by-game-id",
             description="Get a video game with game_id",
-            tags=["video-game", "video", "game"],
+            tags=["video-game"],
             response_model=StandardSuccessResponseV1[VideoGame],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_game(request: Request, game_id: str):
+async def get_video_game(request: Request, game_id: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
@@ -56,12 +56,12 @@ async def add_game(request: Request, game_id: str):
             http_status_code=500
         )
 
-@router.post("/video-games/add",
+@router.post("/video-games/add-video-game",
             description="Add a video game",
-            tags=["video-game", "video", "game"],
+            tags=["video-game"],
             response_model=StandardSuccessResponseV1[VideoGame],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_game(request: Request, video_game: VideoGame):
+async def add_video_game(request: Request, video_game: VideoGame):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
@@ -73,7 +73,7 @@ async def add_game(request: Request, video_game: VideoGame):
         if existed:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="Video game data with this hash already exists.",
+                error_string="Video game data with this game id already exists.",
                 http_status_code=422
             )
         
@@ -91,12 +91,12 @@ async def add_game(request: Request, video_game: VideoGame):
             http_status_code=500
         )
 
-@router.put("/video-games/update",
+@router.put("/video-games/update-video-game",
             description="Update a video game",
-            tags=["video-game", "video", "game"],
+            tags=["video-game"],
             response_model=StandardSuccessResponseV1[VideoGame],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_game(request: Request, video_game: VideoGame):
+async def update_video_game(request: Request, video_game: VideoGame):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
@@ -108,7 +108,7 @@ async def add_game(request: Request, video_game: VideoGame):
         if not existed:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="Video game data with {} not found".format({video_game.game_id}),
+                error_string="Video game data with game id: {} not found".format({video_game.game_id}),
                 http_status_code=422
             )
         
@@ -130,12 +130,12 @@ async def add_game(request: Request, video_game: VideoGame):
         )
 
 
-@router.delete("/video-games/delete",
-            description="Update a video game",
-            tags=["video-game", "video", "game"],
+@router.delete("/video-games/delete-by-game-id",
+            description="Delete a video game by game id",
+            tags=["video-game"],
             response_model=StandardSuccessResponseV1[VideoGame],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
-async def add_game(request: Request, game_id: str):
+async def delete_video_game(request: Request, game_id: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
