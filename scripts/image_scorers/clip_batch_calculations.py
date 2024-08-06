@@ -9,6 +9,7 @@ from tqdm import tqdm
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
+from utility.http import external_images_request
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
@@ -144,6 +145,23 @@ def main():
                                         device=device,
                                         bucket= args.bucket,
                                         dataset=dataset['dataset_name'],
+                                        batch_size= args.batch_size)
+
+            pipeline.load_clip_vectors()
+
+    elif args.dataset == "all_games":
+
+        games= external_images_request.http_get_video_game_list()
+
+        print(f"list of games: {games}")
+
+        for game in games:
+            dataset = game["title"]
+            # initialize image extraction pipeline
+            pipeline= ClipBatchCaculation(minio_client= minio_client,
+                                        device=device,
+                                        bucket= args.bucket,
+                                        dataset=dataset,
                                         batch_size= args.batch_size)
 
             pipeline.load_clip_vectors()
