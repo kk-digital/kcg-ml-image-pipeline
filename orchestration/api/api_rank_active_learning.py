@@ -4,7 +4,7 @@ import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schema.active_learning_schemas import RankSelection, ListResponseRankSelection, ResponseRankSelection, FlaggedResponse, JsonMinioResponse, RankSelectionV1
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, StandardErrorResponseV1, WasPresentResponse, CountResponse, IrrelevantResponse, ListIrrelevantResponse, BoolIrrelevantResponse, ListGenerationsCountPerDayResponse, IrrelevantResponseV1
-from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ListScoreImageTask, ListRankActiveLearningPairWithScore
+from orchestration.api.mongo_schema.active_learning_schemas import  RankActiveLearningPair, ListRankActiveLearningPair, ResponseImageInfo, ResponseImageInfoV1, ListScoreImageTask, ListRankActiveLearningPairWithScore, ResponseRankSelectionV1
 from .mongo_schemas import FlaggedDataUpdate
 import os
 from datetime import datetime, timezone
@@ -189,8 +189,8 @@ async def delete_image_rank_data_point(request: Request, file_name: str = Query(
         document = request.app.rank_active_learning_pairs_collection.find_one({"file_name": file_name})
         
         if not document:
-            return api_response_handler.create_success_response_v1(
-                response_data={"wasPresent": False}, 
+            return api_response_handler.create_success_delete_response_v1(
+                False, 
                 http_status_code=200
             )
         
@@ -213,13 +213,13 @@ async def delete_image_rank_data_point(request: Request, file_name: str = Query(
         delete_result = request.app.rank_active_learning_pairs_collection.delete_one({"file_name": file_name})
         
         if delete_result.deleted_count == 0:
-            return api_response_handler.create_success_response_v1(
-                response_data={"wasPresent": False}, 
+            return api_response_handler.create_success_delete_response_v1(
+                False, 
                 http_status_code=200
             )
 
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": True}, 
+        return api_response_handler.create_success_delete_response_v1(
+            True, 
             http_status_code=200
         )
     
@@ -486,7 +486,7 @@ async def add_datapoints(request: Request, selection: RankSelection, image_sourc
 @router.post("/rank-training/add-ranking-data-point-v1", 
              status_code=201,
              tags=['rank-training'],
-             response_model=StandardSuccessResponseV1[ResponseRankSelection],
+             response_model=StandardSuccessResponseV1[ResponseRankSelectionV1],
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def add_datapoints_v1(request: Request, selection: RankSelectionV1):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -1100,16 +1100,16 @@ def unset_irrelevant_image(request: Request, job_uuid: str = Query(...), rank_mo
     query = {"uuid": job_uuid, "rank_model_id": rank_model_id}
     job = request.app.irrelevant_images_collection.find_one(query)
     if not job:
-        return api_response_handler.create_success_response_v1(
-                response_data={"wasPresent": False}, 
+        return api_response_handler.create_success_delete_response_v1(
+                False, 
                 http_status_code=200
             )
 
     # Delete the job from the irrelevant_images_collection
     result = request.app.irrelevant_images_collection.delete_one(query)
     if result.deleted_count > 0:
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": True}, 
+        return api_response_handler.create_success_delete_response_v1(
+            True, 
             http_status_code=200
         )
 
@@ -1126,16 +1126,16 @@ def unset_irrelevant_image_v1(request: Request, job_uuid: str = Query(...), rank
     query = {"uuid": job_uuid, "rank_model_id": rank_model_id, "image_source": image_source}
     job = request.app.irrelevant_images_collection.find_one(query)
     if not job:
-        return api_response_handler.create_success_response_v1(
-                response_data={"wasPresent": False}, 
+        return api_response_handler.create_success_delete_response_v1(
+                False, 
                 http_status_code=200
             )
 
     # Delete the job from the irrelevant_images_collection
     result = request.app.irrelevant_images_collection.delete_one(query)
     if result.deleted_count > 0:
-        return api_response_handler.create_success_response_v1(
-            response_data={"wasPresent": True}, 
+        return api_response_handler.create_success_delete_response_v1(
+            True, 
             http_status_code=200
         )
 

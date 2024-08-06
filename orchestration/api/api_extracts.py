@@ -100,8 +100,8 @@ async def remove_current_data_batch_sequential_id(request: Request, dataset: str
     request.app.extract_data_batch_sequential_id.delete_one(query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(
-                                                       response_data={"wasPresent": True},
+    return response_handler.create_success_delete_response_v1(
+                                                       True,
                                                        http_status_code=200
                                                        )
 
@@ -265,12 +265,12 @@ async def delete_extract_image_data(request: Request, image_hash: str):
         
         if result.deleted_count == 0:
             return api_response_handler.create_success_delete_response_v1(
-                response_data=False, 
+                False, 
                 http_status_code=200
             )
         
         return api_response_handler.create_success_delete_response_v1(
-                response_data=True, 
+                True, 
                 http_status_code=200
             )
     
@@ -296,12 +296,12 @@ async def delete_extract_dataset_data(request: Request, dataset: str):
         
         if result.deleted_count == 0:
             return api_response_handler.create_success_delete_response_v1(
-                response_data=False, 
+                False, 
                 http_status_code=200
             )
         
         return api_response_handler.create_success_delete_response_v1(
-                response_data=True, 
+                True, 
                 http_status_code=200
             )
     

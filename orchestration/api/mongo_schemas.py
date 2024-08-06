@@ -181,7 +181,8 @@ class ImageMetadataV1(BaseModel):
     features_type: Union[str, None] = None
     features_model: Union[str, None] = None
     features_vector: Union[list, None] = None
-    image_source: Union[str, None] = None
+    image_source: Optional[str] = Field(None, pattern="^(generated_image|external_image|extract_image)$")
+   
 
     def to_dict(self):
         return {

@@ -356,12 +356,12 @@ async def delete_external_image_data(request: Request, image_hash: str):
         
         if result.deleted_count == 0:
             return api_response_handler.create_success_delete_response_v1(
-                response_data=False, 
+                False, 
                 http_status_code=200
             )
         
         return api_response_handler.create_success_delete_response_v1(
-                response_data=True, 
+                True, 
                 http_status_code=200
             )
     

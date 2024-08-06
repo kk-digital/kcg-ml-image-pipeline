@@ -265,8 +265,8 @@ def remove_rank(request: Request, rank_model_id: int ):
     request.app.rank_model_models_collection.delete_one(rank_model_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(
-                                                       response_data={"wasPresent": True},
+    return response_handler.create_success_delete_response_v1(
+                                                       True,
                                                        http_status_code=200
                                                        )
 
@@ -753,8 +753,8 @@ def delete_rank_model_category(request: Request, rank_model_category_id: int):
     request.app.rank_model_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(
-                                                       response_data={"wasPresent": True},
+    return response_handler.create_success_delete_response_v1(
+                                                       True,
                                                        http_status_code=200,
                                                        )
 
