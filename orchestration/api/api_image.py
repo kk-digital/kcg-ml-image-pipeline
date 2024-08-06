@@ -4,7 +4,7 @@ from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
-from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata, ListTask
+from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata, ListTask, ListTaskV1
 from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
 from .api_ranking import get_image_rank_use_count
 import os
@@ -1029,6 +1029,102 @@ def get_images_metadata(
         )
 
 
+@router.get("/image/list-image-metadata-by-dataset-v2",
+            response_model=StandardSuccessResponseV1[List[UUIDImageMetadata]], 
+            description="List image metadata by dataset with optional filtering",
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
+def get_images_metadata_v2(
+    request: Request,
+    dataset: Optional[List[str]] = Query(..., description="The dataset(s) from which to fetch the images"),
+    prompt_generation_policy: Optional[str] = Query(None, description="Optional prompt generation policy"),
+    limit: int = Query(20, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for the results to be returned"),
+    start_date: str = Query(None, description="Start date for filtering results"),
+    end_date: str = Query(None, description="End date for filtering results"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
+):
+    response_handler = ApiResponseHandlerV1(request)
+
+    try:
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+
+            # Convert threshold_time to a string in ISO format
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds') 
+        else:
+            threshold_time_str = None
+
+        # Construct the initial query
+        query = {
+            '$or': [
+                {'task_type': 'image_generation_sd_1_5'},
+                {'task_type': 'inpainting_sd_1_5'},
+                {'task_type': 'image_generation_kandinsky'},
+                {'task_type': 'inpainting_kandinsky'},
+                {'task_type': 'img2img_generation_kandinsky'}
+            ]
+        }
+
+        # Add dataset filter if specified
+        if dataset:
+            query['task_input_dict.dataset'] = {"$in": dataset}
+
+        # Optionally add prompt_generation_policy to the query if provided
+        if prompt_generation_policy:
+            query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+        # Update the query based on provided start_date, end_date, and threshold_time_str
+        if start_date and end_date:
+            query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['task_creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['task_creation_time'] = {'$lte': end_date}
+        elif threshold_time_str:
+            query['task_creation_time'] = {'$gte': threshold_time_str}
+
+        # Decide the sort order based on the 'order' parameter
+        sort_order = -1 if order == "desc" else 1
+
+        # Query the completed_jobs_collection using the constructed query
+        jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', sort_order).skip(offset).limit(limit)
+
+        # Collect the metadata for the images that match the query
+        images_metadata = []
+        for job in jobs:
+            image_meta_data = {
+                'uuid': job.get('uuid'),
+                'dataset': job['task_input_dict'].get('dataset'),
+                'task_type': job.get('task_type'),
+                'image_path': job['task_output_file_dict'].get('output_file_path'),
+                'image_hash': job['task_output_file_dict'].get('output_file_hash'),
+                'prompt_generation_policy': job['prompt_generation_data'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
+            }
+            # If prompt_generation_policy is not a filter or if it matches the job's policy, append the metadata
+            if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:
+                images_metadata.append(image_meta_data)
+
+        return response_handler.create_success_response_v1(
+            response_data=images_metadata,
+            http_status_code=200,
+            )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
 
 
 bucket_name = "datasets"
@@ -1165,3 +1261,41 @@ async def get_image_by_job_uuid(request: Request, job_uuid: str):
             error_string=str(e),
             http_status_code=500
         )        
+    
+
+@router.get("/images/get-all-generated-list", 
+            description="Get all generated images. If 'dataset' parameter is set, it only returns images from that dataset(s), and if the 'size' parameter is set, a random sample of that size will be returned.",
+            response_model=StandardSuccessResponseV1[ListTaskV1],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_all_generated_list(
+    request: Request, 
+    dataset: Optional[List[str]] = Query(None), 
+    size: int = Query(None)
+):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {}
+        if dataset:
+            query['task_input_dict.dataset'] = {"$in": dataset}
+
+        aggregation_pipeline = [{"$match": query}]
+
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        image_data_list = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"images": image_data_list},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )

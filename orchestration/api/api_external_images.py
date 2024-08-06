@@ -263,6 +263,44 @@ async def get_all_external_image_data_list(request: Request, dataset: str=None, 
         )
 
 
+@router.get("/external-images/get-all-external-image-list-v1", 
+            description="Get all external image data. If 'dataset' parameter is set, it only returns images from those datasets, and if the 'size' parameter is set, a random sample of that size will be returned.",
+            tags=["external-images"],  
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV2],  
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def get_all_external_image_data_list_v1(
+    request: Request, 
+    dataset: Optional[List[str]] = Query(None, description="Dataset(s) to filter images"),
+    size: int = Query(None, description="Number of random images to return")
+):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {}
+        if dataset:
+            query['dataset'] = {"$in": dataset}
+
+        aggregation_pipeline = [{"$match": query}]
+
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"data": image_data_list},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+
 
 @router.get("/external-images/get-external-image-list-without-extracts", 
             description="Get only external images that don't have any images extracted from them. If 'dataset' parameter is set, it only returns images from that dataset, and if the 'size' parameter is set, a random sample of that size will be returned.",
@@ -924,6 +962,101 @@ async def list_external_images_v1(
             error_string=str(e),
             http_status_code=500
         )
+    
+@router.get("/external-images/list-images-v3",
+            status_code=200,
+            tags=["external-images"],
+            response_model=StandardSuccessResponseV1[ListExternalImageDataV1],
+            description="List external images with optional filtering and pagination",
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def list_external_images_v3(
+    request: Request,
+    dataset: Optional[List[str]] = Query(None, description="Dataset(s) to filter the results by"),
+    limit: int = Query(20, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for the results to be returned"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Calculate the time threshold based on the current time and the specified interval
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            if time_unit == "minutes":
+                threshold_time = current_time - timedelta(minutes=time_interval)
+            elif time_unit == "hours":
+                threshold_time = current_time - timedelta(hours=time_interval)
+            else:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid time unit. Use 'minutes' or 'hours'.",
+                    http_status_code=400)
+
+            # Convert threshold_time to a string in ISO format
+            threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
+        else:
+            threshold_time_str = None
+
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400
+                )
+
+        # Build the query
+        query = {}
+        if start_date and end_date:
+            query["upload_date"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["upload_date"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["upload_date"] = {"$lte": validated_end_date}
+        elif threshold_time_str:
+            query["upload_date"] = {"$gte": threshold_time_str}
+
+        # Add dataset filter if specified
+        if dataset:
+            query["dataset"] = {"$in": dataset}
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Query the external_images_collection using the constructed query
+        images_cursor = request.app.external_images_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit)
+
+        # Collect the metadata for the images that match the query
+        images_metadata = []
+        for image in images_cursor:
+            image.pop('_id', None)  # Remove the auto-generated field
+            images_metadata.append(image)
+
+        return response_handler.create_success_response_v1(
+            response_data={"images": images_metadata},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
         
 @router.get("/external-images/get-unique-datasets", 
             description="Get all unique dataset names in the external images collection.",
@@ -1072,6 +1205,82 @@ async def get_random_external_image_similarity(
             error_string=str(e),
             http_status_code=500
         )
+    
+@router.get("/external-images/get-random-images-with-clip-search-v1",
+            tags=["external-images"],
+            description="Gets as many random external images as set in the size param, scores each image with CLIP according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
+            response_model=StandardSuccessResponseV1[ListExternalImageDataWithSimilarityScore],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_random_external_image_similarity_v1(
+    request: Request,
+    phrase: str = Query(..., description="Phrase to compare similarity with"),
+    dataset: Optional[List[str]] = Query(None, description="Dataset(s) to filter images"),
+    similarity_threshold: float = Query(0, description="Minimum similarity threshold"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date for filtering results (YYYY-MM-DDTHH:MM:SS)"),
+    size: int = Query(..., description="Number of random images to return")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        query = {}
+
+        if dataset:
+            query['dataset'] = {"$in": dataset}
+
+        if start_date and end_date:
+            query['upload_date'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['upload_date'] = {'$gte': start_date}
+        elif end_date:
+            query['upload_date'] = {'$lte': end_date}
+
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        images = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        image_path_list = []
+        for image in images:
+            image.pop('_id', None)  # Remove the auto-generated field
+            bucket_name, file_path = separate_bucket_and_file_path(image['file_path'])
+            image_path_list.append(file_path)
+
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("external", image_path_list, phrase)
+        print(similarity_score_list)
+
+        if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string="Error retrieving similarity scores",
+                http_status_code=500
+            )
+
+        similarity_score_list = similarity_score_list['similarity_list']
+
+        if len(images) != len(similarity_score_list):
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        filtered_images = []
+        for i in range(len(images)):
+            image_similarity_score = similarity_score_list[i]
+            image = images[i]
+
+            if image_similarity_score >= similarity_threshold:
+                image["similarity_score"] = image_similarity_score
+                filtered_images.append(image)
+
+        return response_handler.create_success_response_v1(response_data={"images": filtered_images}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 
 @router.post("/external-images/add-new-dataset",
             description="changed with /datasets/add-new-dataset",
