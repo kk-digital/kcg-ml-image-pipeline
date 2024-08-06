@@ -9,6 +9,7 @@ from tqdm import tqdm
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
+from utility.http import external_images_request
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
@@ -87,10 +88,7 @@ class ClipBatchCaculation:
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
 
-                if bucket_name == "extracts":
-                    output_clip_path = file_path + "_clip-h.msgpack"
-                else:
-                    output_clip_path = file_path + "_clip_kandinsky.msgpack"
+                output_clip_path = file_path + "_clip_kandinsky.msgpack"
                     
                 features_data = cmd.get_file_from_minio(self.minio_client, self.bucket, output_clip_path)
                 features_vector = msgpack.unpackb(features_data.data)["clip-feature-vector"]
@@ -147,6 +145,23 @@ def main():
                                         device=device,
                                         bucket= args.bucket,
                                         dataset=dataset['dataset_name'],
+                                        batch_size= args.batch_size)
+
+            pipeline.load_clip_vectors()
+
+    elif args.dataset == "all_games":
+
+        games= external_images_request.http_get_video_game_list()
+
+        print(f"list of games: {games}")
+
+        for game in games:
+            dataset = game["title"]
+            # initialize image extraction pipeline
+            pipeline= ClipBatchCaculation(minio_client= minio_client,
+                                        device=device,
+                                        bucket= args.bucket,
+                                        dataset=dataset,
                                         batch_size= args.batch_size)
 
             pipeline.load_clip_vectors()

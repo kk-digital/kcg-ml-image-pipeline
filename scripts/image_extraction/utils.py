@@ -109,7 +109,7 @@ def upload_extract_data(minio_client: Minio, extract_data: dict):
         clip_feature_msgpack_buffer.write(clip_feature_msgpack)
         clip_feature_msgpack_buffer.seek(0)
 
-        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_clip-h.msgpack'), clip_feature_msgpack_buffer)
+        cmd.upload_data(minio_client, EXTRACT_BUCKET, file_path.replace('.jpg', '_clip_kandinsky.msgpack'), clip_feature_msgpack_buffer)
         
     except Exception as e:
         print(e)

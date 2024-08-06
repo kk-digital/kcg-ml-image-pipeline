@@ -40,6 +40,29 @@ def parse_args():
 
     return parser.parse_args()
 
+def load_scoring_model(minio_client, rank_id, model_path, device):
+
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', model_path)
+    
+    if model_file_data is None:
+        print(f"No ranking model was found for rank {rank_id}.")
+        return None
+
+    scoring_model = ABRankingELMModel(1280, device=device)
+
+    # Create a BytesIO object and write the downloaded content into it
+    byte_buffer = io.BytesIO()
+    for data in model_file_data.stream(amt=8192):
+        byte_buffer.write(data)
+    # Reset the buffer's position to the beginning
+    byte_buffer.seek(0)
+
+    scoring_model.load_safetensors(byte_buffer)
+
+    print(f"model {model_path} loaded")
+
+    return scoring_model
+
 class ImageExtractionPipeline:
 
     def __init__(self,
@@ -77,8 +100,9 @@ class ImageExtractionPipeline:
         self.device = torch.device(device)
 
         # models
-        self.quality_models= {}
+        self.quality_models= []
         self.topic_models= {}
+        self.irrelevant_image_models= {}
         self.defect_models= {}
         self.clip = None
         self.vae = None
@@ -87,32 +111,44 @@ class ImageExtractionPipeline:
         self.threads=[]
 
     def load_models(self):
-
         try:
-            print("loading the ranking models")
-            # load ranking models
-            dataset_list= request.http_get_dataset_names()
+            print(f"Load all rank models")
+            rank_model_list = request.http_get_ranking_model_list()
 
-            for dataset in dataset_list:
-                scoring_model= self.load_scoring_model(dataset)
+            for rank_info in rank_model_list:
+                ranking_model_type = rank_info["model_type"]
 
-                if scoring_model is not None:
-                        self.quality_models[dataset]= scoring_model
+                if  ranking_model_type != "elm-v1":
+                    continue
+
+                rank_id = rank_info["rank_id"]
+                model_path = rank_info["model_path"]
+                rank_model= None
+
+                rank_model = load_scoring_model(self.minio_client, rank_id, model_path, self.device)
+                self.quality_models.append(rank_model)
             
             # load topic and defect models
             print("loading the classifier models")
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags]
-            tag_types= ['defect', 'topic', 'perspective', 'style', 'concept']
+            classifier_model= None
 
             for tag in tag_names:
-                if any(tag_type in tag for tag_type in tag_types):
+                if tag.startswith("defect"):
                     classifier_model= self.get_classifier_model(tag)
                     if classifier_model:
-                        if "defect" in tag:
-                            self.defect_models[tag]= classifier_model
-                        else:
-                            self.topic_models[tag]= classifier_model
+                        self.defect_models[tag]= classifier_model
+                elif tag.startswith("irrelevant"):
+                    classifier_model= self.get_classifier_model(tag)
+                    if classifier_model:
+                        self.irrelevant_image_models[tag] = classifier_model
+                elif tag.startswith("game"):
+                    classifier_model= self.get_classifier_model(tag)
+                    if classifier_model:
+                        self.topic_models[tag]= classifier_model
+                else:
+                    continue
             
             print("Loading the image encoder")
             # load clip image encoder
@@ -129,48 +165,15 @@ class ImageExtractionPipeline:
             raise Exception(f"An error occured while loading the models: {e}.")
         
 
-    # load elm scoring models
-    def load_scoring_model(self, dataset):
-        input_path=f"{dataset}/models/ranking/"
-        scoring_model = ABRankingELMModel(1280, device=self.device)
-        file_name=f"score-elm-v1-clip-h.safetensors"
-
-        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
-        most_recent_model = None
-
-        for model_file in model_files:
-            if model_file.endswith(file_name):
-                most_recent_model = model_file
-
-        if most_recent_model:
-            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
-        else:
-            print("No .safetensors files found in the list.")
-            return None
-
-        print(most_recent_model)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in model_file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        scoring_model.load_safetensors(byte_buffer)
-        scoring_model.model=scoring_model.model.to(torch.device(self.device))
-
-        return scoring_model 
-
     def get_classifier_model(self, tag_name):
         input_path = f"environmental/models/classifiers/{tag_name}/"
-        file_suffix = "elm-regression-clip-h.safetensors"
+        file_suffix = "elm-regression-clip-h-all_resolutions.pth"
 
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
         
         if not model_files:
-            print(f"No .safetensors models found for tag: {tag_name}")
+            print(f"No models found for tag: {tag_name}")
             return None
 
         # Assuming there's only one model per tag or choosing the first one
@@ -191,40 +194,39 @@ class ImageExtractionPipeline:
         return clip_model
     
     def is_filtered(self, clip_vector):
-        above_quality_threshold= False
-        above_classifier_threshold= False
+        # check if the image is irrelevant
+        # for tag, model in self.irrelevant_image_models.items():
+        #     with torch.no_grad():
+        #         classifier_score = model.classify(clip_vector).item()
+        #     if classifier_score >= self.defect_threshold:
+        #         return True
+
+        # check if the image has any defects
+        for tag, model in self.defect_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score >= self.defect_threshold:
+                return True
+
+        # check classifier scores
+        for tag, model in self.topic_models.items():
+            with torch.no_grad():
+                classifier_score = model.classify(clip_vector).item()
+            if classifier_score >= self.min_classifier_score:
+                return False
+        
         # Check quality score
-        for dataset, model in self.quality_models.items():
+        for model in self.quality_models:
             with torch.no_grad():
                 clip_score = model.predict_clip(clip_vector).item()
                 score_mean= float(model.mean)
                 score_std= float(model.standard_deviation)
                 sigma_score = (clip_score - score_mean) / score_std
             
-            if sigma_score > self.min_quality_sigma:
-                above_quality_threshold =True
-                break
-
-        # check classifier scores
-        if not above_quality_threshold:
-            for tag, model in self.topic_models.items():
-                with torch.no_grad():
-                    classifier_score = model.classify(clip_vector).item()
-                if classifier_score > self.min_classifier_score:
-                    above_classifier_threshold= True
-                    break
+            if sigma_score >= self.min_quality_sigma:
+                return False
         
-        if above_classifier_threshold or above_quality_threshold:
-            # check if the image has any defects
-            for tag, model in self.defect_models.items():
-                with torch.no_grad():
-                    classifier_score = model.classify(clip_vector).item()
-                if classifier_score >= self.defect_threshold:
-                    return True
-        else:
-            return True
-        
-        return False
+        return True
 
     def filter_extracts(self, external_images: list, extracted_images: list):
         print("Filtering extracted images...........")
@@ -313,12 +315,12 @@ class ImageExtractionPipeline:
     def extract_images(self):
         print("loading external dataset images..........")
         try:
-            external_images= external_images_request.http_get_external_image_list_without_extracts(dataset=self.dataset)
+            external_images= external_images_request.http_get_external_dataset_in_batches(dataset=self.dataset, batch_size=100000)
         except Exception as e:
             raise Exception(f"An error occured when querying the external image dataset: {e}.")
         
         total_images= len(external_images)
-        print("total images:", total_images)
+        print("total images loaded:", total_images)
         processed_images= 0
         print("Extracting images.......")
         num_batches= math.ceil(total_images / self.batch_size)
@@ -340,7 +342,7 @@ class ImageExtractionPipeline:
             
             processed_images+= len(extract_data)
             print(f"{len(extract_data)} images filtered from {self.batch_size} images")
-            print(f"total extracted images: {processed_images}")
+            print(f"total extracted images: {processed_images}/{total_images}")
 
         # check if all upload threads are completed
         for thread in self.threads:
@@ -349,21 +351,50 @@ class ImageExtractionPipeline:
 def main():
     args= parse_args()
 
-    # initialize image extraction pipeline
-    pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key,
-                                        dataset=args.dataset,
-                                        min_quality_sigma= args.min_quality_sigma,
-                                        min_classifier_score= args.min_classifier_score,
-                                        defect_threshold= args.defect_threshold,
-                                        target_size= args.target_size,
-                                        batch_size= args.batch_size,
-                                        file_batch_size= args.file_batch_size) 
-    # load all necessary models
-    pipeline.load_models()
+    if args.dataset == "all_games":
+        games= external_images_request.http_get_video_game_list()
 
-    # run image extraction
-    pipeline.extract_images()
+        print(f"list of games: {games}")
+
+        for game in games:
+            dataset = game["title"]
+
+            external_images_request.http_add_dataset(dataset_name=dataset, bucket_id=1)
+
+            # initialize image extraction pipeline
+            pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
+                                                minio_secret_key=args.minio_secret_key,
+                                                dataset=dataset,
+                                                min_quality_sigma= args.min_quality_sigma,
+                                                min_classifier_score= args.min_classifier_score,
+                                                defect_threshold= args.defect_threshold,
+                                                target_size= args.target_size,
+                                                batch_size= args.batch_size,
+                                                file_batch_size= args.file_batch_size) 
+            # load all necessary models
+            pipeline.load_models()
+
+            # run image extraction
+            pipeline.extract_images()
+
+    else:
+        external_images_request.http_add_dataset(dataset_name=args.dataset, bucket_id=1)
+
+        # initialize image extraction pipeline
+        pipeline= ImageExtractionPipeline(minio_access_key=args.minio_access_key,
+                                            minio_secret_key=args.minio_secret_key,
+                                            dataset=args.dataset,
+                                            min_quality_sigma= args.min_quality_sigma,
+                                            min_classifier_score= args.min_classifier_score,
+                                            defect_threshold= args.defect_threshold,
+                                            target_size= args.target_size,
+                                            batch_size= args.batch_size,
+                                            file_batch_size= args.file_batch_size) 
+        # load all necessary models
+        pipeline.load_models()
+
+        # run image extraction
+        pipeline.extract_images()
 
 if __name__ == "__main__":
     main()
