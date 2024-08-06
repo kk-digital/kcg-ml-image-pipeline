@@ -619,7 +619,7 @@ async def clear_dataset_sequential_id_jobs(request: Request):
         if not was_present:
             # If no documents are present, return False in the wasPresent field of the response
             return response_handler.create_success_delete_response_v1(
-                response_data=False, 
+                response_data=was_present, 
                 http_status_code=200
             )
 
@@ -628,7 +628,7 @@ async def clear_dataset_sequential_id_jobs(request: Request):
 
         # Assuming deletion is always successful, return True in the wasPresent field
         return response_handler.create_success_delete_response_v1(
-            response_data=True, 
+            response_data=was_present, 
             http_status_code=200
         )
     except Exception as e:
@@ -766,7 +766,7 @@ async def clear_self_training_sequential_id_jobs(request: Request):
         if not was_present:
             # If no documents are present, return False in the wasPresent field of the response
             return response_handler.create_success_delete_response_v1(
-                response_data=False, 
+                False, 
                 http_status_code=200
             )
 
@@ -774,7 +774,7 @@ async def clear_self_training_sequential_id_jobs(request: Request):
         request.app.self_training_sequential_id_collection.delete_many({})
         # Assuming deletion is always successful, returning True for simplification
         return response_handler.create_success_delete_response_v1(
-            response_data=True, 
+            True, 
             http_status_code=200
         )
     except Exception as e:
@@ -956,12 +956,12 @@ async def remove_dataset_v1(request: Request, dataset_id: int = Query(...)):
     if was_present:
         # If either was deleted, return True
         return response_handler.create_success_delete_response_v1(
-            {"was_present": True}, 
+            True, 
             http_status_code=200
         )
     else:
         # If neither was deleted, return False
         return response_handler.create_success_delete_response_v1(
-            {"was_present": False}, 
+            False, 
             http_status_code=200
         )        

@@ -32,6 +32,8 @@ def determine_target_collection(image_hash):
 
 # Check if the job should be skipped
 def should_skip_job(job, target_collection):
+    if "image_uuid" in job:
+        return True
     if target_collection == completed_jobs_collection and "task_type" in job and "clip" in job["task_type"]:
         return True
     return False
@@ -54,12 +56,12 @@ def process_job(job):
         return None
 
     if should_skip_job(job, target_collection):
-        print(f"Skipping job with uuid {uuid} due to task_type containing 'clip'")
+        print(f"Skipping job with uuid {uuid} due to task_type containing 'clip' or existing image_uuid")
         return None
 
     job["image_uuid"] = uuid  # Migrate the existing uuid as image_uuid
 
-    return job, target_collection
+    return job, target_collection, field_path
 
 # Process all documents in all_images_collection
 print("Processing all documents in all_images_collection...")
@@ -71,15 +73,15 @@ try:
         if image_hash:
             print(f"Found job with image_hash: {image_hash} -> {job}")
 
-            processed_job, target_collection = process_job(job)
+            processed_job, target_collection, field_path = process_job(job)
             if processed_job is not None:
                 print(f"Processed job: {processed_job}")
                 print(f"Target collection: {target_collection.name}")
 
-                update_result = target_collection.update_one(
-                    {"image_hash": image_hash},
-                    {"$set": {"image_uuid": processed_job["image_uuid"]}}
-                )
+                update_query = {field_path: image_hash}
+                update_data = {"$set": {"image_uuid": processed_job["image_uuid"]}}
+
+                update_result = target_collection.update_one(update_query, update_data)
                 if update_result.modified_count > 0:
                     print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
                 else:
