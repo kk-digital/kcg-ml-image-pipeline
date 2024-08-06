@@ -204,6 +204,7 @@ def main():
     dataset_name = args.dataset
     model_type = args.model_type
     batch_size = args.batch_size
+    world_size = torch.cuda.device_count()
 
     # set image source
     if args.bucket=="external":
@@ -239,7 +240,6 @@ def main():
         dataset_loader = ImageDatasetLoader(minio_client, bucket_name, dataset_name)
         image_dataset = dataset_loader.load_dataset()
 
-        world_size = torch.cuda.device_count()
         mp.spawn(calculate_and_upload_scores, args=(world_size, image_dataset, image_source, classifier_models, batch_size), nprocs=world_size, join=True)
     else:
         dataset_names = get_dataset_list(bucket_name)
