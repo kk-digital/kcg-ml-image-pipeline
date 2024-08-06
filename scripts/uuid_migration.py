@@ -61,7 +61,7 @@ def process_job(job):
 
     job["image_uuid"] = uuid  # Migrate the existing uuid as image_uuid
 
-    return job, target_collection
+    return job, target_collection, field_path
 
 # Process all documents in all_images_collection
 print("Processing all documents in all_images_collection...")
@@ -73,15 +73,15 @@ try:
         if image_hash:
             print(f"Found job with image_hash: {image_hash} -> {job}")
 
-            processed_job, target_collection = process_job(job)
+            processed_job, target_collection, field_path = process_job(job)
             if processed_job is not None:
                 print(f"Processed job: {processed_job}")
                 print(f"Target collection: {target_collection.name}")
 
-                update_result = target_collection.update_one(
-                    {"image_hash": image_hash},
-                    {"$set": {"image_uuid": processed_job["image_uuid"]}}
-                )
+                update_query = {field_path: image_hash}
+                update_data = {"$set": {"image_uuid": processed_job["image_uuid"]}}
+
+                update_result = target_collection.update_one(update_query, update_data)
                 if update_result.modified_count > 0:
                     print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
                 else:
