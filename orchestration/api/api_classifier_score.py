@@ -228,8 +228,8 @@ def delete_image_classifier_score_by_uuid(
     was_present = res.deleted_count > 0
     
     # Use ApiResponseHandler to return the standardized response
-    return api_response_handler.create_success_response_v1(
-        response_data={"wasPresent": was_present},
+    return api_response_handler.create_success_delete_response_v1(
+        was_present,
         http_status_code=200
     )
 

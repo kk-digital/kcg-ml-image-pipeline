@@ -30,9 +30,18 @@ def parse_args():
     return parser.parse_args()
 
 def get_job_list(dataset):
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit=4000000')
-        
-    jobs = json.loads(response.content)
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1', params={
+        'dataset': dataset,
+        'limit': 4000000,
+        'offset': 0,
+        'order': 'desc'
+    })
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        jobs = response_data.get('response', [])
+    else:
+        jobs = []
 
     return jobs
 

@@ -158,6 +158,24 @@ class RankSelectionV1(BaseModel):
             "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
         }    
     
+class ResponseRankSelectionV1(BaseModel):
+    file_name: str
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadataV1
+    image_2_metadata: ImageMetadataV1
+    selected_image_index: int
+    selected_image_hash: str
+    training_mode: str
+    rank_active_learning_policy_id: Union[int, None] = None
+    datetime: datetime
+    flagged: Optional[bool] = None
+    flagged_by_user: Optional[str] = None
+    flagged_time: Optional[str] = None
+
+
+    
 class ResponseRankSelection(BaseModel):
     file_name: str
     rank_model_id: int

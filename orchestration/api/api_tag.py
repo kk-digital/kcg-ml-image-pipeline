@@ -677,8 +677,8 @@ def remove_tag(request: Request, tag_id: int ):
     request.app.tag_definitions_collection.delete_one(tag_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(
-                                                       response_data={"wasPresent": True},
+    return response_handler.create_success_delete_response_v1(
+                                                       True,
                                                        http_status_code=200
                                                        )
 
@@ -1488,7 +1488,7 @@ def get_image_count_by_tag(
             status_code=200,
             tags=["tags"], 
             description="Get count of images with a specific tag",
-            response_model=StandardSuccessResponseV1[TagCountResponse],
+            response_model=StandardSuccessResponseV1[TagCountResponseV1],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_image_count_by_tag_v1(
     request: Request,
@@ -1611,8 +1611,8 @@ def delete_tag_category(request: Request, tag_category_id: int):
     request.app.tag_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(
-                                                       response_data={"wasPresent": True},
+    return response_handler.create_success_delete_response_v1(
+                                                       True,
                                                        http_status_code=200,
                                                        )
 

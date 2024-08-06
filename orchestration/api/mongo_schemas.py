@@ -181,7 +181,8 @@ class ImageMetadataV1(BaseModel):
     features_type: Union[str, None] = None
     features_model: Union[str, None] = None
     features_vector: Union[list, None] = None
-    image_source: Union[str, None] = None
+    image_source: Optional[str] = Field(None, pattern="^(generated_image|external_image|extract_image)$")
+   
 
     def to_dict(self):
         return {
@@ -805,15 +806,17 @@ class ListSimilarityScoreTask(BaseModel):
 
 class VideoMetaData(BaseModel):
     file_hash: str
-    filename: str
     file_path: str
-    file_type: str
-    source_url: str
-    video_length: int
-    video_resolution: str
-    video_frame_rate: int
+    video_id: str
+    video_url: str
+    video_title: str
     video_description: str
-    dataset: str
+    video_resolution: str
+    video_extension: str
+    video_length: int
+    video_filesize: int
+    video_frame_rate: int
+    video_language: str
     processed: bool
     game_id: str
     upload_date: str
@@ -821,15 +824,17 @@ class VideoMetaData(BaseModel):
     def to_dict(self):
         return {
             "file_hash": self.file_hash,
-            "filename": self.filename,
             "file_path": self.file_path,
-            "file_type": self.file_type,
-            "source_url": self.source_url,
-            "video_length": self.video_length,
-            "video_resolution": self.video_resolution,
-            "video_frame_rate": self.video_frame_rate,
+            "video_id": self.video_id,
+            "video_url": self.video_url,
+            "video_title": self.video_title,
             "video_description": self.video_description,
-            "dataset": self.dataset,
+            "video_resolution": self.video_resolution,
+            "video_extension": self.video_extension,
+            "video_length": self.video_length,
+            "video_filesize": self.video_filesize,
+            "video_frame_rate": self.video_frame_rate,
+            "video_language": self.video_language,
             "processed": self.processed,
             "game_id": self.game_id,
             "upload_date": self.upload_date
