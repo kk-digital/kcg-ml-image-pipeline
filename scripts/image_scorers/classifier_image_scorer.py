@@ -192,7 +192,8 @@ def calculate_and_upload_scores(rank, world_size, dataset_names, datasets, image
                 speed = total_uploaded_all_ranks / elapsed_time
                 print(f"Uploaded {total_uploaded_all_ranks} scores at {speed:.2f} scores/sec")
 
-    dist.barrier()
+        dist.barrier()
+        
     cleanup()
 
 def main():
