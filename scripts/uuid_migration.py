@@ -32,6 +32,8 @@ def determine_target_collection(image_hash):
 
 # Check if the job should be skipped
 def should_skip_job(job, target_collection):
+    if "image_uuid" in job:
+        return True
     if target_collection == completed_jobs_collection and "task_type" in job and "clip" in job["task_type"]:
         return True
     return False
@@ -54,7 +56,7 @@ def process_job(job):
         return None
 
     if should_skip_job(job, target_collection):
-        print(f"Skipping job with uuid {uuid} due to task_type containing 'clip'")
+        print(f"Skipping job with uuid {uuid} due to task_type containing 'clip' or existing image_uuid")
         return None
 
     job["image_uuid"] = uuid  # Migrate the existing uuid as image_uuid
