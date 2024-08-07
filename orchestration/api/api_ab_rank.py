@@ -254,7 +254,7 @@ def remove_rank(request: Request, rank_model_id: int ):
             status_code=200)
 async def remove_all_image_ranks(request: Request):
     try:
-        delete_result = await request.app.image_ranks_collection.delete_many({})
+        delete_result = request.app.image_ranks_collection.delete_many({})
         return {"status": "success", "deleted_count": delete_result.deleted_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
