@@ -1,4 +1,4 @@
-# Usage Example of Endpoint
+# Usage Example of Endpoint for Devbox
 
 
 ### Step 1: Connect to Devbox
