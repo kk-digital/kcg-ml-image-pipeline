@@ -124,7 +124,7 @@ def calculate_and_upload_scores(rank, world_size, dataset_names, datasets, image
 
     for dataset_name, image_dataset in zip(dataset_names, datasets):
         if rank == 0:
-            print(f"uploading scores for the {dataset_name}")
+            print(f"uploading {len(image_dataset)} scores for the {dataset_name}")
         dataset = ClipDataset(image_dataset)
         sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
         dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=collate_fn)
