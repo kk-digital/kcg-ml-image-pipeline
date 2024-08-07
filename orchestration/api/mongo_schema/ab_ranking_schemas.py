@@ -9,7 +9,6 @@ class Rankmodel(BaseModel):
     classifier_id: int
     rank_model_category_id: Optional[int] = None
     rank_model_description: str = Field(..., description="Description of the rank")
-    rank_model_vector_index: Optional[int] = Field(-1, description="rank model vector index")
     deprecated: bool = False
     user_who_created: str = Field(..., description="User who created the rank")
     creation_time: Union[str, None] = None 
@@ -21,7 +20,6 @@ class Rankmodel(BaseModel):
             "classifier_id": self.classifier_id,
             "rank_model_category_id": self.rank_model_category_id,
             "rank_model_description": self.rank_model_description,
-            "rank_model_vector_index": self.rank_model_vector_index,
             "deprecated": self.deprecated,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
@@ -39,7 +37,6 @@ class RankRequest(BaseModel):
     classifier_id: Optional[int] = Field(None, description="ID of the classifier")
     rank_model_category_id: Optional[int] = Field(None, description="ID of the rank category")
     rank_model_description: str = Field(..., description="Description of the rank")
-    rank_model_vector_index: Optional[int] = None
     deprecated: bool = False
     user_who_created: NonEmptyString = Field(..., description="Username of the user who created the rank")
 
