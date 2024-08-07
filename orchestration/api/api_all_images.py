@@ -5,7 +5,7 @@ import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata, ListTask
-from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode, api_date_to_unix_int32, date_to_unix_int32
+from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode, api_date_to_unix_int32
 from .api_ranking import get_image_rank_use_count
 import os
 from .api_utils import find_or_create_next_folder_and_index
