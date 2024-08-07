@@ -53,9 +53,9 @@ async def list_all_images(
         # Add date filters to the query
         date_query = {}
         if start_date:
-            date_query['$gte'] = date_to_unix_int32(start_date)
+            date_query['$gte'] = api_date_to_unix_int32(start_date)
         if end_date:
-            date_query['$lte'] = date_to_unix_int32(end_date) 
+            date_query['$lte'] = api_date_to_unix_int32(end_date) 
 
         print(f"Date query after adding start_date and end_date: {date_query}")
 

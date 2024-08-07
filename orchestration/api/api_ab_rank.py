@@ -248,16 +248,6 @@ def remove_rank(request: Request, rank_model_id: int ):
                                                        http_status_code=200
                                                        )
 
-@router.delete("/image-ranks/remove-all",
-            description="Remove all documents from the image ranks collection",
-            tags=["image-ranks"],
-            status_code=200)
-async def remove_all_image_ranks(request: Request):
-    try:
-        delete_result = request.app.image_ranks_collection.delete_many({})
-        return {"status": "success", "deleted_count": delete_result.deleted_count}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/ab-rank/list-rank-models",
             response_model=StandardSuccessResponseV1[RankListResponse],

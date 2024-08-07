@@ -634,7 +634,7 @@ def build_date_query(date_from: Optional[Union[str, datetime]] = None,
     
     return {key: date_range_query} if date_range_query else {}
 
-def date_to_unix_int32(dt_str):
+def old_date_for_migrations_to_unix_int32(dt_str):
     if 'T' not in dt_str and ' ' not in dt_str:
         dt_str += "T00:00:00.000"
 
