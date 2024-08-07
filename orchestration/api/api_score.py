@@ -290,9 +290,9 @@ def get_image_rank_scores_by_model_id(
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def list_rank_scores(
     request: Request, 
-    rank_id: str, 
+    rank_id: int, 
+    score_field: str = Query(..., description="Score field for selecting if the data must be sorted by score or sigma score."),
     image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$"),
-    score_field: str = Query(..., description="Score field to sort by"),
     limit: int = Query(20, description="Limit for pagination"),
     offset: int = Query(0, description="Offset for pagination"),
     start_date: str = Query(None, description="Start date for filtering images"),
@@ -318,13 +318,13 @@ def list_rank_scores(
             query["image_source"] = image_source
         
         if start_date and end_date:
-            query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+            query['creation_time'] = {'$gte': start_date, '$lte': end_date}
         elif start_date:
-            query['task_creation_time'] = {'$gte': start_date}
+            query['creation_time'] = {'$gte': start_date}
         elif end_date:
-            query['task_creation_time'] = {'$lte': end_date}
+            query['creation_time'] = {'$lte': end_date}
         elif threshold_time:
-            query['task_creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
+            query['creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
             
         if min_score and max_score:
             query['score'] = {
@@ -337,10 +337,10 @@ def list_rank_scores(
             query['score'] = { '$lte': min_score }
             
         # Fetch data from the database
-        items = list(request.app.completed_jobs_collection\
-            .find(query))\
-            .sort(score_field, sort_order == "asc")\
-            .skip(offset).limit(limit)
+        items = list(request.app.image_rank_scores_collection\
+            .find(query)\
+            .sort(score_field, 1 if sort_order == 'asc' else -1)\
+            .skip(offset).limit(limit))
         
         score_data = []
         for item in items:
