@@ -30,7 +30,6 @@ from orchestration.api.api_image_by_rank import router as image_by_rank_router
 from orchestration.api.api_queue_ranking import router as queue_ranking_router
 from orchestration.api.api_active_learning import router as active_learning 
 from orchestration.api.api_active_learning_policy import router as active_learning_policy_router
-from orchestration.api.api_pseudo_tag import router as pseudo_tags_router
 from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
@@ -81,7 +80,6 @@ app.include_router(residual_percentile_router)
 app.include_router(queue_ranking_router)
 app.include_router(active_learning)
 app.include_router(active_learning_policy_router)
-app.include_router(pseudo_tags_router)
 app.include_router(worker_router)
 app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
@@ -268,7 +266,6 @@ def startup_db_client():
 
     # pseudo tags
     app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
-    app.pseudo_tag_images_collection = app.mongodb_db["pseudo_tag_images"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
 
@@ -295,10 +292,6 @@ def startup_db_client():
     app.ingress_video_collection = app.mongodb_db["ingress_videos"]
     app.external_dataset_sequential_id = app.mongodb_db["external_dataset_sequential_id"]
 
-    pseudo_tag_uuid_index=[
-    ('uuid', pymongo.ASCENDING)
-    ]
-    create_index_if_not_exists(app.pseudo_tag_images_collection ,pseudo_tag_uuid_index, 'pseudo_tag_uuid_index')
 
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]

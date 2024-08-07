@@ -4,7 +4,7 @@ from typing import List, Dict
 from orchestration.api.mongo_schema.ab_ranking_schemas import Rankmodel, RankRequest, RankListResponse, ListImageRank, ImageRank, RankCategory, RankCategoryRequest, RankCategoryListResponse, RankCountResponse, RankedSelection
 from .mongo_schemas import Classifier, ABRankImagePairResponse, ABRankImagePairResponse_v1
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
+from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
 from bson import ObjectId
 import numpy as np
@@ -48,18 +48,6 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
                     
                 )
 
-        # Check for existing rank_model_vector_index
-        if rank_model_data.rank_model_vector_index is not None:
-            existing_rank_model_with_index = request.app.rank_model_models_collection.find_one(
-                {"rank_model_vector_index": rank_model_data.rank_model_vector_index}
-            )
-            if existing_rank_model_with_index:
-                return response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string= "rank vector index already in use.",
-                    http_status_code=400,
-                    
-                )
 
         # Generate new rank_model_id
         last_entry = request.app.rank_model_models_collection.find_one({}, sort=[("rank_model_id", -1)])
@@ -82,7 +70,6 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
             "classifier_id": rank_model_data.classifier_id,
             "rank_model_category_id": rank_model_data.rank_model_category_id,
             "rank_model_description": rank_model_data.rank_model_description,
-            "rank_model_vector_index": rank_model_data.rank_model_vector_index if rank_model_data.rank_model_vector_index is not None else -1,
             "deprecated": rank_model_data.deprecated,
             "user_who_created": rank_model_data.user_who_created,
             "creation_time": datetime.utcnow().isoformat()
@@ -148,15 +135,6 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="The provided classifier ID does not exist.",
                 http_status_code=400
-            )
-
-    if 'rank_model_vector_index' in update_fields:
-        index_query = {"rank_model_vector_index": update_fields['rank_model_vector_index']}
-        if request.app.rank_model_models_collection.find_one(index_query, {"rank_model_id": 1})['rank_model_id'] != rank_model_id:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="rank vector index already in use.",
-                http_status_code=400,
             )
 
     request.app.rank_model_models_collection.update_one(query, {"$set": update_fields})

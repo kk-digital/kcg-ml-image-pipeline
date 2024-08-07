@@ -492,6 +492,22 @@ async def add_datapoints_v1(request: Request, selection: RankSelectionV1):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
+        valid_image_sources = {"generated_image", "extract_image", "external_image"}
+        
+        if selection.image_1_metadata.image_source not in valid_image_sources:
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Invalid image_source for image_1_metadata. Must be one of 'generated_image', 'extract_image', 'external_image'.",
+                http_status_code=422
+            )
+        
+        if selection.image_2_metadata.image_source not in valid_image_sources:
+            return api_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Invalid image_source for image_2_metadata. Must be one of 'generated_image', 'extract_image', 'external_image'.",
+                http_status_code=422
+            )
+        
         rank = request.app.rank_model_models_collection.find_one(
             {"rank_model_id": selection.rank_model_id}
         )
@@ -559,7 +575,7 @@ async def add_datapoints_v1(request: Request, selection: RankSelectionV1):
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
-        )    
+        )
 
 
 @router.get("/rank-training/list-ranking-datapoints",
