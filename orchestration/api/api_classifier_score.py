@@ -1064,7 +1064,7 @@ async def set_image_classifier_score_v1(
 
 @router.post("/pseudotag-classifier-scores/set-image-classifier-score-v2", 
              status_code=200,
-             response_model=StandardSuccessResponseV1[ClassifierScoreV1],
+             response_model=StandardSuccessResponseV1[ListClassifierScore2],
              description="Set classifier image scores in batch",
              tags=["pseudotag-classifier-scores"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
