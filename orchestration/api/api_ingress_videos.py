@@ -177,8 +177,9 @@ async def get_all_ingress_videos(request: Request):
             http_status_code=500
         )
         
-@router.get(f'{api_prefix}/unprocessed-list',
+@router.get(f'{api_prefix}/list-unprocessed-list',
             description='Get get all unprocessed ingress video',
+            tags=['ingress-videos'],
             response_model=StandardSuccessResponseV1[ListVideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
 async def get_unprocessed_video_list(request: Request):
@@ -202,7 +203,7 @@ async def get_unprocessed_video_list(request: Request):
             description='Delete ingress video with video id',
             tags=['ingress-videos'],
             response_model=StandardSuccessResponseV1[WasPresentResponse],
-            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def delete_video(request: Request, video_id: str):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
@@ -214,7 +215,7 @@ async def delete_video(request: Request, video_id: str):
         if result.deleted_count == 0:
             return api_response_handler.create_success_delete_response_v1(
                 wasPresent=False,
-                http_status_code=404
+                http_status_code=200
             )
         
         return api_response_handler.create_success_delete_response_v1(
@@ -259,7 +260,7 @@ async def delete_ingress_videos_by_video_id_list(request: Request, video_id_list
         
 
 @router.put(f"{api_prefix}/update-ingress-video",
-            description="Update a video game",
+            description="Update a ingress video",
             tags=['ingress-videos'],
             response_model=StandardSuccessResponseV1[VideoMetaData],
             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
@@ -274,7 +275,7 @@ async def update(request: Request, video_metadata: VideoMetaData):
         if not existed:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string=f"Video game data with {video_metadata.video_id} not found",
+                error_string=f"Ingress video with {video_metadata.video_id} not found",
                 http_status_code=404
             )
         
