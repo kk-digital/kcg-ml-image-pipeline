@@ -258,7 +258,7 @@ def get_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int)
             responses=ApiResponseHandlerV1.listErrors([422]))
 def get_image_rank_scores_by_model_id(
     request: Request, 
-    rank_model_id: str, 
+    rank_model_id: int, 
     image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -269,6 +269,46 @@ def get_image_rank_scores_by_model_id(
         query["image_source"] = image_source
 
     items = list(request.app.image_rank_scores_collection.find(query).sort("score", -1))
+    
+    score_data = []
+    for item in items:
+        # Remove the auto generated '_id' field
+        item.pop('_id', None)
+        score_data.append(item)
+    
+    # Return a standardized success response with the score data
+    return api_response_handler.create_success_response_v1(
+        response_data={'scores': score_data},
+        http_status_code=200
+    )
+
+@router.get("/image-scores/scores/list-image-rank-scores-by-uuid-and-model",
+            description="Get image rank scores by uuid and model. Returns as descending order of scores",
+            status_code=200,
+            tags=["image scores"],  
+            response_model=StandardSuccessResponseV1,
+            responses=ApiResponseHandlerV1.listErrors([422]))
+def get_image_rank_scores_by_uuid_and_model(
+    request: Request, 
+    uuid: str, 
+    rank_model_id: str, 
+    image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$")
+):
+    api_response_handler = ApiResponseHandlerV1.createInstance(request)
+    
+    # Check if exist
+    query = {"uuid": uuid, "rank_model_id": rank_model_id}
+    if image_source:
+        query["image_source"] = image_source
+
+    try:
+        items = list(request.app.image_rank_scores_collection.find(query).sort("score", -1))
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=500,
+            error_string=str(e),
+            http_status_code=500
+        )
     
     score_data = []
     for item in items:
