@@ -1,6 +1,6 @@
 import time
 import datetime
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 
 # MongoDB connection details
 MONGO_URI = "mongodb://192.168.3.1:32017/"
@@ -67,7 +67,10 @@ def process_job(job):
 print("Processing all documents in all_images_collection...")
 
 try:
-    cursor = all_images_collection.find(no_cursor_timeout=True)
+    batch_size = 1000  # Adjust batch size as needed
+    bulk_operations = {}
+
+    cursor = all_images_collection.find(no_cursor_timeout=True).batch_size(batch_size)
     for job in cursor:
         image_hash = job.get("image_hash")
         if image_hash:
@@ -81,11 +84,19 @@ try:
                 update_query = {field_path: image_hash}
                 update_data = {"$set": {"image_uuid": processed_job["image_uuid"]}}
 
-                update_result = target_collection.update_one(update_query, update_data)
-                if update_result.modified_count > 0:
-                    print(f"Updated document with image_uuid {processed_job['image_uuid']} in {target_collection.name}")
-                else:
-                    print(f"No documents were updated in {target_collection.name}. The document may already have the field set or the update criteria did not match.")
+                if target_collection.name not in bulk_operations:
+                    bulk_operations[target_collection.name] = []
+
+                bulk_operations[target_collection.name].append(UpdateOne(update_query, update_data))
+
+                if len(bulk_operations[target_collection.name]) >= batch_size:
+                    target_collection.bulk_write(bulk_operations[target_collection.name])
+                    bulk_operations[target_collection.name] = []
+
+    for collection_name, operations in bulk_operations.items():
+        if operations:
+            collection = db[collection_name]
+            collection.bulk_write(operations)
 
 except Exception as e:
     print(f"Error processing job: {e}")
