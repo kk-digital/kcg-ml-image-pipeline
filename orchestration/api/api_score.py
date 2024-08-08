@@ -290,7 +290,7 @@ def get_image_rank_scores_by_model_id(
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def list_rank_scores(
     request: Request, 
-    rank_id: int, 
+    rank_model_id: int, 
     score_field: str = Query(..., description="Score field for selecting if the data must be sorted by score or sigma score."),
     image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$"),
     limit: int = Query(20, description="Limit for pagination"),
@@ -313,7 +313,7 @@ def list_rank_scores(
             threshold_time = current_time - delta
 
         # Check if exist
-        query = {"rank_id": rank_id}
+        query = {"rank_model_id": rank_model_id}
         if image_source:
             query["image_source"] = image_source
         
