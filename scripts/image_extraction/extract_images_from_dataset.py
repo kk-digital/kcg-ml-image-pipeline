@@ -120,7 +120,8 @@ class ImageExtractionPipeline:
                 rank_id = rank_info["rank_id"]
                 print(rank_id)
 
-                if  ranking_model_type != "elm-v1" and rank_id in [0,1,3]:
+                if  ranking_model_type != "elm-v1" or rank_id not in [0,1,3]:
+                    print(rank_id)
                     continue
 
                 rank_id = rank_info["rank_id"]
