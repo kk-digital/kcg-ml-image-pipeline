@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import Request, APIRouter, HTTPException, Query
 from typing import Optional
 
@@ -281,6 +281,85 @@ def get_image_rank_scores_by_model_id(
         response_data={'scores': score_data},
         http_status_code=200
     )
+    
+@router.get("/image-scores/scores/list-rank-scores",
+            description="Get image rank scores by rank id",
+            status_code=200,
+            tags=["image scores"],  
+            response_model=StandardSuccessResponseV1[ListRankingScore],  
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+def list_rank_scores(
+    request: Request, 
+    rank_model_id: int, 
+    score_field: str = Query(..., description="Score field for selecting if the data must be sorted by score or sigma score."),
+    image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$"),
+    limit: int = Query(20, description="Limit for pagination"),
+    offset: int = Query(0, description="Offset for pagination"),
+    start_date: str = Query(None, description="Start date for filtering images"),
+    end_date: str = Query(None, description="End date for filtering images"),
+    sort_order: str = Query('asc', description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    min_score: float = Query(None, description="Minimum score for filtering"),
+    max_score: float = Query(None, description="Maximum score for filtering"),
+    time_interval: int = Query(None, description="Time interval in minutes or hours for filtering"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
+):
+    api_response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Calculate the time threshold based on the current time and the specified interval
+        threshold_time = None
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            delta = timedelta(minutes=time_interval) if time_unit == "minutes" else timedelta(hours=time_interval)
+            threshold_time = current_time - delta
+
+        # Check if exist
+        query = {"rank_model_id": rank_model_id}
+        if image_source:
+            query["image_source"] = image_source
+        
+        if start_date and end_date:
+            query['creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['creation_time'] = {'$lte': end_date}
+        elif threshold_time:
+            query['creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
+            
+        if min_score and max_score:
+            query['score'] = {
+                '$gte': min_score,
+                '$lte': max_score
+            }
+        elif min_score:
+            query['score'] = { '$gte': min_score }
+        elif max_score:
+            query['score'] = { '$lte': min_score }
+            
+        # Fetch data from the database
+        items = list(request.app.image_rank_scores_collection\
+            .find(query)\
+            .sort(score_field, 1 if sort_order == 'asc' else -1)\
+            .skip(offset).limit(limit))
+        
+        score_data = []
+        for item in items:
+            # Remove the auto generated '_id' field
+            item.pop('_id', None)
+            score_data.append(item)
+        
+        # Return a standardized success response with the score data
+        return api_response_handler.create_success_response_v1(
+            response_data={'scores': score_data},
+            http_status_code=200
+        )
+        
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
 
 
 
