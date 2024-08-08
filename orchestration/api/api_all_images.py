@@ -53,9 +53,24 @@ async def list_all_images(
         # Add date filters to the query
         date_query = {}
         if start_date:
-            date_query['$gte'] = api_date_to_unix_int32(start_date)
+            start_date_unix = api_date_to_unix_int32(start_date)
+            if start_date_unix is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.OTHER_ERROR,
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=422
+                )
+            date_query['$gte'] = start_date_unix
         if end_date:
-            date_query['$lte'] = api_date_to_unix_int32(end_date) 
+            end_date_unix = api_date_to_unix_int32(end_date)
+            if end_date_unix is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.OTHER_ERROR,
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=422
+                )
+            date_query['$lte'] = end_date_unix
+                
 
         print(f"Date query after adding start_date and end_date: {date_query}")
 
