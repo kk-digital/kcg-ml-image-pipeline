@@ -123,7 +123,7 @@ async def set_image_rank_score(
     ranking_score_data = ranking_score.dict()
     ranking_score_data['image_source'] = image_source
     ranking_score_data['image_hash'] = image_hash
-    ranking_score_data["creation_time"] = datetime.utcnow().isoformat(),
+    ranking_score_data["creation_time"] = datetime.utcnow().isoformat() 
     request.app.image_rank_scores_collection.insert_one(ranking_score_data)
 
     ranking_score_data.pop('_id', None)
@@ -206,7 +206,7 @@ async def set_image_rank_score_batch(
 def get_image_rank_score_by_hash(
     request: Request, 
     image_hash: str = Query(..., description="The hash of the image to get score for"), 
-    rank_model_id: str = Query(..., description="The rank model ID associated with the image score"),
+    rank_model_id: int = Query(..., description="The rank model ID associated with the image score"),
     image_source: str = Query(..., description="The source of the image", regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -338,7 +338,7 @@ def get_image_rank_scores_by_uuid_and_model(
 def delete_image_rank_score_by_hash(
     request: Request, 
     image_hash: str = Query(..., description="The hash of the image to delete score for"), 
-    rank_model_id: str = Query(..., description="The rank model ID associated with the image score"),
+    rank_model_id: int = Query(..., description="The rank model ID associated with the image score"),
     image_source: str = Query(..., description="The source of the image", regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
