@@ -69,7 +69,7 @@ class ABRankingLinearModelDeprecate(nn.Module):
         return output
 
 class ABRankingModel:
-    def __init__(self, inputs_shape, device):
+    def __init__(self, inputs_shape, device = None):
         if device is not None:
             self._device = device
         elif torch.cuda.is_available():
