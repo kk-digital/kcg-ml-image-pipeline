@@ -287,7 +287,6 @@ class RankingScore(BaseModel):
     rank_model_id: int
     rank_id: int
     uuid: str
-    image_hash: str
     score: float
     sigma_score: float
 
@@ -295,7 +294,6 @@ class RankingScore(BaseModel):
         return {
             "rank_model_id": self.rank_model_id,
             "uuid": self.uuid,
-            "image_hash": self.image_hash,
             "score": self.score,
             "sigma_score": self.sigma_score
         }
@@ -308,6 +306,7 @@ class ResponseRankingScore(BaseModel):
     score: float    
     sigma_score: float
     image_source: str
+    creation_time: str
 
 class ListRankingScore(BaseModel):
     scores: List[ResponseRankingScore]  

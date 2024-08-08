@@ -123,7 +123,7 @@ async def set_image_rank_score(
     ranking_score_data = ranking_score.dict()
     ranking_score_data['image_source'] = image_source
     ranking_score_data['image_hash'] = image_hash
-    ranking_score_data["creation_time"] = datetime.utcnow().isoformat(),
+    ranking_score_data["creation_time"] = datetime.utcnow().isoformat() 
     request.app.image_rank_scores_collection.insert_one(ranking_score_data)
 
     ranking_score_data.pop('_id', None)
@@ -206,7 +206,7 @@ async def set_image_rank_score_batch(
 def get_image_rank_score_by_hash(
     request: Request, 
     image_hash: str = Query(..., description="The hash of the image to get score for"), 
-    rank_model_id: str = Query(..., description="The rank model ID associated with the image score"),
+    rank_model_id: int = Query(..., description="The rank model ID associated with the image score"),
     image_source: str = Query(..., description="The source of the image", regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -258,7 +258,7 @@ def get_image_rank_scores_by_rank_model_id(request: Request, rank_model_id: int)
             responses=ApiResponseHandlerV1.listErrors([422]))
 def get_image_rank_scores_by_model_id(
     request: Request, 
-    rank_model_id: str, 
+    rank_model_id: int, 
     image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -269,6 +269,46 @@ def get_image_rank_scores_by_model_id(
         query["image_source"] = image_source
 
     items = list(request.app.image_rank_scores_collection.find(query).sort("score", -1))
+    
+    score_data = []
+    for item in items:
+        # Remove the auto generated '_id' field
+        item.pop('_id', None)
+        score_data.append(item)
+    
+    # Return a standardized success response with the score data
+    return api_response_handler.create_success_response_v1(
+        response_data={'scores': score_data},
+        http_status_code=200
+    )
+
+@router.get("/image-scores/scores/list-image-rank-scores-by-uuid-and-model",
+            description="Get image rank scores by uuid and model. Returns as descending order of scores",
+            status_code=200,
+            tags=["image scores"],  
+            response_model=StandardSuccessResponseV1,
+            responses=ApiResponseHandlerV1.listErrors([422]))
+def get_image_rank_scores_by_uuid_and_model(
+    request: Request, 
+    uuid: str, 
+    rank_model_id: str, 
+    image_source: Optional[str] = Query(None, regex="^(generated_image|extract_image|external_image)$")
+):
+    api_response_handler = ApiResponseHandlerV1.createInstance(request)
+    
+    # Check if exist
+    query = {"uuid": uuid, "rank_model_id": rank_model_id}
+    if image_source:
+        query["image_source"] = image_source
+
+    try:
+        items = list(request.app.image_rank_scores_collection.find(query).sort("score", -1))
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=500,
+            error_string=str(e),
+            http_status_code=500
+        )
     
     score_data = []
     for item in items:
@@ -298,7 +338,7 @@ def get_image_rank_scores_by_model_id(
 def delete_image_rank_score_by_hash(
     request: Request, 
     image_hash: str = Query(..., description="The hash of the image to delete score for"), 
-    rank_model_id: str = Query(..., description="The rank model ID associated with the image score"),
+    rank_model_id: int = Query(..., description="The rank model ID associated with the image score"),
     image_source: str = Query(..., description="The source of the image", regex="^(generated_image|extract_image|external_image)$")
 ):
     api_response_handler = ApiResponseHandlerV1(request)
