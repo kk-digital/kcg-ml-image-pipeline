@@ -117,8 +117,9 @@ class ImageExtractionPipeline:
 
             for rank_info in rank_model_list:
                 ranking_model_type = rank_info["model_type"]
+                rank_id = rank_info["rank_id"]
 
-                if  ranking_model_type != "elm-v1":
+                if  ranking_model_type != "elm-v1" and rank_id in [0,1,3]:
                     continue
 
                 rank_id = rank_info["rank_id"]
