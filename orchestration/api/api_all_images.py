@@ -17,7 +17,7 @@ import time
 
 router = APIRouter()
 
-@router.get("/all-images/list",
+@router.get("/all-images/list-images",
             description="list images according dataset_id and bucket_id",
             tags=["all-images"],
             response_model=StandardSuccessResponseV1[ListAllImagesResponse],
@@ -29,8 +29,8 @@ async def list_all_images(
     limit: int = Query(20, description="Limit on the number of results returned"),
     offset: int = Query(0, description="Offset for the results to be returned"),
     order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
-    start_date: Optional[str] = Query(None, description="Start date for filtering results"),
-    end_date: Optional[str] = Query(None, description="End date for filtering results"),
+    start_date: Optional[str] = Query(None, description="Start date for filtering results, Must be in the format 'YYYY-MM-DDTHH:MM:SS "),
+    end_date: Optional[str] = Query(None, description="End date for filtering results, Must be in the format 'YYYY-MM-DDTHH:MM:SS"),
     time_interval: Optional[int] = Query(None, description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
 ):
@@ -57,7 +57,7 @@ async def list_all_images(
             if start_date_unix is None:
                 return response_handler.create_error_response_v1(
                     error_code=ErrorCode.OTHER_ERROR,
-                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
                     http_status_code=422
                 )
             date_query['$gte'] = start_date_unix

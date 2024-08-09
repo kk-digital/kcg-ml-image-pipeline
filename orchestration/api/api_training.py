@@ -8,7 +8,7 @@ from .api_utils import PrettyJSONResponse
 router = APIRouter()
 
 # -------------------- Get -------------------------
-@router.get("/queue/model-training/get-job")
+@router.get("/model-training/queue/get-job")
 def get_job(request: Request, model_task: str = None):
     query = {}
     if model_task:
@@ -30,7 +30,7 @@ def get_job(request: Request, model_task: str = None):
     return job
 
  # --------------------- Add ---------------------------
-@router.post("/queue/model-training/add-training-job", description="Add a job to db")
+@router.post("/model-training/queue/add-training-job", description="Add a job to db")
 def add_job(request: Request, training_task: TrainingTask):
     if training_task.uuid in ["", None]:
         # generate since its empty
@@ -46,25 +46,25 @@ def add_job(request: Request, training_task: TrainingTask):
 
 
 # -------------- Get jobs count ----------------------
-@router.get("/queue/model-training/pending-job-count")
+@router.get("/model-training/queue/pending-job-count")
 def get_pending_job_count(request: Request):
     count = request.app.training_pending_jobs_collection.count_documents({})
     return {"pending_job_count": count}
 
 
-@router.get("/queue/model-training/inprogress-job-count")
+@router.get("/model-training/queue/inprogress-job-count")
 def get_in_progress_job_count(request: Request):
     count = request.app.training_in_progress_jobs_collection.count_documents({})
     return {"in_progress_job_count": count}
 
 
-@router.get("/queue/model-training/completed-job-count")
+@router.get("/model-training/queue/completed-job-count")
 def get_completed_job_count(request: Request):
     count = request.app.training_completed_jobs_collection.count_documents({})
     return {"completed_job_count": count}
 
 
-@router.get("/queue/model-training/failed-job-count")
+@router.get("/model-training/queue/failed-job-count")
 def get_failed_job_count(request: Request):
     count = request.app.training_failed_jobs_collection.count_documents({})
     return {"failed_job_count": count}
@@ -72,14 +72,14 @@ def get_failed_job_count(request: Request):
 
 
 # ----------------- delete jobs ----------------------
-@router.delete("/queue/model-training/clear-pending-jobs")
+@router.delete("/model-training/queue/clear-pending-jobs")
 def clear_all_pending_jobs(request: Request):
     request.app.training_pending_jobs_collection.delete_many({})
 
     return True
 
 
-@router.delete("/queue/model-training/clear-all-in-progress-jobs")
+@router.delete("/model-training/queue/clear-all-in-progress-jobs")
 def clear_all_in_progress_jobs(request: Request, dataset: str = Query(...)):  
     if dataset == "all":
         request.app.training_in_progress_jobs_collection.delete_many({})
@@ -89,7 +89,7 @@ def clear_all_in_progress_jobs(request: Request, dataset: str = Query(...)):
     return True
 
 
-@router.delete("/queue/model-training/clear-all-failed-jobs")
+@router.delete("/model-training/queue/clear-all-failed-jobs")
 def clear_all_failed_jobs(request: Request, dataset: str = Query(...)):  
     if dataset == "all":
         request.app.training_failed_jobs_collection.delete_many({})
@@ -98,7 +98,7 @@ def clear_all_failed_jobs(request: Request, dataset: str = Query(...)):
 
     return True
 
-@router.delete("/queue/model-training/clear-all-completed-jobs")
+@router.delete("/model-training/queue/clear-all-completed-jobs")
 def clear_all_completed_jobs(request: Request, dataset: str = Query(...)): 
     if not dataset:
         raise HTTPException(status_code=400, detail="Dataset parameter is required.")
@@ -110,7 +110,7 @@ def clear_all_completed_jobs(request: Request, dataset: str = Query(...)):
 
 
  # --------------------- List ----------------------
-@router.get("/queue/model-training/list-pending-jobs", response_class=PrettyJSONResponse)
+@router.get("/model-training/queue/list-pending-jobs", response_class=PrettyJSONResponse)
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.training_pending_jobs_collection.find({}))
 
@@ -120,7 +120,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-inprogress-jobs", response_class=PrettyJSONResponse)
+@router.get("/model-training/queue/list-inprogress-jobs", response_class=PrettyJSONResponse)
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.training_in_progress_jobs_collection.find({}))
 
@@ -130,7 +130,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-completed-jobs", response_class=PrettyJSONResponse)
+@router.get("/model-training/queue/list-completed-jobs", response_class=PrettyJSONResponse)
 def get_list_completed_jobs(request: Request):
     jobs = list(request.app.training_completed_jobs_collection.find({}))
 
@@ -140,7 +140,7 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-failed-jobs", response_class=PrettyJSONResponse)
+@router.get("/model-training/queue/list-failed-jobs", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):
     jobs = list(request.app.training_failed_jobs_collection.find({}))
 
@@ -153,7 +153,7 @@ def get_list_failed_jobs(request: Request):
 # ---------------- Update -------------------
 
 
-@router.put("/queue/model-training/update-job-status-to-completed", description="Update in progress job and mark as completed.")
+@router.put("/model-training/queue/update-job-status-to-completed", description="Update in progress job and mark as completed.")
 def update_job_completed(request: Request, training_task: TrainingTask):
     # check if exist
     job = request.app.training_in_progress_jobs_collection.find_one({"uuid": training_task.uuid})
@@ -169,7 +169,7 @@ def update_job_completed(request: Request, training_task: TrainingTask):
     return True
 
 
-@router.put("/queue/model-training/update-job-status-to-failed", description="Update in progress job and mark as failed.")
+@router.put("/model-training/queue/update-job-status-to-failed", description="Update in progress job and mark as failed.")
 def update_job_failed(request: Request, training_task: TrainingTask):
     # check if exist
     job = request.app.training_in_progress_jobs_collection.find_one({"uuid": training_task.uuid})

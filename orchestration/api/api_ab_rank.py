@@ -227,18 +227,6 @@ def remove_rank(request: Request, rank_model_id: int ):
                                                            http_status_code=200
                                                            )
 
-    # Check if the rank is used in any images
-    image_query = {"rank_model_id": rank_model_id}
-    image_with_rank = request.app.image_ranks_collection.find_one(image_query)
-
-    if image_with_rank is not None:
-        # Since it's used in images, do not delete but notify the client
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Cannot remove rank, it is already used in images.",
-            http_status_code=400
-        )
-
     # Remove the rank
     request.app.rank_model_models_collection.delete_one(rank_model_query)
 

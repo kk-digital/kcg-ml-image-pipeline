@@ -244,7 +244,6 @@ def startup_db_client():
 
     # ab ranking
     app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
-    app.image_ranks_collection = app.mongodb_db["image_ranks"]
     app.rank_model_categories_collection = app.mongodb_db["rank_categories"]
 
 
