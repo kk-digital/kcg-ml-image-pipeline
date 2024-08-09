@@ -155,7 +155,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.on_event("startup")
 def startup_db_client():
     # add creation of mongodb here for now
-    app.mongodb_client = pymongo.MongoClient(config["DB_URL"])
+    app.mongodb_client = pymongo.MongoClient(config["DB_URL"], uuidRepresentation='standard')
     app.mongodb_db = app.mongodb_client["orchestration-job-db"]
     app.users_collection = app.mongodb_db["users"]
     app.pending_jobs_collection = app.mongodb_db["pending-jobs"]

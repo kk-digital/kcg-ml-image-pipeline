@@ -1,3 +1,4 @@
+import uuid
 from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
 import pymongo 
@@ -976,8 +977,15 @@ def add_irrelevant_image_v1(
             http_status_code=422
         )
 
+    image_query = {
+        '$or': [
+            {'uuid': job_uuid},
+            {'uuid': uuid.UUID(job_uuid)}
+        ]
+    }
+
     # Fetch the image details from the determined collection
-    job = collection.find_one({"uuid": job_uuid}, projection)
+    job = collection.find_one(image_query, projection)
     if not job:
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND,

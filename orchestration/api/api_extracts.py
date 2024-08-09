@@ -1,8 +1,9 @@
 
 from fastapi import APIRouter, Request,  Query, HTTPException, status
+from orchestration.api.mongo_schema.extracts_schemas import ExtractsHelpers
 from utility.path import separate_bucket_and_file_path
-from .mongo_schemas import ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
-from pymongo import ReturnDocument
+from .mongo_schemas import AffectedCountResponse, ExtractImageData, ListExtractImageData, Dataset, ListExtractImageDataV1, ListDataset , ListExtractImageDataWithScore, ExtractImageDataV1
+from pymongo import ReturnDocument, UpdateOne
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse, TagCountResponse, get_minio_file_path, get_next_external_dataset_seq_id, update_external_dataset_seq_id, validate_date_format, TagListForImages, TagListForImagesV1,PrettyJSONResponse
 from orchestration.api.mongo_schema.tag_schemas import ListExternalImageTag, ImageTag
 from datetime import datetime
@@ -136,8 +137,12 @@ async def add_extract(request: Request, image_data: ExtractImageData):
                                                     "extracts",    
                                                     image_data.dataset, 
                                                     'jpg')
-            
-            request.app.extracts_collection.insert_one(image_data.to_dict())
+
+            data_to_save = image_data.to_dict()
+            data_to_save['old_uuid_string'] = image_data.uuid
+            data_to_save['uuid'] = uuid.UUID(image_data.uuid)
+
+            request.app.extracts_collection.insert_one(data_to_save)
         else:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -148,8 +153,9 @@ async def add_extract(request: Request, image_data: ExtractImageData):
         # update sequential id
         update_external_dataset_seq_id(request=request, bucket="extracts", dataset=image_data.dataset, seq_id=next_seq_id) 
 
+        ExtractsHelpers.clean_extract_for_api_response(data_to_save)
         return api_response_handler.create_success_response_v1(
-            response_data={"data": image_data.to_dict()},
+            response_data={"data": data_to_save},
             http_status_code=200  
         )
     
@@ -159,7 +165,43 @@ async def add_extract(request: Request, image_data: ExtractImageData):
             error_string=str(e),
             http_status_code=500
         )
+
+@router.put("/extracts/update-uuid-datatype",
+        description="Changes the datatype of a batch of extracts in the database from string to uuid. It must be called several times until all the images are processes. Call it until the endpoint returns 'affected_entries' set to 0.",
+        tags=["extracts"],  
+        response_model=StandardSuccessResponseV1[AffectedCountResponse],  
+        responses=ApiResponseHandlerV1.listErrors([500]))
+async def tmp_update_uuid(request: Request, batch_size: int = Query(..., description="How many images will be ")):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        images_cursor = request.app.extracts_collection.find({"old_uuid_string": {"$exists": False}}).limit(batch_size)
+
+        affected_entries = 0
+
+        update_operations = []
+        for image in images_cursor:
+            new_values = {"uuid": uuid.UUID(image["uuid"]), "old_uuid_string": image["uuid"]}
+            update_operations.append(
+                UpdateOne({"uuid": image["uuid"]}, {"$set": new_values})
+            )
+            affected_entries += 1
+
+        if len(update_operations) > 0:
+            request.app.extracts_collection.bulk_write(update_operations)
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"response": {"affected_entries": affected_entries}},
+            http_status_code=200  
+        )
     
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+  
 
 @router.post("/extracts/add-extracted-image-v1", 
             description="Add an extracted image data",
@@ -185,14 +227,14 @@ async def add_extract(request: Request, image_data: ExtractImageDataV1):
 
         if existed is None:
             image_data_dict = image_data.to_dict()
-            image_data_dict['uuid'] = str(uuid.uuid4())
+            image_data_dict['uuid'] = uuid.uuid4()
+            image_data_dict['old_uuid_string'] = str(image_data_dict['uuid'])
             image_data_dict['upload_date'] = str(datetime.now())
             next_seq_id = get_next_external_dataset_seq_id(request, bucket="extracts", dataset=image_data.dataset)
             image_data_dict['file_path'] = get_minio_file_path(next_seq_id, "extracts", image_data.dataset, 'jpg')
 
             
             request.app.extracts_collection.insert_one(image_data_dict)
-            image_data_dict.pop('_id', None)
             
         else:
             return api_response_handler.create_error_response_v1(
@@ -203,6 +245,7 @@ async def add_extract(request: Request, image_data: ExtractImageDataV1):
         
         update_external_dataset_seq_id(request=request, bucket="extracts", dataset=image_data.dataset, seq_id=next_seq_id) 
 
+        ExtractsHelpers.clean_extract_for_api_response(image_data_dict)
         return api_response_handler.create_success_response_v1(
             response_data= image_data_dict,
             http_status_code=200  
@@ -233,9 +276,7 @@ async def get_all_extracts_list(request: Request, dataset: str=None, size: int =
             aggregation_pipeline.append({"$sample": {"size": size}})
 
         image_data_list = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
-
-        for image_data in image_data_list:
-            image_data.pop('_id', None)  # Remove the auto-generated field
+        ExtractsHelpers.clean_extract_list_for_api_response(image_data_list)
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": image_data_list},
@@ -267,9 +308,7 @@ async def get_all_extracts_list_v1(request: Request, dataset: Optional[List[str]
             aggregation_pipeline.append({"$sample": {"size": size}})
 
         image_data_list = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
-
-        for image_data in image_data_list:
-            image_data.pop('_id', None)  # Remove the auto-generated field
+        ExtractsHelpers.clean_extract_list_for_api_response(image_data_list)
 
         return api_response_handler.create_success_response_v1(
             response_data={"data": image_data_list},
@@ -785,16 +824,11 @@ async def list_extract_images_v1(
         sort_order = -1 if order == "desc" else 1
 
         # Query the external_images_collection using the constructed query
-        images_cursor = request.app.extracts_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit)
-
-        # Collect the metadata for the images that match the query
-        images_metadata = []
-        for image in images_cursor:
-            image.pop('_id', None)  # Remove the auto-generated field
-            images_metadata.append(image)
+        images = list(request.app.extracts_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit))
+        ExtractsHelpers.clean_extract_list_for_api_response(images)
 
         return response_handler.create_success_response_v1(
-            response_data={"images": images_metadata},
+            response_data={"images": images},
             http_status_code=200
         )
     except Exception as e:
@@ -880,16 +914,11 @@ async def list_extract_images(
         sort_order = -1 if order == "desc" else 1
 
         # Query the extracts_collection using the constructed query
-        images_cursor = request.app.extracts_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit)
-
-        # Collect the metadata for the images that match the query
-        images_metadata = []
-        for image in images_cursor:
-            image.pop('_id', None)  # Remove the auto-generated field
-            images_metadata.append(image)
+        images = list(request.app.extracts_collection.find(query).sort("upload_date", sort_order).skip(offset).limit(limit))
+        ExtractsHelpers.clean_extract_list_for_api_response(images)
 
         return response_handler.create_success_response_v1(
-            response_data={"images": images_metadata},
+            response_data={"images": images},
             http_status_code=200
         )
     except Exception as e:
@@ -915,6 +944,7 @@ async def get_image_details_by_hash(request: Request, image_hash: str, fields: L
 
     # Find the image by hash
     image_data = request.app.extracts_collection.find_one({"image_hash": image_hash}, projection)
+    ExtractsHelpers.clean_extract_for_api_response(image_data)
     if image_data:
         return response_handler.create_success_response_v1(response_data=image_data, http_status_code=200)
     else:
@@ -939,6 +969,7 @@ async def get_image_details_by_hashes(request: Request, image_hashes: List[str] 
 
     # Use the $in operator to find all matching documents in one query
     image_data_list = list(request.app.extracts_collection.find({"image_hash": {"$in": image_hashes}}, projection))
+    ExtractsHelpers.clean_extract_list_for_api_response(image_data_list)
 
     # Return the data found in the success response
     return response_handler.create_success_response_v1(response_data={"images":image_data_list}, http_status_code=200)    
@@ -977,10 +1008,10 @@ async def get_random_external_image_similarity(
             aggregation_pipeline.append({"$sample": {"size": size}})
 
         images = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
+        ExtractsHelpers.clean_extract_list_for_api_response(images)
 
         image_path_list = []
         for image in images:
-            image.pop('_id', None)  # Remove the auto-generated field
             bucket_name, file_path= separate_bucket_and_file_path(image['file_path'])
             image_path_list.append(file_path)
 
@@ -1051,10 +1082,10 @@ async def get_random_external_image_similarity_v1(
             aggregation_pipeline.append({"$sample": {"size": size}})
 
         images = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
+        ExtractsHelpers.clean_extract_list_for_api_response(images)
 
         image_path_list = []
         for image in images:
-            image.pop('_id', None)  # Remove the auto-generated field
             bucket_name, file_path= separate_bucket_and_file_path(image['file_path'])
             image_path_list.append(file_path)
 
@@ -1227,7 +1258,6 @@ def get_random_image_date_range(
 
         documents = list(request.app.extracts_collection.aggregate(aggregation_pipeline))
 
-    for document in documents:
-        document.pop('_id', None)  # Remove the auto-generated field
+    ExtractsHelpers.clean_extract_list_for_api_response(documents)
 
     return documents

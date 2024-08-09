@@ -1,3 +1,4 @@
+import uuid
 from pymongo import MongoClient
 
 # MongoDB connection details
@@ -28,16 +29,22 @@ def update_mongodb_documents():
             continue
 
         # Determine the image source based on uuid
-        uuid = document.get("uuid")
-        if uuid:
-            if completed_jobs_collection.find_one({"uuid": uuid}):
+        document_uuid = document.get("uuid")
+        if document_uuid:
+            image_query = {
+                '$or': [
+                    {'uuid': document_uuid},
+                    {'uuid': uuid.UUID(document_uuid)}
+                ]
+            }
+            if completed_jobs_collection.find_one(image_query):
                 document[NEW_FIELD] = "generated_image"
-            elif extracts_collection.find_one({"uuid": uuid}):
+            elif extracts_collection.find_one(image_query):
                 document[NEW_FIELD] = "extract_image"
-            elif external_images_collection.find_one({"uuid": uuid}):
+            elif external_images_collection.find_one(image_query):
                 document[NEW_FIELD] = "external_image"
             else:
-                print(f"UUID {uuid} not found in any collections.")
+                print(f"UUID {document_uuid} not found in any collections.")
                 continue  # Skip if uuid is not found in any collection
         else:
             print(f"Document ID: {document['_id']} does not have a uuid.")

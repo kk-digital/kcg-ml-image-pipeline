@@ -436,6 +436,8 @@ class ExtractImageDataV1(BaseModel):
             "task_attributes_dict": self.task_attributes_dict,
         }    
 
+class AffectedCountResponse(BaseModel):
+    affected_entries: int
 
 class ListExtractImageData(BaseModel):
     data: List[ExtractImageData] 

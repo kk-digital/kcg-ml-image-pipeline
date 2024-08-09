@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import uuid
 from fastapi import Request, APIRouter, HTTPException, Query
 from typing import Optional
 
@@ -82,10 +83,17 @@ async def set_image_rank_score(
             http_status_code=422
         )
 
+    image_query = {
+        '$or': [
+            {'uuid': ranking_score.uuid},
+            {'uuid': uuid.UUID(ranking_score.uuid)}
+        ]
+    }
+
     # Fetch additional data from the determined collection
     if image_source == "generated_image":
         image_data = collection.find_one(
-            {"uuid": ranking_score.uuid},
+            image_query,
             {"task_output_file_dict.output_file_hash": 1}
         )
         if not image_data or 'task_output_file_dict' not in image_data or 'output_file_hash' not in image_data['task_output_file_dict']:
@@ -96,7 +104,7 @@ async def set_image_rank_score(
             )
         image_hash = image_data['task_output_file_dict']['output_file_hash']
     else:
-        image_data = collection.find_one({"uuid": ranking_score.uuid}, {"image_hash": 1})
+        image_data = collection.find_one(image_query, {"image_hash": 1})
         if not image_data:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
