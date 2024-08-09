@@ -639,3 +639,82 @@ async def get_random_image_similarity_date_range(
             error_string=str(e),
             http_status_code=500
         )
+
+
+@router.get("/clip/get-random-images-with-clip-search-v1",
+            tags=["clip"],
+            description="Gets as many random images as set in the size param, scores each image with clip according to the value of the 'phrase' param and then returns the list sorted by the similarity score. NOTE: before using this endpoint, make sure to register the phrase using the '/clip/add-phrase' endpoint.",
+            response_model=StandardSuccessResponseV1[ListSimilarityScoreTask],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_random_image_similarity_date_range_v1(
+    request: Request,
+    dataset: Optional[List[str]] = Query(None, description="Dataset(s) to filter images"),
+    phrase: str = Query(..., description="Phrase to compare similarity with"),
+    similarity_threshold: float = Query(0, description="Minimum similarity score the images must have to be returned"),
+    start_date: str = None,
+    end_date: str = None,
+    size: int = Query(..., description="Size of the random images sample"),
+    prompt_generation_policy: Optional[str] = Query(None, description="Optional prompt generation policy")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        query = {}
+        if dataset:
+            query['task_input_dict.dataset'] = {"$in": dataset}
+
+        if start_date and end_date:
+            query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['task_creation_time'] = {'$gte': start_date}
+        elif end_date:
+            query['task_creation_time'] = {'$lte': end_date}
+
+        # Include prompt_generation_policy in the query if provided
+        if prompt_generation_policy:
+            query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
+
+        aggregation_pipeline = [{"$match": query}]
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        jobs = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+
+        image_path_list = []
+        for job in jobs:
+            job.pop('_id', None)  # Remove the auto-generated field
+            output_file_dictionary = job["task_output_file_dict"]
+            image_path = output_file_dictionary['output_file_path'].replace("datasets/", "")
+            image_path_list.append(image_path)
+
+        similarity_score_list = http_clip_server_get_cosine_similarity_list("datasets", image_path_list, phrase)
+
+        if similarity_score_list is None or 'similarity_list' not in similarity_score_list:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string="Error retrieving similarity scores",
+                http_status_code=500
+            )
+
+        similarity_score_list = similarity_score_list['similarity_list']
+
+        if len(jobs) != len(similarity_score_list):
+            return response_handler.create_success_response_v1(response_data={"images": []}, http_status_code=200)
+
+        filtered_images = []
+        for i in range(len(jobs)):
+            image_similarity_score = similarity_score_list[i]
+            job = jobs[i]
+
+            if image_similarity_score >= similarity_threshold:
+                job["similarity_score"] = image_similarity_score
+                filtered_images.append(job)
+
+        return response_handler.create_success_response_v1(response_data={"images": filtered_images}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )

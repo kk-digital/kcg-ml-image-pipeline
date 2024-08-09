@@ -181,8 +181,7 @@ class ImageMetadataV1(BaseModel):
     features_type: Union[str, None] = None
     features_model: Union[str, None] = None
     features_vector: Union[list, None] = None
-    image_source: Optional[str] = Field(None, pattern="^(generated_image|external_image|extract_image)$")
-   
+    image_source: Union[str, None] = None
 
     def to_dict(self):
         return {
@@ -288,7 +287,6 @@ class RankingScore(BaseModel):
     rank_model_id: int
     rank_id: int
     uuid: str
-    image_hash: str
     score: float
     sigma_score: float
 
@@ -296,7 +294,6 @@ class RankingScore(BaseModel):
         return {
             "rank_model_id": self.rank_model_id,
             "uuid": self.uuid,
-            "image_hash": self.image_hash,
             "score": self.score,
             "sigma_score": self.sigma_score
         }
@@ -309,6 +306,7 @@ class ResponseRankingScore(BaseModel):
     score: float    
     sigma_score: float
     image_source: str
+    creation_time: str
 
 class ListRankingScore(BaseModel):
     scores: List[ResponseRankingScore]  
