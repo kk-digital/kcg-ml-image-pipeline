@@ -344,6 +344,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, default=None, help='MinIO secret key')
 
      # Add arguments for training parameters
+    parser.add_argument('--rank-id', type=int, default=None, help='Rank Id, if none, will train all ranks')
     parser.add_argument('--input-type', type=str, default='clip', help='Input type')
     parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
     parser.add_argument('--learning-rate', type=float, default=0.05, help='Learning rate')
@@ -376,6 +377,11 @@ def main():
 
     for rank_model in rank_model_list:
         print("{} Ranking....".format(rank_model["rank_model_string"]))
+        
+        # if rank_id is None, will train all ranks
+        if args.rank_id is not None and rank_model["rank_model_id"] != args.rank_id:
+            continue
+        
         train_ranking(
                 rank_model_info=rank_model,
                 minio_ip_addr=args.minio_ip_addr,
